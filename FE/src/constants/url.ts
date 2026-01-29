@@ -12,6 +12,7 @@ export const URL_FRONTEND = `${DOMAIN_FRONTEND}/redirect`;
 
 // API URL
 export const API_URL = `${VITE_BASE_URL_SERVER}/api/v1` as string;
+export const API_URL_1 = `${VITE_BASE_URL_SERVER}/api` as string;
 
 export const SCREEN_ROLE_ADMIN = `&screen=${ROLES.ADMIN}`;
 export const SCREEN_ROLE_USERS = `&screen=${ROLES.USERS}`;

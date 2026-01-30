@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
 
   be:
-    build: .
+    image: nguyenduoc/datn-be:${TAG}
     container_name: ecommerce-be
     depends_on:
       - mysql

@@ -2,6 +2,7 @@ import type { AxiosResponse } from "axios";
 import type { ParamsPhieuGiamGia, PhieuGiamGiaResponse } from "../../admin/banhang.api";
 import request from "@/services/request";
 import type { DefaultResponse, PaginationResponse } from "@/types/api.common";
+import { API_URL_1 } from "@/constants/url";
 
 interface ParamsThanhToan {
   hoTen: string;
@@ -20,7 +21,7 @@ interface ParamsThanhToan {
 
 export const ThanhToan = async (data: ParamsThanhToan) => {
   const res = (await request({
-    url: `http://localhost:8386/api/orders/create`,
+    url: `${API_URL_1}/orders/create`,
     method: "POST",
     data: data, // Sử dụng 'data' thay vì 'params' để gửi body JSON
     headers: {
@@ -33,7 +34,7 @@ export const ThanhToan = async (data: ParamsThanhToan) => {
 
 export const ThanhToanVnPay = async (data: ParamsThanhToan) => {
   const res = (await request({
-    url: `http://localhost:8386/api/orders/create-vnpay`,
+    url: `${API_URL_1}/orders/create-vnpay`,
     method: "POST",
     data: data, // Sử dụng 'data' thay vì 'params' để gửi body JSON
     headers: {
@@ -46,7 +47,7 @@ export const ThanhToanVnPay = async (data: ParamsThanhToan) => {
 
 export const getPGG = async (data: ParamsPhieuGiamGia) => {
   const res = (await request({
-    url: `http://localhost:8386/api/orders/pgg`,
+    url: `${API_URL_1}/orders/pgg`,
     method: "POST",
     params: data,
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<PhieuGiamGiaResponse>>>>;
@@ -56,7 +57,7 @@ export const getPGG = async (data: ParamsPhieuGiamGia) => {
 
 export const getKhachHangDetail = async (id: string) => {
   const res = (await request({
-    url: `http://localhost:8386/api/orders/khach-hang/${id}`,
+    url: `${API_URL_1}/orders/khach-hang/${id}`,
     method: "POST",
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<PhieuGiamGiaResponse>>>>;
 
@@ -65,7 +66,7 @@ export const getKhachHangDetail = async (id: string) => {
 
 export const getListPGG = async (data: ParamsPhieuGiamGia) => {
   const res = (await request({
-    url: `http://localhost:8386/api/orders/pgg/list`,
+    url: `${API_URL_1}/orders/pgg/list`,
     method: "POST",
     params: data, 
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<PhieuGiamGiaResponse>>>>;

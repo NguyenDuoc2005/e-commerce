@@ -19,10 +19,13 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      # gradlew nằm trong BE/
       - name: Grant execute permission for gradlew
+        working-directory: BE
         run: chmod +x gradlew
 
-      - name: Build JAR
+      - name: Build JAR (Gradle)
+        working-directory: BE
         run: ./gradlew clean bootJar -x test
 
       - name: Set up Docker Buildx
@@ -34,6 +37,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Dockerfile ở ROOT nên context = .
       - name: Build & Push Docker Image
         uses: docker/build-push-action@v6
         with:
@@ -53,7 +57,7 @@ jobs:
             set -e
             cd "${{ secrets.APP_DIR }}"
 
-            # update TAG in .env (create if missing)
+            # Update TAG in .env (create if missing)
             if [ -f .env ]; then
               if grep -q '^TAG=' .env; then
                 sed -i "s/^TAG=.*/TAG=${{ github.sha }}/" .env

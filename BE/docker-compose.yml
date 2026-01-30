@@ -1,0 +1,54 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ecommerce-mysql
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+  be:
+    build: .
+    container_name: ecommerce-be
+    depends_on:
+      - mysql
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+      SERVER_PORT: ${SERVER_PORT}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}
+      FRONTEND_URL: ${FRONTEND_URL}
+
+      JPA_SHOW_SQL: "${JPA_SHOW_SQL}"
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO}
+
+      GENERATE_DB: "${GENERATE_DB}"
+      USER_EMAIL: ${USER_EMAIL}
+      USER_CODE: ${USER_CODE}
+      USER_NAME: ${USER_NAME}
+      USER_PHONE: ${USER_PHONE}
+      ROLE: ${ROLE}
+
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

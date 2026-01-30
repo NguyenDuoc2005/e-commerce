@@ -2,7 +2,7 @@ name: CI/CD Docker + VPS Deploy
 
 on:
   push:
-    branches: ["deploy20260130"]
+    branches: ["prod"]
 
 jobs:
   build-push-deploy:

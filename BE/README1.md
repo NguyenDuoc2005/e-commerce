@@ -19,10 +19,10 @@ scp docker-compose.yml .env root@SERVER_IP:/opt/ecommerce/
 🔄 QUY TRÌNH HẰNG NGÀY (Mỗi lần update code)
 1️⃣ Local / CI: Build + Push
 bash# Build image
-docker build -t nguyenduoc/datn-be:20260130-01 .
+docker build -t nguyenduoc/datn-be:20260130-01 . (dùng để chạy dockerfile)
 
 # Tag latest
-docker tag nguyenduoc/datn-be:20260130-01 nguyenduoc/datn-be:latest
+docker tag nguyenduoc/datn-be:20260130-01 nguyenduoc/datn-be:latest ( gán tag ->)
 
 # Push lên Docker Hub
 docker push nguyenduoc/datn-be:20260130-01
@@ -36,5 +36,13 @@ docker compose pull
 # Restart
 docker compose up -d
 
-📋 FILE CẦN THIẾT
-Dockerfile (trong project):
+🧠 TÓM TẮT CẢ QUY TRÌNH – 1 SƠ ĐỒ DUY NHẤT
+Dockerfile + Code
+↓
+docker build        → tạo Docker IMAGE
+↓
+docker push         → đưa IMAGE lên Docker Hub (repo của bạn)
+↓
+VPS: docker compose pull → kéo IMAGE về
+↓
+docker compose up -d     → chạy app

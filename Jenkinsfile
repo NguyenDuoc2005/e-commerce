@@ -9,7 +9,7 @@ pipeline {
 
   environment {
     DOCKER_IMAGE = "nguyenduoc/datn-be"
-    DEPLOY_HOST  = "127.0.0.1"
+    DEPLOY_HOST  = "172.17.0.1"
     DEPLOY_USER  = "root"
     APP_DIR      = "/opt/ecommerce"
 

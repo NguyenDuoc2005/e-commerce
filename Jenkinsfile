@@ -22,12 +22,34 @@ pipeline {
       }
     }
 
+    // (Optional) check nhanh để thấy môi trường Jenkins đang có java gì
+    stage('Check Java (optional)') {
+      steps {
+        sh '''
+          set +e
+          which java || true
+          java -version || true
+          echo "JAVA_HOME=$JAVA_HOME"
+          set -e
+        '''
+      }
+    }
+
     stage('Build JAR (Gradle)') {
+      agent {
+        docker {
+          image 'gradle:8.13-jdk17'
+          // cache gradle để build lần sau nhanh hơn + tránh download lại
+          args '-v $HOME/.gradle:/home/gradle/.gradle'
+          reuseNode true
+        }
+      }
       steps {
         sh '''
           set -e
           cd BE
           chmod +x gradlew
+          ./gradlew --version
           ./gradlew clean bootJar -x test
         '''
       }

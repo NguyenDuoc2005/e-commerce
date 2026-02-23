@@ -24,4 +24,9 @@ public class PMThuongHieuController {
         return Helper.createResponseEntity(pmThuongHieuService.getAllThuongHieu(request));
     }
 
+    @GetMapping("/get-all/thuong-hieu-trang-chu1")
+    public ResponseEntity<?> getAllSanPhamMoi1(PMThuongHieuSearchRequest request) {
+        return Helper.createResponseEntity(pmThuongHieuService.getAllThuongHieu(request));
+    }
+
 }

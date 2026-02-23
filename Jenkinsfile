@@ -3,7 +3,6 @@ pipeline {
 
   options {
     timestamps()
-    ansiColor('xterm')
     disableConcurrentBuilds()
     skipDefaultCheckout(true)
   }
@@ -60,7 +59,6 @@ pipeline {
       agent {
         docker {
           image 'gradle:8.13-jdk17'
-          // KHÔNG mount $HOME/.gradle để tránh lỗi lock file permission
           reuseNode true
         }
       }
@@ -69,14 +67,8 @@ pipeline {
           set -e
           cd BE
           chmod +x gradlew
-
-          echo "=== Gradle wrapper version ==="
           ./gradlew --version
-
-          echo "=== Build bootJar (skip tests) ==="
           ./gradlew --no-daemon clean bootJar -x test
-
-          echo "=== List jar ==="
           ls -lah build/libs || true
         '''
       }
@@ -115,7 +107,6 @@ pipeline {
               set -e
               cd "${APP_DIR}"
 
-              # Update TAG in .env (create if missing)
               if [ -f .env ]; then
                 if grep -q "^TAG=" .env; then
                   sed -i "s/^TAG=.*/TAG=${GIT_SHA}/" .env
@@ -129,8 +120,6 @@ pipeline {
               docker compose pull be
               docker compose up -d be
               docker compose ps
-
-              # optional: dọn image dangling (an toàn)
               docker image prune -f
             '
           """
@@ -143,7 +132,6 @@ pipeline {
     always {
       sh '''
         set +e
-        echo "=== Cleanup workspace gradle locks (optional) ==="
         rm -rf "$GRADLE_USER_HOME/wrapper/dists/"*/*.lck 2>/dev/null || true
         set -e
       '''

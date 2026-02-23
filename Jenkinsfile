@@ -1,16 +1,32 @@
 pipeline {
   agent any
 
+  options {
+    timestamps()
+    ansiColor('xterm')
+    disableConcurrentBuilds()
+    skipDefaultCheckout(true)
+  }
+
   environment {
     DOCKER_IMAGE = "nguyenduoc/datn-be"
-    DEPLOY_HOST  = "127.0.0.1"        // deploy ngay trên server Jenkins
+    DEPLOY_HOST  = "127.0.0.1"
     DEPLOY_USER  = "root"
     APP_DIR      = "/opt/ecommerce"
+
+    // Gradle cache nằm trong workspace => tránh lỗi permission
+    GRADLE_USER_HOME = "${WORKSPACE}/.gradle"
   }
 
   stages {
     stage('Checkout') {
-      steps { checkout scm }
+      steps {
+        checkout scm
+        sh '''
+          set -e
+          git rev-parse --short HEAD
+        '''
+      }
     }
 
     stage('Set Commit SHA') {
@@ -22,25 +38,29 @@ pipeline {
       }
     }
 
-    // (Optional) check nhanh để thấy môi trường Jenkins đang có java gì
-    stage('Check Java (optional)') {
+    stage('Check Environment') {
       steps {
         sh '''
           set +e
+          echo "=== Jenkins Java ==="
           which java || true
           java -version || true
-          echo "JAVA_HOME=$JAVA_HOME"
+          echo "=== Docker ==="
+          docker version || true
+          echo "WORKSPACE=$WORKSPACE"
+          echo "GRADLE_USER_HOME=$GRADLE_USER_HOME"
+          mkdir -p "$GRADLE_USER_HOME"
+          ls -la "$GRADLE_USER_HOME" || true
           set -e
         '''
       }
     }
 
-    stage('Build JAR (Gradle)') {
+    stage('Build JAR (Gradle JDK17)') {
       agent {
         docker {
           image 'gradle:8.13-jdk17'
-          // cache gradle để build lần sau nhanh hơn + tránh download lại
-          args '-v $HOME/.gradle:/home/gradle/.gradle'
+          // KHÔNG mount $HOME/.gradle để tránh lỗi lock file permission
           reuseNode true
         }
       }
@@ -49,8 +69,15 @@ pipeline {
           set -e
           cd BE
           chmod +x gradlew
+
+          echo "=== Gradle wrapper version ==="
           ./gradlew --version
-          ./gradlew clean bootJar -x test
+
+          echo "=== Build bootJar (skip tests) ==="
+          ./gradlew --no-daemon clean bootJar -x test
+
+          echo "=== List jar ==="
+          ls -lah build/libs || true
         '''
       }
     }
@@ -67,7 +94,10 @@ pipeline {
     stage('Docker Push') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DU', passwordVariable: 'DP')]) {
-          sh 'echo "$DP" | docker login -u "$DU" --password-stdin'
+          sh '''
+            set -e
+            echo "$DP" | docker login -u "$DU" --password-stdin
+          '''
         }
         sh """
           set -e
@@ -85,20 +115,39 @@ pipeline {
               set -e
               cd "${APP_DIR}"
 
-              # Update TAG in .env
-              if grep -q "^TAG=" .env; then
-                sed -i "s/^TAG=.*/TAG=${GIT_SHA}/" .env
+              # Update TAG in .env (create if missing)
+              if [ -f .env ]; then
+                if grep -q "^TAG=" .env; then
+                  sed -i "s/^TAG=.*/TAG=${GIT_SHA}/" .env
+                else
+                  echo "TAG=${GIT_SHA}" >> .env
+                fi
               else
-                echo "TAG=${GIT_SHA}" >> .env
+                echo "TAG=${GIT_SHA}" > .env
               fi
 
               docker compose pull be
               docker compose up -d be
               docker compose ps
+
+              # optional: dọn image dangling (an toàn)
+              docker image prune -f
             '
           """
         }
       }
+    }
+  }
+
+  post {
+    always {
+      sh '''
+        set +e
+        echo "=== Cleanup workspace gradle locks (optional) ==="
+        rm -rf "$GRADLE_USER_HOME/wrapper/dists/"*/*.lck 2>/dev/null || true
+        set -e
+      '''
+      cleanWs()
     }
   }
 }

@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: ${ORDER_DATASOURCE_URL:jdbc:mysql://localhost:3306/order_db}
+    username: ${ORDER_DATASOURCE_USERNAME:root}
+    password: ${ORDER_DATASOURCE_PASSWORD:12345678}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        globally_quoted_identifiers: true
+    show-sql: ${JPA_SHOW_SQL:false}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+server:
+  port: ${SERVER_PORT:8086}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka}

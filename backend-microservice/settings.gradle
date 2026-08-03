@@ -1,0 +1,27 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'backend-microservice'
+
+include 'common-lib'
+include 'discovery-server'
+include 'api-gateway'
+include 'auth-service'
+include 'user-service'
+include 'catalog-service'
+include 'inventory-service'
+include 'promotion-service'
+include 'order-service'
+include 'cart-service'
+include 'notification-service'

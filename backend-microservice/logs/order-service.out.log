@@ -1,0 +1,49 @@
+Starting a Gradle Daemon, 2 busy and 1 incompatible Daemons could not be reused, use --status for details
+> Task :common-lib:compileJava
+> Task :common-lib:processResources NO-SOURCE
+> Task :common-lib:classes
+> Task :common-lib:jar UP-TO-DATE
+> Task :order-service:compileJava
+C:\My Project\e-commerce\backend-microservice\order-service\src\main\java\com\ecommerce\order\service\impl\DonMuaServiceImpl.java:240: error: reference to query is ambiguous
+        jdbcTemplate.query("""
+                    ^
+  both method <T>query(String,ResultSetExtractor<T>,Object...) in JdbcTemplate and method query(String,RowCallbackHandler,Object...) in JdbcTemplate match
+  where T is a type-variable:
+    T extends Object declared in method <T>query(String,ResultSetExtractor<T>,Object...)
+C:\My Project\e-commerce\backend-microservice\order-service\src\main\java\com\ecommerce\order\service\impl\DonMuaServiceImpl.java:254: error: reference to query is ambiguous
+        jdbcTemplate.query("""
+                    ^
+  both method <T>query(String,ResultSetExtractor<T>,Object...) in JdbcTemplate and method query(String,RowCallbackHandler,Object...) in JdbcTemplate match
+  where T is a type-variable:
+    T extends Object declared in method <T>query(String,ResultSetExtractor<T>,Object...)
+2 errors
+
+> Task :order-service:compileJava FAILED
+
+[Incubating] Problems report is available at: file:///C:/My%20Project/e-commerce/backend-microservice/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':order-service:compileJava'.
+> Compilation failed; see the compiler output below.
+  C:\My Project\e-commerce\backend-microservice\order-service\src\main\java\com\ecommerce\order\service\impl\DonMuaServiceImpl.java:240: error: reference to query is ambiguous
+          jdbcTemplate.query("""
+                      ^
+    both method <T>query(String,ResultSetExtractor<T>,Object...) in JdbcTemplate and method query(String,RowCallbackHandler,Object...) in JdbcTemplate match
+    where T is a type-variable:
+      T extends Object declared in method <T>query(String,ResultSetExtractor<T>,Object...)
+  C:\My Project\e-commerce\backend-microservice\order-service\src\main\java\com\ecommerce\order\service\impl\DonMuaServiceImpl.java:254: error: reference to query is ambiguous
+          jdbcTemplate.query("""
+                      ^
+    both method <T>query(String,ResultSetExtractor<T>,Object...) in JdbcTemplate and method query(String,RowCallbackHandler,Object...) in JdbcTemplate match
+    where T is a type-variable:
+      T extends Object declared in method <T>query(String,ResultSetExtractor<T>,Object...)
+  2 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights.
+
+BUILD FAILED in 3m 19s
+3 actionable tasks: 2 executed, 1 up-to-date

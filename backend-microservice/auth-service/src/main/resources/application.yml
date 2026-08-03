@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${AUTH_DATASOURCE_URL:jdbc:mysql://localhost:3306/auth_db}
+    username: ${AUTH_DATASOURCE_USERNAME:root}
+    password: ${AUTH_DATASOURCE_PASSWORD:12345678}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        globally_quoted_identifiers: true
+    show-sql: ${JPA_SHOW_SQL:false}
+
+server:
+  port: ${SERVER_PORT:8081}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka}
+
+jwt:
+  secret: ${JWT_SECRET:microservice-auth-secret-key-please-change-in-env-123456789}

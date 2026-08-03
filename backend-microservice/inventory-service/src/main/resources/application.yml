@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: inventory-service
+  datasource:
+    url: ${INVENTORY_DATASOURCE_URL:jdbc:mysql://localhost:3306/inventory_db}
+    username: ${INVENTORY_DATASOURCE_USERNAME:root}
+    password: ${INVENTORY_DATASOURCE_PASSWORD:12345678}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+
+server:
+  port: ${SERVER_PORT:8084}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka}

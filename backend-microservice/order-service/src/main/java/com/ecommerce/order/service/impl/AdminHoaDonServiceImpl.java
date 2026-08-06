@@ -44,11 +44,11 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
             Integer status = request.getStatus() == null ? null : request.getStatus().ordinal();
             String where = """
                     WHERE (? IS NULL OR ? = ''
-                        OR LOWER(kh.ten_khach_hang) LIKE LOWER(?)
+                        OR LOWER(hd.ten_khach_hang) LIKE LOWER(?)
                         OR LOWER(hd.ma_hoa_don) LIKE LOWER(?)
                         OR LOWER(hd.ten_hoa_don) LIKE LOWER(?)
-                        OR LOWER(kh.so_dien_thoai) LIKE LOWER(?)
-                        OR LOWER(nv.ma_nhan_vien) LIKE LOWER(?))
+                        OR LOWER(hd.so_dien_thoai_khach_hang) LIKE LOWER(?)
+                        OR LOWER(hd.id_nhan_vien) LIKE LOWER(?))
                       AND (? IS NULL OR hd.trang_thai_hoa_don = ?)
                       AND (? IS NULL OR hd.created_date >= ?)
                       AND (? IS NULL OR hd.created_date <= ?)
@@ -58,17 +58,15 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
             List<HoaDonResponse> rows = jdbcTemplate.query("""
                             SELECT hd.id,
                                    hd.ma_hoa_don,
-                                   kh.ten_khach_hang,
-                                   kh.so_dien_thoai,
-                                   nv.ma_nhan_vien,
-                                   nv.ten_nhan_vien,
+                                   hd.ten_khach_hang,
+                                   hd.so_dien_thoai_khach_hang,
+                                   hd.id_nhan_vien AS ma_nhan_vien,
+                                   hd.id_nhan_vien AS ten_nhan_vien,
                                    hd.tong_tien_sau_giam,
                                    hd.loai_hoa_don,
                                    hd.created_date,
                                    hd.trang_thai_hoa_don
                             FROM hoa_don hd
-                            LEFT JOIN khach_hang kh ON hd.id_khach_hang = kh.id
-                            LEFT JOIN nhan_vien nv ON hd.id_nhan_vien = nv.id
                             """ + where + " ORDER BY hd.created_date ASC LIMIT ? OFFSET ?",
                     (rs, rowNum) -> new HoaDonResponse(
                             rs.getString("id"),
@@ -84,7 +82,7 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
                     q, q, q, q, q, q, q, status, status, request.getStartDate(), request.getStartDate(),
                     request.getEndDate(), request.getEndDate(), LUU_TAM, pageable.getPageSize(), pageable.getOffset());
 
-            Long total = jdbcTemplate.queryForObject("SELECT COUNT(hd.id) FROM hoa_don hd LEFT JOIN khach_hang kh ON hd.id_khach_hang = kh.id LEFT JOIN nhan_vien nv ON hd.id_nhan_vien = nv.id " + where,
+            Long total = jdbcTemplate.queryForObject("SELECT COUNT(hd.id) FROM hoa_don hd " + where,
                     Long.class, q, q, q, q, q, q, q, status, status, request.getStartDate(), request.getStartDate(),
                     request.getEndDate(), request.getEndDate(), LUU_TAM);
 
@@ -92,12 +90,10 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
             jdbcTemplate.query("""
                             SELECT hd.trang_thai_hoa_don, COUNT(hd.id) AS total
                             FROM hoa_don hd
-                            LEFT JOIN khach_hang kh ON hd.id_khach_hang = kh.id
-                            LEFT JOIN nhan_vien nv ON hd.id_nhan_vien = nv.id
                             WHERE (? IS NULL OR ? = ''
-                                OR LOWER(kh.ten_khach_hang) LIKE LOWER(?)
-                                OR LOWER(kh.so_dien_thoai) LIKE LOWER(?)
-                                OR LOWER(nv.ten_nhan_vien) LIKE LOWER(?))
+                                OR LOWER(hd.ten_khach_hang) LIKE LOWER(?)
+                                OR LOWER(hd.so_dien_thoai_khach_hang) LIKE LOWER(?)
+                                OR LOWER(hd.id_nhan_vien) LIKE LOWER(?))
                               AND (? IS NULL OR hd.created_date >= ?)
                               AND (? IS NULL OR hd.created_date <= ?)
                               AND hd.trang_thai_hoa_don != ?
@@ -156,10 +152,9 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
                        l.ma_giao_dich AS maGiaoDich,
                        l.loai_giao_dich AS loaiGiaoDich,
                        l.ghi_chu AS ghiChu,
-                       n.ten_nhan_vien AS tenNhanVien,
+                       l.nhan_vien_id AS tenNhanVien,
                        l.hoa_don_id AS hoaDonId
                 FROM lich_su_thanh_toan l
-                LEFT JOIN nhan_vien n ON l.nhan_vien_id = n.id
                 WHERE l.hoa_don_id = ?
                 ORDER BY l.thoi_gian DESC
                 """, hoaDonId);
@@ -172,10 +167,6 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
         int hoaDonCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM hoa_don WHERE id = ?", Integer.class, request.getHoaDonId());
         if (hoaDonCount == 0) {
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Hoa don khong ton tai");
-        }
-        int nhanVienCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM nhan_vien WHERE id = ?", Integer.class, request.getNhanVienId());
-        if (nhanVienCount == 0) {
-            return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Nhan vien khong ton tai");
         }
         double soTien = value(request.getSoTienKhachDua()) - value(request.getSoTienTraLai());
         jdbcTemplate.update("""
@@ -202,15 +193,8 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
                 """, hoaDonId, request.getStatus().ordinal(), LocalDateTime.now(), request.getNote());
 
         if (request.getStatus() == EntityTrangThaiHoaDon.DA_HUY) {
-            List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT id_spct, so_luong FROM hoa_don_chi_tiet WHERE id_hoa_don = ?", hoaDonId);
-            for (Map<String, Object> detail : details) {
-                jdbcTemplate.update("UPDATE san_pham_chi_tiet SET so_luong = COALESCE(so_luong, 0) + ? WHERE id = ?",
-                        intValue(detail.get("so_luong")), detail.get("id_spct"));
-            }
-            Object voucherId = hoaDon.get("id_voucher");
-            if (voucherId != null) {
-                jdbcTemplate.update("UPDATE phieu_giam_gia SET so_luong_phieu = COALESCE(so_luong_phieu, 0) + 1 WHERE id = ?", voucherId);
-            }
+            // Inventory and voucher compensation belong to inventory/promotion services after the split.
+            // Keep admin invoice status usable without issuing cross-service table updates from order DB.
         }
 
         return new ResponseObject<>(Map.of("maHoaDon", request.getMaHoaDon()), HttpStatus.OK, "Thay doi thanh cong");
@@ -254,28 +238,31 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
                 SELECT hd.ma_hoa_don AS maHoaDon,
                        hd.ten_hoa_don AS tenHoaDon,
                        hdct.ma_hoa_don_chi_tiet AS maHoaDonChiTiet,
-                       sp.ten_san_pham AS tenSanPham,
-                       spct.anh_san_pham AS anhSanPham,
-                       thuong_hieu.ten_thuong_hieu AS thuongHieu,
-                       mau_sac.ten_mau_sac AS mauSac,
-                       kich_co.ten_kich_co AS size,
+                       COALESCE(hdct.ten_hoa_don_chi_tiet, hdct.id_spct) AS tenSanPham,
+                       NULL AS anhSanPham,
+                       NULL AS thuongHieu,
+                       NULL AS xuatSu,
+                       NULL AS mauSac,
+                       NULL AS size,
                        hdct.so_luong AS soLuong,
                        hdct.gia_ban AS giaBan,
+                       (hdct.gia_ban * hdct.so_luong) AS thanhTienSP,
                        (SELECT SUM(hdsub.so_luong * hdsub.gia_ban) FROM hoa_don_chi_tiet hdsub WHERE hdsub.id_hoa_don = hd.id) AS thanhTien,
-                       kh.ten_khach_hang AS tenKhachHang2,
-                       kh.so_dien_thoai AS sdtKH2,
-                       kh.email AS email2,
-                       kh.dia_chi AS diaChi2,
+                       hd.ten_khach_hang AS tenKhachHang2,
+                       hd.so_dien_thoai_khach_hang AS sdtKH2,
+                       hd.email AS email2,
+                       hd.dia_chi_giao_hang AS diaChi2,
                        hd.ten_khach_hang AS tenKhachHang,
                        hd.so_dien_thoai_khach_hang AS sdtKH,
                        hd.email AS email,
                        hd.dia_chi_giao_hang AS diaChi,
                        hd.loai_hoa_don AS loaiHoaDon,
                        hd.trang_thai_hoa_don AS trangThaiHoaDon,
+                       NULL AS thoiGian,
                        hd.created_date AS ngayTao,
                        hd.phi_van_chuyen AS phiVanChuyen,
-                       pgg.ma_phieu_giam_gia AS maVoucher,
-                       pgg.ten_phieu_giam_gia AS tenVoucher,
+                       hd.id_voucher AS maVoucher,
+                       hd.id_voucher AS tenVoucher,
                        hd.giam_gia AS giaTriVoucher,
                        hd.tong_tien_sau_giam AS tongTienSauGiam,
                        (hdct.gia_ban * hdct.so_luong) AS tongTien,
@@ -284,13 +271,6 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
                        hd.hoan_phi AS hoanPhi
                 FROM hoa_don_chi_tiet hdct
                 LEFT JOIN hoa_don hd ON hdct.id_hoa_don = hd.id
-                LEFT JOIN phieu_giam_gia pgg ON hd.id_voucher = pgg.id
-                LEFT JOIN khach_hang kh ON hd.id_khach_hang = kh.id
-                LEFT JOIN san_pham_chi_tiet spct ON hdct.id_spct = spct.id
-                LEFT JOIN san_pham sp ON spct.id_san_pham = sp.id
-                LEFT JOIN thuong_hieu ON sp.id_thuong_hieu = thuong_hieu.id
-                LEFT JOIN kich_co ON spct.id_kich_co = kich_co.id
-                LEFT JOIN mau_sac ON spct.id_mau_sac = mau_sac.id
                 WHERE hd.ma_hoa_don = ?
                 """;
     }

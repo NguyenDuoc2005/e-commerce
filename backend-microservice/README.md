@@ -36,3 +36,4 @@ BE\gradlew.bat -p backend-microservice clean build
 ```
 
 Build was intentionally skipped on 2026-08-03 because it was too time-consuming for the current migration pass.
+

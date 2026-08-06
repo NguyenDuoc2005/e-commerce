@@ -39,9 +39,15 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public ResponseObject<?> getAllNhanVien(ADNhanVienSearchRequest request) {
         Pageable pageable = PageUtils.createPageable(request, "created_date");
-        Page<NhanVien> page = request.getQ() == null || request.getQ().isEmpty()
-                ? nhanVienRepository.findAll(pageable)
-                : nhanVienRepository.findByMaContainingOrTenContaining(request.getQ(), request.getQ(), pageable);
+        Page<NhanVien> page;
+        if ((request.getQ() == null || request.getQ().isEmpty()) && request.getStatus() == null) {
+            page = nhanVienRepository.findAll(pageable);
+        } else {
+            if (request.getStatus() != null) {
+                request.setEntityStatus(request.getStatus() == 1 ? EntityStatus.ACTIVE : EntityStatus.INACTIVE);
+            }
+            page = nhanVienRepository.getAllNhanVien(pageable, request.getQ(), request.getEntityStatus());
+        }
         return new ResponseObject<>(PageableObject.of(page), HttpStatus.OK, "Lay danh sach nhan vien thanh cong");
     }
 

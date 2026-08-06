@@ -2,7 +2,7 @@ spring:
   application:
     name: order-service
   datasource:
-    url: ${ORDER_DATASOURCE_URL:jdbc:mysql://localhost:3306/order_db}
+    url: ${ORDER_DATASOURCE_URL:jdbc:mysql://localhost:3306/ecommerce_order}
     username: ${ORDER_DATASOURCE_USERNAME:root}
     password: ${ORDER_DATASOURCE_PASSWORD:12345678}
   jpa:

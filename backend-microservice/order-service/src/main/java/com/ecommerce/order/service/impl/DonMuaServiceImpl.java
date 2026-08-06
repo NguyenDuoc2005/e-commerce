@@ -10,6 +10,7 @@ import com.ecommerce.order.model.request.UpdateDeliveryRequest;
 import com.ecommerce.order.service.DonMuaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -245,7 +246,8 @@ public class DonMuaServiceImpl implements DonMuaService {
                   AND hd.loai_hoa_don = ?
                   AND hd.trang_thai_hoa_don != ?
                 GROUP BY hd.trang_thai_hoa_don
-                """, rs -> result.put(EntityTrangThaiHoaDon.values()[rs.getInt("trang_thai_hoa_don")], rs.getLong("total")), q, q, q, ONLINE, LUU_TAM);
+                """, (RowCallbackHandler) rs ->
+                result.put(EntityTrangThaiHoaDon.values()[rs.getInt("trang_thai_hoa_don")], rs.getLong("total")), q, q, q, ONLINE, LUU_TAM);
         return result;
     }
 
@@ -257,7 +259,8 @@ public class DonMuaServiceImpl implements DonMuaService {
                 WHERE hd.ma_hoa_don = ?
                   AND hd.trang_thai_hoa_don != ?
                 GROUP BY hd.trang_thai_hoa_don
-                """, rs -> result.put(EntityTrangThaiHoaDon.values()[rs.getInt("trang_thai_hoa_don")], rs.getLong("total")), code, LUU_TAM);
+                """, (RowCallbackHandler) rs ->
+                result.put(EntityTrangThaiHoaDon.values()[rs.getInt("trang_thai_hoa_don")], rs.getLong("total")), code, LUU_TAM);
         return result;
     }
 

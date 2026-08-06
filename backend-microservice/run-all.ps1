@@ -1,5 +1,6 @@
 param(
-    [string]$DbName = "datn_v2",
+    [string]$DbHost = "localhost",
+    [int]$DbPort = 3306,
     [string]$DbUser = "root",
     [string]$DbPassword = "12345678",
     [switch]$WithNotification
@@ -54,24 +55,30 @@ call "$gradle" -p "$projectDir" $Task > "$outLogFile" 2>&1
     Write-Host "Started $Name, pid: $($process.Id), logs: $outLogFile / $errLogFile"
 }
 
-$jdbc = "jdbc:mysql://localhost:3306/$DbName`?useSSL=false&allowPublicKeyRetrieval=true"
+$jdbcOptions = "createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+$authJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_auth`?$jdbcOptions"
+$userJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_user`?$jdbcOptions"
+$catalogJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_catalog`?$jdbcOptions"
+$promotionJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_promotion`?$jdbcOptions"
+$cartJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_cart`?$jdbcOptions"
+$orderJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_order`?$jdbcOptions"
 $dbEnv = @{
-    AUTH_DATASOURCE_URL = $jdbc
+    AUTH_DATASOURCE_URL = $authJdbc
     AUTH_DATASOURCE_USERNAME = $DbUser
     AUTH_DATASOURCE_PASSWORD = $DbPassword
-    USER_DATASOURCE_URL = $jdbc
+    USER_DATASOURCE_URL = $userJdbc
     USER_DATASOURCE_USERNAME = $DbUser
     USER_DATASOURCE_PASSWORD = $DbPassword
-    CATALOG_DATASOURCE_URL = $jdbc
+    CATALOG_DATASOURCE_URL = $catalogJdbc
     CATALOG_DATASOURCE_USERNAME = $DbUser
     CATALOG_DATASOURCE_PASSWORD = $DbPassword
-    PROMOTION_DATASOURCE_URL = $jdbc
+    PROMOTION_DATASOURCE_URL = $promotionJdbc
     PROMOTION_DATASOURCE_USERNAME = $DbUser
     PROMOTION_DATASOURCE_PASSWORD = $DbPassword
-    CART_DATASOURCE_URL = $jdbc
+    CART_DATASOURCE_URL = $cartJdbc
     CART_DATASOURCE_USERNAME = $DbUser
     CART_DATASOURCE_PASSWORD = $DbPassword
-    ORDER_DATASOURCE_URL = $jdbc
+    ORDER_DATASOURCE_URL = $orderJdbc
     ORDER_DATASOURCE_USERNAME = $DbUser
     ORDER_DATASOURCE_PASSWORD = $DbPassword
 }

@@ -48,7 +48,7 @@ services:
       - mysql
       - discovery-server
     environment:
-      AUTH_DATASOURCE_URL: jdbc:mysql://mysql:3306/auth_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      AUTH_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_auth?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       AUTH_DATASOURCE_USERNAME: root
       AUTH_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
       EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
@@ -59,7 +59,7 @@ services:
       - mysql
       - discovery-server
     environment:
-      USER_DATASOURCE_URL: jdbc:mysql://mysql:3306/user_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      USER_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_user?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       USER_DATASOURCE_USERNAME: root
       USER_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
       EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
@@ -70,7 +70,7 @@ services:
       - mysql
       - discovery-server
     environment:
-      CATALOG_DATASOURCE_URL: jdbc:mysql://mysql:3306/catalog_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      CATALOG_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_catalog?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       CATALOG_DATASOURCE_USERNAME: root
       CATALOG_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
       EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
@@ -81,7 +81,7 @@ services:
       - mysql
       - discovery-server
     environment:
-      PROMOTION_DATASOURCE_URL: jdbc:mysql://mysql:3306/promotion_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      PROMOTION_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_promotion?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       PROMOTION_DATASOURCE_USERNAME: root
       PROMOTION_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
       EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
@@ -92,7 +92,7 @@ services:
       - mysql
       - discovery-server
     environment:
-      CART_DATASOURCE_URL: jdbc:mysql://mysql:3306/cart_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      CART_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_cart?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       CART_DATASOURCE_USERNAME: root
       CART_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
       EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
@@ -104,7 +104,7 @@ services:
       - kafka
       - discovery-server
     environment:
-      ORDER_DATASOURCE_URL: jdbc:mysql://mysql:3306/order_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      ORDER_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_order?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       ORDER_DATASOURCE_USERNAME: root
       ORDER_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
@@ -117,7 +117,7 @@ services:
       - kafka
       - discovery-server
     environment:
-      INVENTORY_DATASOURCE_URL: jdbc:mysql://mysql:3306/inventory_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      INVENTORY_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_inventory?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       INVENTORY_DATASOURCE_USERNAME: root
       INVENTORY_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092

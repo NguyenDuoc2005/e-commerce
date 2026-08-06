@@ -65,15 +65,75 @@ public class NhanVien extends PrimaryEntity implements Serializable {
         return ten;
     }
 
+    public void setMa(String ma) {
+        this.ma = ma;
+    }
+
+    public void setTen(String ten) {
+        this.ten = ten;
+    }
+
+    public void setTinh(String tinh) {
+        this.tinh = tinh;
+    }
+
+    public void setHuyen(String huyen) {
+        this.huyen = huyen;
+    }
+
+    public void setXa(String xa) {
+        this.xa = xa;
+    }
+
+    public void setSdt(String sdt) {
+        this.sdt = sdt;
+    }
+
+    public void setDiaChi(String diaChi) {
+        this.diaChi = diaChi;
+    }
+
+    public void setNgaySinh(Date ngaySinh) {
+        this.ngaySinh = ngaySinh;
+    }
+
     public String getAvatar() {
         return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
     }
 
     public String getEmail() {
         return email;
     }
 
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setCccd(String cccd) {
+        this.cccd = cccd;
+    }
+
+    public void setVaitro(EntityVaiTro vaitro) {
+        this.vaitro = vaitro;
+    }
+
+    public void setGioiTimh(Boolean gioiTimh) {
+        this.gioiTimh = gioiTimh;
+    }
+
+    public void setChucVu(EntityRole chucVu) {
+        this.chucVu = chucVu;
+    }
+
     public String getMatKhau() {
         return matKhau;
+    }
+
+    public void setMatKhau(String matKhau) {
+        this.matKhau = matKhau;
     }
 }

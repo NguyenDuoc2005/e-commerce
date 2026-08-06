@@ -2,7 +2,7 @@ spring:
   application:
     name: promotion-service
   datasource:
-    url: ${PROMOTION_DATASOURCE_URL:jdbc:mysql://localhost:3306/promotion_db}
+    url: ${PROMOTION_DATASOURCE_URL:jdbc:mysql://localhost:3306/ecommerce_promotion}
     username: ${PROMOTION_DATASOURCE_USERNAME:root}
     password: ${PROMOTION_DATASOURCE_PASSWORD:12345678}
   jpa:

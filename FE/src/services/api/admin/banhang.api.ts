@@ -173,7 +173,7 @@ export const themSanPham = async (data: ADThemSanPhamRequest) => {
 
 export const xoaSP = async (data: ParamsXoaSP) => {
   const res = (await request({
-    url: `${PREFIX_API_BAN_HANG_ADMIN}/xoa-san-pham `,
+    url: `${PREFIX_API_BAN_HANG_ADMIN}/xoa-san-pham`,
     method: "POST",
     data: data,
   })) as AxiosResponse<DefaultResponse<XoaSPResponse>>;
@@ -191,7 +191,7 @@ export const GetGioHang = async (id: string) => {
 
 export const themSL = async (data: ParamsXoaSP) => {
   const res = (await request({
-    url: `${PREFIX_API_BAN_HANG_ADMIN}/them-so-luong `,
+    url: `${PREFIX_API_BAN_HANG_ADMIN}/them-so-luong`,
     method: "POST",
     data: data,
   })) as AxiosResponse<DefaultResponse<XoaSPResponse>>;
@@ -201,7 +201,7 @@ export const themSL = async (data: ParamsXoaSP) => {
 
 export const xoaSL = async (data: ParamsXoaSP) => {
   const res = (await request({
-    url: `${PREFIX_API_BAN_HANG_ADMIN}/xoa-so-luong `,
+    url: `${PREFIX_API_BAN_HANG_ADMIN}/xoa-so-luong`,
     method: "POST",
     data: data,
   })) as AxiosResponse<DefaultResponse<XoaSPResponse>>;

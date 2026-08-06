@@ -2,7 +2,7 @@ spring:
   application:
     name: user-service
   datasource:
-    url: ${USER_DATASOURCE_URL:jdbc:mysql://localhost:3306/user_db}
+    url: ${USER_DATASOURCE_URL:jdbc:mysql://localhost:3306/ecommerce_user}
     username: ${USER_DATASOURCE_USERNAME:root}
     password: ${USER_DATASOURCE_PASSWORD:12345678}
   jpa:

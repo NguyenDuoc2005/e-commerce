@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleMigrationSettings" migrationVersion="1" />
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/backend-microservice" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/backend-microservice" />
+            <option value="$PROJECT_DIR$/backend-microservice/api-gateway" />
+            <option value="$PROJECT_DIR$/backend-microservice/auth-service" />
+            <option value="$PROJECT_DIR$/backend-microservice/cart-service" />
+            <option value="$PROJECT_DIR$/backend-microservice/catalog-service" />
+            <option value="$PROJECT_DIR$/backend-microservice/common-lib" />
+            <option value="$PROJECT_DIR$/backend-microservice/discovery-server" />
+            <option value="$PROJECT_DIR$/backend-microservice/inventory-service" />
+            <option value="$PROJECT_DIR$/backend-microservice/notification-service" />
+            <option value="$PROJECT_DIR$/backend-microservice/order-service" />
+            <option value="$PROJECT_DIR$/backend-microservice/promotion-service" />
+            <option value="$PROJECT_DIR$/backend-microservice/user-service" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>

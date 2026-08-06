@@ -18,7 +18,17 @@ Quy tac bat buoc:
 - Trang thai hien tai: Hoan thanh Buoc 1 - Phan tich kien truc
 - Trang thai hien tai: Hoan thanh Buoc 2 - Sinh cau truc project Microservice, bo qua build theo yeu cau ngay 2026-08-03
 - Trang thai hien tai: Dang thuc hien Buoc 3 - Tach lan luot tung Service
-- Buoc tiep theo: Tiep tuc tach `auth-service`, sau do doi chieu API voi monolith
+- Buoc tiep theo: Admin route da du ve controller-level; tiep tuc smoke test runtime voi gateway/Eureka/DB va doi chieu response theo tung man hinh Admin neu phat hien lech.
+
+## Local database/startup notes
+
+- Tao database local bang MySQL cai truc tiep: `powershell -ExecutionPolicy Bypass -File backend-microservice\init-databases.ps1`
+- Neu dung Docker MySQL cua `backend-microservice/docker-compose.yml`: `powershell -ExecutionPolicy Bypass -File backend-microservice\init-databases.ps1 -UseDocker`
+- Docker MySQL publish ra host port `3307`, nen khi chay backend bang runner local can dung: `powershell -ExecutionPolicy Bypass -File backend-microservice\run-all.ps1 -DbPort 3307`
+- Runner mac dinh dung database rieng theo service: `ecommerce_auth`, `ecommerce_user`, `ecommerce_catalog`, `ecommerce_promotion`, `ecommerce_cart`, `ecommerce_order`, `ecommerce_inventory`.
+- Hibernate `ddl-auto=update` tu tao bang khi service boot.
+- Tai khoan admin local duoc seed tu dong khi `auth-service` va `user-service` khoi dong: `admin@ecommerce.local` / `Admin@123`.
+- Neu gateway tra 503 cho `/api/v1/admin/mau-sac`, kiem tra Eureka `http://localhost:8761/eureka/apps`: route nay can `CATALOG-SERVICE` dang `UP`.
 
 ## Buoc 1 - Phan tich backend hien tai
 
@@ -648,7 +658,8 @@ Ngay cap nhat: 2026-08-03
 ### Ghi chu admin hoa don
 
 - `order-service` dung `JdbcTemplate`/native SQL cho admin hoa don de giu projection cu ma khong keo JPA relation cross-service.
-- `PUT /api/v1/admin/hoa-don/change-status` da giu side effect cu: cap nhat `hoa_don.trang_thai_hoa_don`, ghi `lich_su_trang_thai_hoa_don`, neu `DA_HUY` thi cong lai ton kho `san_pham_chi_tiet.so_luong` va cong lai `phieu_giam_gia.so_luong_phieu`.
+- `GET /api/v1/admin/hoa-don`, `/all`, `/lich_su_thanh_toan/{id}` da bo join truc tiep sang `khach_hang`, `nhan_vien`, `san_pham`, `phieu_giam_gia` de order-service chay duoc voi DB rieng `ecommerce_order`; response dung snapshot/id dang co tren `hoa_don` va `hoa_don_chi_tiet`.
+- `PUT /api/v1/admin/hoa-don/change-status` da cap nhat `hoa_don.trang_thai_hoa_don` va ghi `lich_su_trang_thai_hoa_don`. Side effect cong lai ton kho/voucher khi `DA_HUY` khong con update table truc tiep trong order DB; can noi Feign/event sang `inventory-service` va `promotion-service` de hoan tat logic cross-service.
 - `POST /api/v1/admin/hoa-don/thanh_toan` da ghi `lich_su_thanh_toan` va update `tong_tien_sau_giam`, `tong_tien`, `trang_thai_hoa_don` nhu monolith.
 - Email khi doi trang thai chua gui truc tiep trong `order-service`; se chuyen sang `notification-service`/Kafka.
 - PDF invoice/delivery da giu endpoint, header va content-type PDF. Noi dung PDF hien la ban toi thieu; can port template iText chi tiet sau khi tach xong order flow chinh.
@@ -660,7 +671,7 @@ Ngay cap nhat: 2026-08-03
 - `GET /api/v1/permitall/don-mua/all/{code}`
 - `POST /api/v1/permitall/don-mua/sua-thong-tin`
 - `PUT /api/v1/permitall/don-mua/change-status`
-- `GET /api/v1/permitall/don-mua/all`
+- `GET /api/v1/permitall/don-mua/all`+
 - `GET /api/v1/permitall/don-mua/{id}`
 - `POST /api/v1/permitall/don-mua/them-san-pham`
 - `GET /api/v1/permitall/don-mua/lich_su_thanh_toan/{id}`
@@ -775,11 +786,54 @@ Ngay cap nhat: 2026-08-03
 - Compose gom MySQL 8.4, Zookeeper, Kafka, Eureka, Gateway va cac service app.
 - Chua chay Docker/build theo yeu cau user khong build.
 
+### Kiem tra lai Admin ngay 2026-08-05
+
+Pham vi: chi so sanh va sua phan Admin giua `BE` va `backend-microservice`.
+
+Ket qua route/controller:
+
+- `BE/src/main/java/com/be/server/core/admin`: 105 route Admin.
+- `backend-microservice`: 105 route Admin `/api/v1/admin/**`.
+- Ket qua doi chieu method + path: khong thieu route, khong du route.
+
+Sai lech da sua:
+
+- Monolith `SecurityConfig` bat `/api/v1/admin/**` phai co authority `ADMIN`.
+- Gateway microservice truoc do dang `permitAll()` toan bo request, lam Admin API khong bi chan theo role nhu `BE`.
+- Da them `AdminAuthorizationFilter` trong `backend-microservice/api-gateway` de validate Bearer JWT bang cung `jwt.secret` voi `auth-service`; route `/api/v1/admin/**` chi cho qua khi claim `role = ADMIN`.
+- OPTIONS request van duoc cho qua de giu CORS preflight.
+
+File da sua:
+
+- `backend-microservice/api-gateway/build.gradle`
+- `backend-microservice/api-gateway/src/main/java/com/ecommerce/gateway/security/AdminAuthorizationFilter.java`
+- `backend-microservice/api-gateway/src/main/resources/application.yml`
+
+Build/verify:
+
+- `.\gradlew.bat :api-gateway:build --no-daemon`: PASS.
+- `.\gradlew.bat clean build --no-daemon`: PASS, 65 actionable tasks executed.
+
+Trang thai API Admin theo nhom:
+
+- Thuoc tinh catalog (`mau-sac`, `size`, `thuong-hieu`, `xuat-xu`, `chat-lieu`, `danh-muc`, `loai-de`): da khop route, build pass, can smoke test runtime response voi data that.
+- San pham va san pham chi tiet: da khop route, build pass, can review them voi man hinh upload anh/Cloudinary.
+- Khach hang va nhan vien: da khop route, build pass, can review them voi flow gui email tao nhan vien vi email da defer sang notification.
+- Voucher va dot giam gia: da khop route, build pass, can review runtime voi data join san pham/khach hang that.
+- Hoa don, thong ke, ban hang tai quay: da khop route, build pass, can smoke test voi DB/Eureka vi logic doc/ghi nhieu bang bang native SQL.
+- Quyen Admin: da sua de khop behavior monolith o gateway-level.
+
+Ghi chu khong tu sua:
+
+- `BE` co OAuth2 admin TODO trong `CustomOAuth2UserService.processAdmin`; chua port/sua vi khong tu y thay doi bug/behavior chua duoc confirm.
+- PDF hoa don/giao hang trong microservice van la ban toi thieu nhu checkpoint cu; can port template chi tiet neu user uu tien rieng.
+- Email truc tiep trong cac flow Admin da defer sang `notification-service`/Kafka theo checkpoint cu; chua bat buoc publish event o tat ca diem neu user chua confirm.
+
 ### Build sau auth-service
 
-Trang thai: CHUA CHAY
+Trang thai: DA CHAY LAI TOAN BO NGAY 2026-08-05
 
-Ly do: user yeu cau khong build trong lan xu ly nay.
+Ket qua: `.\gradlew.bat clean build --no-daemon` trong `backend-microservice` PASS.
 
 ### Viec chua lam
 
@@ -788,8 +842,8 @@ Ly do: user yeu cau khong build trong lan xu ly nay.
 - Chua doi chieu runtime response voi frontend.
 - Chua publish Kafka email event tu cac service order/user/promotion; notification-service da co endpoint/consumer nhan event.
 - `inventory-service` moi la skeleton vi ton kho trong monolith dang nam tren `san_pham_chi_tiet` va da duoc xu ly truc tiep trong catalog/order/cart de giu nghiep vu cu.
-- Chua build theo yeu cau user.
+- Da build toan bo `backend-microservice` ngay 2026-08-05, nhung chua chay full runtime smoke qua gateway/Eureka/DB cho tung API Admin.
 
 ### Buoc tiep theo
 
-Neu user cho phep, chay build rieng `backend-microservice` de bat loi compile, sau do noi Kafka publish email event va tach ton kho sang `inventory-service` neu muon dung dung DB-per-service nghiem ngat.
+Neu user cho phep, chay runtime smoke test Admin qua gateway/Eureka/DB, sau do noi Kafka publish email event va tach ton kho sang `inventory-service` neu muon dung dung DB-per-service nghiem ngat.

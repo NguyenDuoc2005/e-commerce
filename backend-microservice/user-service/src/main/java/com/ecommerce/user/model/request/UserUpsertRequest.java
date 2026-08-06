@@ -2,7 +2,7 @@ package com.ecommerce.user.model.request;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Date;
+import java.sql.Date;
 
 public class UserUpsertRequest {
 

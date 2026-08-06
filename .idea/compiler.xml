@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.36/5a30490a6e14977d97d9c73c924c1f1b5311ea95/lombok-1.18.36.jar" />
+        </processorPath>
+        <module name="backend-microservice.auth-service.main" />
+        <module name="backend-microservice.catalog-service.main" />
+        <module name="backend-microservice.user-service.main" />
+        <module name="backend-microservice.discovery-server.main" />
+        <module name="backend-microservice.inventory-service.main" />
+        <module name="backend-microservice.order-service.main" />
+        <module name="backend-microservice.notification-service.main" />
+        <module name="backend-microservice.common-lib.main" />
+        <module name="backend-microservice.promotion-service.main" />
+        <module name="backend-microservice.api-gateway.main" />
+        <module name="backend-microservice.cart-service.main" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="backend-microservice.api-gateway" options="-parameters" />
+      <module name="backend-microservice.api-gateway.main" options="-parameters" />
+      <module name="backend-microservice.api-gateway.test" options="-parameters" />
+      <module name="backend-microservice.auth-service" options="-parameters" />
+      <module name="backend-microservice.auth-service.main" options="-parameters" />
+      <module name="backend-microservice.auth-service.test" options="-parameters" />
+      <module name="backend-microservice.cart-service" options="-parameters" />
+      <module name="backend-microservice.cart-service.main" options="-parameters" />
+      <module name="backend-microservice.cart-service.test" options="-parameters" />
+      <module name="backend-microservice.catalog-service" options="-parameters" />
+      <module name="backend-microservice.catalog-service.main" options="-parameters" />
+      <module name="backend-microservice.catalog-service.test" options="-parameters" />
+      <module name="backend-microservice.discovery-server" options="-parameters" />
+      <module name="backend-microservice.discovery-server.main" options="-parameters" />
+      <module name="backend-microservice.discovery-server.test" options="-parameters" />
+      <module name="backend-microservice.inventory-service" options="-parameters" />
+      <module name="backend-microservice.inventory-service.main" options="-parameters" />
+      <module name="backend-microservice.inventory-service.test" options="-parameters" />
+      <module name="backend-microservice.notification-service" options="-parameters" />
+      <module name="backend-microservice.notification-service.main" options="-parameters" />
+      <module name="backend-microservice.notification-service.test" options="-parameters" />
+      <module name="backend-microservice.order-service" options="-parameters" />
+      <module name="backend-microservice.order-service.main" options="-parameters" />
+      <module name="backend-microservice.order-service.test" options="-parameters" />
+      <module name="backend-microservice.promotion-service" options="-parameters" />
+      <module name="backend-microservice.promotion-service.main" options="-parameters" />
+      <module name="backend-microservice.promotion-service.test" options="-parameters" />
+      <module name="backend-microservice.user-service" options="-parameters" />
+      <module name="backend-microservice.user-service.main" options="-parameters" />
+      <module name="backend-microservice.user-service.test" options="-parameters" />
+    </option>
+  </component>
+</project>

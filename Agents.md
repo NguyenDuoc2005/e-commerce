@@ -5,7 +5,7 @@
 
 ## 1. Bối cảnh
 
-Dự án đang migrate từ 1 monolith sang microservices, gồm các service: `api-gateway`, `auth-service`, `cart-service`, `catalog-service`, `common-lib`, `discovery-server`, `inventory-service`, `notification-service`, `order-service`, `promotion-service`, `user-service`.
+Dự án đang migrate từ 1 monolith sang microservices, gồm các service: `api-gateway`, `auth-service`, `cart-service`, `catalog-service`, `common-lib`, `discovery-server`, `notification-service`, `order-service`, `promotion-service`, `user-service`.
 
 Mục tiêu migrate là giữ **logic nghiệp vụ** (luồng xử lý, hợp đồng API/DTO trả cho FE) — KHÔNG phải giữ nguyên cách thao tác dữ liệu của monolith (join bảng trực tiếp, share 1 DB).
 
@@ -22,10 +22,9 @@ Mục tiêu migrate là giữ **logic nghiệp vụ** (luồng xử lý, hợp �
 ### Bảng phân domain tham khảo (dựa theo tên service hiện có)
 | Service | Sở hữu bảng nào | KHÔNG được có bảng nào |
 |---|---|---|
-| catalog-service | san_pham, san_pham_chi_tiet, mau_sac, kich_co, danh_muc, thuong_hieu, loai_de, chat_lieu, xuat_su | khach_hang, don_hang, khuyến mãi... |
+| catalog-service | san_pham, san_pham_chi_tiet, mau_sac, kich_co, danh_muc, thuong_hieu, loai_de, chat_lieu, xuat_su; ton kho hien tai nam tren san_pham_chi_tiet.so_luong theo BE | khach_hang, don_hang, khuyến mãi... |
 | promotion-service | dot_giam_gia, dot_giam_gia_chi_tiet_san_pham (chỉ lưu product_id/sku_id tham chiếu), phieu_giam_gia, phieu_giam_gia_chi_tiet_khach_hang (chỉ lưu customer_id) | san_pham, san_pham_chi_tiet, mau_sac, kich_co, khach_hang (full info) |
 | user-service | khach_hang, tài khoản, địa chỉ | san_pham, đơn hàng |
-| inventory-service | tồn kho theo sku_id (tham chiếu) | san_pham (full info) |
 | order-service | đơn hàng, order_detail (snapshot giá/tên tại thời điểm mua) | san_pham gốc, khuyến mãi gốc |
 
 ## 3. Cách service này lấy dữ liệu của service khác — BẮT BUỘC chọn 1 trong 2
@@ -39,7 +38,7 @@ Dùng khi **cần dữ liệu real-time ngay lúc xử lý request**, và có th
 ### b) Kafka (bất đồng bộ, event-driven)
 Dùng khi **không cần real-time**, cần đồng bộ trạng thái, hoặc để tránh coupling cứng lúc runtime.
 - VD: `catalog-service` publish event `ProductPriceChanged`; `promotion-service`/`order-service` subscribe để cập nhật cache nội bộ hoặc snapshot của mình.
-- VD: `order-service` publish `OrderCreated`; `inventory-service` subscribe để trừ kho; `notification-service` subscribe để gửi email.
+- VD: `order-service` publish `OrderCreated`; `notification-service` subscribe để gửi email. Ton kho hien tai khong tach service rieng; cac luong can ton kho goi/ghi qua domain san pham hien co.
 - Đây là cách chuẩn để tránh phải gọi Feign đồng bộ ở luồng quan trọng (checkout, thanh toán).
 
 ### KHÔNG BAO GIỜ được:
@@ -90,12 +89,11 @@ Không migrate ngẫu nhiên theo tên file/thư mục. Bắt buộc theo thứ 
 
 1. `catalog-service` — nguồn dữ liệu sản phẩm gốc, nhiều service khác phụ thuộc vào nó.
 2. `user-service` — nguồn dữ liệu khách hàng gốc.
-3. `inventory-service` — phụ thuộc catalog (sku_id).
-4. `promotion-service` — phụ thuộc catalog + user.
-5. `cart-service` — phụ thuộc catalog + user.
-6. `order-service` — phụ thuộc catalog, user, inventory, promotion.
-7. `notification-service` — phụ thuộc order/user (chủ yếu consume Kafka event).
-8. `auth-service`, `api-gateway`, `discovery-server`, `common-lib` — hạ tầng, xử lý sau cùng hoặc song song vì ít phụ thuộc dữ liệu domain.
+3. `promotion-service` — phụ thuộc catalog + user.
+4. `cart-service` — phụ thuộc catalog + user.
+5. `order-service` — phụ thuộc catalog, user, promotion.
+6. `notification-service` — phụ thuộc order/user (chủ yếu consume Kafka event).
+7. `auth-service`, `api-gateway`, `discovery-server`, `common-lib` — hạ tầng, xử lý sau cùng hoặc song song vì ít phụ thuộc dữ liệu domain.
 
 ## 7. Quy trình bắt buộc cho MỖI service: AUDIT trước, FIX sau (không gộp 1 bước)
 

@@ -242,7 +242,6 @@ backend-microservice/
 ├── auth-service
 ├── product-service
 ├── order-service
-├── inventory-service
 ├── ...
 ├── docker-compose.yml
 └── README.md

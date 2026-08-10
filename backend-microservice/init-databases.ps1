@@ -7,8 +7,7 @@ param(
         "ecommerce_catalog",
         "ecommerce_promotion",
         "ecommerce_cart",
-        "ecommerce_order",
-        "ecommerce_inventory"
+        "ecommerce_order"
     )
 )
 

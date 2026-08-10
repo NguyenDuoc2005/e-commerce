@@ -110,19 +110,6 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
 
-  inventory-service:
-    build: ./inventory-service
-    depends_on:
-      - mysql
-      - kafka
-      - discovery-server
-    environment:
-      INVENTORY_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_inventory?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
-      INVENTORY_DATASOURCE_USERNAME: root
-      INVENTORY_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
-
   notification-service:
     build: ./notification-service
     depends_on:

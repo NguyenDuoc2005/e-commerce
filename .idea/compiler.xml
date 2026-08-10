@@ -11,7 +11,6 @@
         <module name="backend-microservice.catalog-service.main" />
         <module name="backend-microservice.user-service.main" />
         <module name="backend-microservice.discovery-server.main" />
-        <module name="backend-microservice.inventory-service.main" />
         <module name="backend-microservice.order-service.main" />
         <module name="backend-microservice.notification-service.main" />
         <module name="backend-microservice.common-lib.main" />
@@ -38,9 +37,6 @@
       <module name="backend-microservice.discovery-server" options="-parameters" />
       <module name="backend-microservice.discovery-server.main" options="-parameters" />
       <module name="backend-microservice.discovery-server.test" options="-parameters" />
-      <module name="backend-microservice.inventory-service" options="-parameters" />
-      <module name="backend-microservice.inventory-service.main" options="-parameters" />
-      <module name="backend-microservice.inventory-service.test" options="-parameters" />
       <module name="backend-microservice.notification-service" options="-parameters" />
       <module name="backend-microservice.notification-service.main" options="-parameters" />
       <module name="backend-microservice.notification-service.test" options="-parameters" />

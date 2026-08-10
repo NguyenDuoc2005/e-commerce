@@ -11,8 +11,7 @@ Do not edit `../BE`. Move logic service by service and keep public API behavior 
 - `common-lib`: shared response/exception DTOs only; no shared JPA entities.
 - `auth-service`: JWT/OAuth2/login/register.
 - `user-service`: customer and staff.
-- `catalog-service`: products and product attributes.
-- `inventory-service`: stock ownership.
+- `catalog-service`: products, product attributes, and current product-detail stock.
 - `promotion-service`: vouchers and product promotions.
 - `order-service`: orders, invoice history, checkout and VNPay in version 1.
 - `cart-service`: shopping cart.
@@ -36,4 +35,3 @@ BE\gradlew.bat -p backend-microservice clean build
 ```
 
 Build was intentionally skipped on 2026-08-03 because it was too time-consuming for the current migration pass.
-

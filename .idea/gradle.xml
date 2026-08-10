@@ -14,7 +14,6 @@
             <option value="$PROJECT_DIR$/backend-microservice/catalog-service" />
             <option value="$PROJECT_DIR$/backend-microservice/common-lib" />
             <option value="$PROJECT_DIR$/backend-microservice/discovery-server" />
-            <option value="$PROJECT_DIR$/backend-microservice/inventory-service" />
             <option value="$PROJECT_DIR$/backend-microservice/notification-service" />
             <option value="$PROJECT_DIR$/backend-microservice/order-service" />
             <option value="$PROJECT_DIR$/backend-microservice/promotion-service" />

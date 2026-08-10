@@ -6,7 +6,6 @@ CREATE DATABASE IF NOT EXISTS `ecommerce_catalog` CHARACTER SET utf8mb4 COLLATE 
 CREATE DATABASE IF NOT EXISTS `ecommerce_promotion` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS `ecommerce_cart` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS `ecommerce_order` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE IF NOT EXISTS `ecommerce_inventory` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 USE `ecommerce_user`;
 

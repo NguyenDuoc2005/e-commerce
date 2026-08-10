@@ -27,18 +27,18 @@ Quy tac bat buoc:
 - Reset sach va seed data demo bang MySQL local: `powershell -ExecutionPolicy Bypass -File backend-microservice\reset-demo-databases.ps1 -Force`
 - Reset sach va seed data demo bang Docker MySQL: `powershell -ExecutionPolicy Bypass -File backend-microservice\reset-demo-databases.ps1 -UseDocker -Force`
 - Docker MySQL publish ra host port `3307`, nen khi chay backend bang runner local can dung: `powershell -ExecutionPolicy Bypass -File backend-microservice\run-all.ps1 -DbPort 3307`
-- Runner mac dinh dung database rieng theo service: `ecommerce_auth`, `ecommerce_user`, `ecommerce_catalog`, `ecommerce_promotion`, `ecommerce_cart`, `ecommerce_order`, `ecommerce_inventory`.
+- Runner mac dinh dung database rieng theo service: `ecommerce_auth`, `ecommerce_user`, `ecommerce_catalog`, `ecommerce_promotion`, `ecommerce_cart`, `ecommerce_order`.
 - Hibernate `ddl-auto=update` tu tao bang khi service boot.
 - Data demo seed san tai khoan: `admin@ecommerce.local`, `staff@ecommerce.local`, `customer1@ecommerce.local`; mat khau chung `Admin@123`.
 - Neu gateway tra 503 cho `/api/v1/admin/mau-sac`, kiem tra Eureka `http://localhost:8761/eureka/apps`: route nay can `CATALOG-SERVICE` dang `UP`.
 
 ## Checkpoint AGENTS ngay 2026-08-10
 
-- Da doc `AGENTS.md` va tiep tuc refactor theo thu tu muc 6: catalog-service -> user-service -> inventory-service -> promotion-service -> cart-service -> order-service -> notification-service -> phan con lai.
+- Da doc `AGENTS.md` va tiep tuc refactor theo thu tu muc 6 sau khi bo service ton kho rieng: catalog-service -> user-service -> promotion-service -> cart-service -> order-service -> notification-service -> phan con lai.
 - Khong tao file tracking rieng; `README-Microservice.md` la nguon theo doi duy nhat theo AGENTS muc 8.
 - `catalog-service`: audit muc 2 khong thay bang/entity ngoai domain; service tiep tuc so huu product/attribute tables. Da bo `JdbcTemplate` khoi `ProductServiceImpl` public product path, dung JPA repository/entity; phan discount lay qua OpenFeign `PromotionClient` toi `promotion-service` internal endpoint `/internal/promotions/discounts/active`. Doi chieu AGENTS muc 5: pass database-per-service, pass API public, build PASS.
 - `user-service`: da bo native query `KhachHangRepository.getLSKH` join truc tiep `hoa_don`/`hoa_don_chi_tiet`; thay bang OpenFeign `OrderClient` goi internal endpoint `order-service` `/internal/orders/customers/{customerId}/history`. Them internal JPA endpoint cho auth/customer/staff de service khac khong map bang `khach_hang`/`nhan_vien`. Public API `/api/v1/permitall/profile/hd/{id}` giu nguyen response wrapper/message. Doi chieu AGENTS muc 5: pass database-per-service, pass API public, build PASS.
-- `inventory-service`: audit hien chi co application skeleton va datasource rieng `ecommerce_inventory`, chua co entity/query nen chua co vi pham bang trung hoac thao tac DB cheo. Build `.\gradlew.bat clean build --no-daemon` PASS.
+- Service ton kho rieng: da quyet dinh bo khoi source vi du an hien tai/BE khong dung; ton kho tiep tuc nam theo product detail trong catalog/order/cart flow hien co.
 - `promotion-service`: da xoa cac entity/repository copy domain `khach_hang`, `san_pham`, `san_pham_chi_tiet`, `mau_sac`, `kich_co`; detail promotion/voucher chi luu id tham chieu. Cac route doc san pham/mau/size cua promotion goi `catalog-service` qua OpenFeign `CatalogClient` va internal endpoint `/internal/catalog/**`. Them internal endpoint JPA `/internal/promotions/discounts/active` cho catalog lay discount thay vi catalog query bang promotion. Public route dot-giam-gia/voucher giu nguyen. Doi chieu AGENTS muc 5: pass database-per-service, pass API public, build PASS.
 - `cart-service`: da xoa entity/repository copy `khach_hang` va `san_pham_chi_tiet`; `gio_hang`/`gio_hang_chi_tiet` chi luu id tham chieu. Them `CatalogClient` toi `catalog-service` de check `soLuong` va enrich product detail khi tra gio hang. Public API `/api/v1/permitall/cart` giu nguyen route/message chinh. Doi chieu AGENTS muc 5: pass database-per-service, pass API public, build PASS.
 - `order-service`: da bo cac query/update DB cheo sang catalog/user/promotion trong checkout, don mua, admin ban hang va thong ke top san pham; thay bang OpenFeign `CatalogClient`, `UserClient`, `PromotionClient`, `CartClient` va internal endpoint JPA o service so huu du lieu. `HoaDonRepository.layTop3SanPhamBanChay` chi aggregate tren `hoa_don`/`hoa_don_chi_tiet`, enrich product qua catalog. Public API order/ban-hang/don-mua/thong-ke giu nguyen route va response key chinh. Doi chieu AGENTS muc 5: pass database-per-service, pass API public, build PASS.
@@ -153,21 +153,19 @@ Frontend
           -> auth-service
           -> user-service
           -> catalog-service
-          -> inventory-service
           -> promotion-service
           -> order-service
           -> cart-service
           -> notification-service
 ```
 
-Khong tach `payment-service` rieng trong version dau vi logic VNPay dang bi tron chat voi order creation, order status, voucher, cart va inventory. De giu nghiep vu 100%, payment se nam trong `order-service` truoc; sau khi on dinh moi tach rieng.
+Khong tach `payment-service` rieng trong version dau vi logic VNPay dang bi tron chat voi order creation, order status, voucher, cart va ton kho san pham. De giu nghiep vu 100%, payment se nam trong `order-service` truoc; sau khi on dinh moi tach rieng.
 
 ### Database per service de xuat
 
 - `auth_db`: refresh token, auth projection neu can.
 - `user_db`: `khach_hang`, `nhan_vien`.
 - `catalog_db`: `san_pham`, `san_pham_chi_tiet` metadata, `thuong_hieu`, `xuat_su`, `danh_muc`, `loai_de`, `chat_lieu`, `kich_co`, `mau_sac`.
-- `inventory_db`: ton kho theo `product_detail_id`, `quantity`.
 - `promotion_db`: `phieu_giam_gia`, `phieu_giam_gia_chi_tiet_khach_hang`, `dot_giam_gia`, `dot_giam_gia_chi_tiet_san_pham`.
 - `order_db`: `hoa_don`, `hoa_don_chi_tiet`, `lich_su_thanh_toan`, `lich_su_trang_thai_hoa_don`, snapshot customer/product/voucher/staff.
 - `cart_db`: `gio_hang`, `gio_hang_chi_tiet`.
@@ -188,7 +186,7 @@ Danh sach san pham:
 ```text
 Frontend -> Gateway -> catalog-service
 catalog-service -> promotion-service neu can gia giam
-catalog-service -> inventory-service neu response can ton kho
+catalog-service tra ton kho theo `san_pham_chi_tiet.so_luong`
 ```
 
 Gio hang:
@@ -197,7 +195,7 @@ Gio hang:
 Frontend -> Gateway -> cart-service
 cart-service -> user-service kiem tra khach hang
 cart-service -> catalog-service lay product detail
-cart-service -> inventory-service check ton kho
+cart-service -> catalog-service check ton kho theo product detail
 ```
 
 Checkout/order:
@@ -205,7 +203,6 @@ Checkout/order:
 ```text
 Frontend -> Gateway -> order-service
 order-service -> promotion-service validate voucher
-order-service -> inventory-service tru/reserve ton kho
 order-service -> catalog-service lay product snapshot
 order-service -> user-service lay customer/staff snapshot
 order-service -> Kafka OrderCreated/OrderPaid
@@ -216,7 +213,7 @@ Admin ban hang:
 
 ```text
 Frontend admin -> Gateway -> order-service
-order-service -> catalog-service, inventory-service, promotion-service, user-service
+order-service -> catalog-service, promotion-service, user-service
 ```
 
 Promotion:
@@ -235,7 +232,6 @@ Chi dung Kafka cho viec bat dong bo:
 - `OrderStatusChanged`
 - `VoucherAssigned`
 - `EmployeeCreated`
-- `InventoryChanged`
 - Email notification
 - Audit/log event
 
@@ -245,7 +241,7 @@ Khong dung Kafka cho login, validate voucher tuc thoi, check ton kho truoc check
 
 - Monolith hien co nhieu native query join truc tiep qua bang khac, can tach thanh query noi bo DB va Feign DTO.
 - `ADBanHangServiceImpl` dang vua xu ly order, customer, staff, voucher, stock.
-- `thanhtoanserviceImpl` dang tron checkout, VNPay, cart, voucher, inventory, email.
+- `thanhtoanserviceImpl` dang tron checkout, VNPay, cart, voucher, ton kho san pham, email.
 - `DotGiamGiaServiceImpl` dang dung truc tiep product/product detail repository.
 - Sau khi database-per-service, khong the giu entity JPA relation cross-service.
 - Mot so message tieng Viet trong source hien bi loi encoding hien thi, khi migrate can giu dung response behavior theo source hien tai.
@@ -288,7 +284,6 @@ Ngay cap nhat: 2026-08-03
 - Tao moi `backend-microservice/auth-service`
 - Tao moi `backend-microservice/user-service`
 - Tao moi `backend-microservice/catalog-service`
-- Tao moi `backend-microservice/inventory-service`
 - Tao moi `backend-microservice/promotion-service`
 - Tao moi `backend-microservice/order-service`
 - Tao moi `backend-microservice/cart-service`
@@ -675,7 +670,7 @@ Ngay cap nhat: 2026-08-03
 
 - `order-service` khong con query DB cheo sang catalog/user/promotion cho admin ban hang, don mua, checkout va thong ke top san pham; cac du lieu ngoai domain lay qua OpenFeign. Cac query native/JdbcTemplate con lai chi doc/ghi bang order-domain va can tiep tuc chuyen sang JPA repository neu refactor tiep theo muc 3b.
 - `GET /api/v1/admin/hoa-don`, `/all`, `/lich_su_thanh_toan/{id}` da bo join truc tiep sang `khach_hang`, `nhan_vien`, `san_pham`, `phieu_giam_gia` de order-service chay duoc voi DB rieng `ecommerce_order`; response dung snapshot/id dang co tren `hoa_don` va `hoa_don_chi_tiet`.
-- `PUT /api/v1/admin/hoa-don/change-status` da cap nhat `hoa_don.trang_thai_hoa_don` va ghi `lich_su_trang_thai_hoa_don`. Side effect cong lai ton kho/voucher khi `DA_HUY` khong con update table truc tiep trong order DB; can noi Feign/event sang `inventory-service` va `promotion-service` de hoan tat logic cross-service.
+- `PUT /api/v1/admin/hoa-don/change-status` da cap nhat `hoa_don.trang_thai_hoa_don` va ghi `lich_su_trang_thai_hoa_don`. Side effect cong lai ton kho/voucher khi `DA_HUY` khong con update table truc tiep trong order DB; can noi Feign/event sang `catalog-service` va `promotion-service` de hoan tat logic cross-service.
 - `POST /api/v1/admin/hoa-don/thanh_toan` da ghi `lich_su_thanh_toan` va update `tong_tien_sau_giam`, `tong_tien`, `trang_thai_hoa_don` nhu monolith.
 - Email khi doi trang thai chua gui truc tiep trong `order-service`; se chuyen sang `notification-service`/Kafka.
 - PDF invoice/delivery da giu endpoint, header va content-type PDF. Noi dung PDF hien la ban toi thieu; can port template iText chi tiet sau khi tach xong order flow chinh.
@@ -799,7 +794,7 @@ Ngay cap nhat: 2026-08-03
 ### Docker/Kafka da them
 
 - `backend-microservice/docker-compose.yml`
-- Dockerfile cho `discovery-server`, `api-gateway`, `auth-service`, `user-service`, `catalog-service`, `promotion-service`, `cart-service`, `order-service`, `inventory-service`, `notification-service`.
+- Dockerfile cho `discovery-server`, `api-gateway`, `auth-service`, `user-service`, `catalog-service`, `promotion-service`, `cart-service`, `order-service`, `notification-service`.
 - Compose gom MySQL 8.4, Zookeeper, Kafka, Eureka, Gateway va cac service app.
 - Chua chay Docker/build theo yeu cau user khong build.
 
@@ -858,9 +853,9 @@ Ket qua: `.\gradlew.bat clean build --no-daemon` trong `backend-microservice` PA
 - Chua tao refresh-token persistence/revoke endpoint rieng.
 - Chua doi chieu runtime response voi frontend.
 - Chua publish Kafka email event tu cac service order/user/promotion; notification-service da co endpoint/consumer nhan event.
-- `inventory-service` moi la skeleton vi ton kho trong monolith dang nam tren `san_pham_chi_tiet` va da duoc xu ly truc tiep trong catalog/order/cart de giu nghiep vu cu.
+- Service ton kho rieng da bi loai bo theo quyet dinh 2026-08-10 vi ton kho trong monolith/du an hien tai nam tren `san_pham_chi_tiet` va dang duoc xu ly truc tiep trong catalog/order/cart.
 - Da build toan bo `backend-microservice` ngay 2026-08-05, nhung chua chay full runtime smoke qua gateway/Eureka/DB cho tung API Admin.
 
 ### Buoc tiep theo
 
-Neu user cho phep, chay runtime smoke test Admin qua gateway/Eureka/DB, sau do noi Kafka publish email event va tach ton kho sang `inventory-service` neu muon dung dung DB-per-service nghiem ngat.
+Neu user cho phep, chay runtime smoke test Admin qua gateway/Eureka/DB, sau do noi Kafka publish email event; khong tach ton kho sang service rieng.

@@ -5,7 +5,7 @@ import HeaderArea from '@/components/ui/Header/HeaderArea.vue';
 
 <template>
   <!-- ===== Page Wrapper Start ===== -->
-  <div class="d-flex vh-100 overflow-hidden">
+  <div class="admin-shell d-flex vh-100 overflow-hidden">
     <!-- ===== Sidebar Start ===== -->
     <AdminSidebar />
     <!-- ===== Sidebar End ===== -->
@@ -17,7 +17,7 @@ import HeaderArea from '@/components/ui/Header/HeaderArea.vue';
       <!-- ===== Header End ===== -->
 
       <!-- ===== Main Content Start ===== -->
-      <main class="container-fluid py-4 px-md-6 px-xxl-10 bg-light">
+      <main class="admin-content container-fluid">
         <router-view></router-view>
       </main>
       <!-- ===== Main Content End ===== -->

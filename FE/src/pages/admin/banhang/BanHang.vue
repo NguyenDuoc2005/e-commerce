@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="breadcrumb-section">
     <BreadcrumbDefault :pageTitle="'Bán hàng'" :routes="[
       { path: '/ban-hang', name: 'Bán hàng' }
@@ -54,83 +54,48 @@
         </div>
       </div>
 
-      <div class="card mt-4">
-        <div class="card-header">
-          <h3>Giỏ hàng</h3>
+      <div class="card mt-4 pos-products-card">
+        <div class="card-header pos-card-header">
+          <div>
+            <h3>Danh sách sản phẩm</h3>
+            <span class="pos-subtitle">{{ stateSP.totalItems }} sản phẩm có thể bán</span>
+          </div>
+          <button class="btn-add-product pos-scan-btn" @click="openQrModal">
+            <QrcodeOutlined /> Quét QR
+          </button>
         </div>
-        <div class="tab-content-display" v-if="activeTab">
-          <div class="actions-add-product">
-            <button class="btn-add-product" style="margin-right: 10px; width: 150px;"
-              @click="openProductSelectionModal">
-              <p class="quet">Chọn sản phẩm</p>
-            </button>
-            <button class="btn-add-product" @click="openQrModal">
-              <p class="quet">
-                <QrcodeOutlined /> Quét QR
-              </p>
-            </button>
-          </div>
-          <div v-if="state.gioHang.length > 0">
-            <a-table :columns="columnsGiohang" :data-source="state.gioHang" :scroll="{ y: 240 }"
-              :pagination="{ pageSize: 5, hideOnSinglePage: true }">
-              <template #bodyCell="{ column, record }">
-                <div v-if="column.key === 'stt'">
-                  {{ state.gioHang.indexOf(record) + 1 }}
-                </div>
-                <template v-if="column.key === 'anh'">
-                  <div class="center-cell">
-                    <img :src="record.anh" class="anh" style="width: 50px; height: 50px; border-radius: 50%" />
-                  </div>
-                </template>
-
-                <template v-if="column.key === 'soLuong'">
-                  <div class="center-cell">
-                    <button class="quantity-btn" @click="decreaseQuantity(record.idHDCT, record.id)">-</button>
-                    <input type="text" v-model="record.soLuong" class="quantity-input" readonly />
-                    <button class="quantity-btn" @click="increaseQuantity(record.idHDCT, record.id)">+</button>
-                  </div>
-                </template>
-
-                <div v-if="column.key === 'giaBan'">
-                  {{ formatCurrency(record.giaBan) }}
-                </div>
-
-                <template v-if="column.key === 'mau'">
-                  <div class="center-cell">
-                    <div class="color"
-                      :style="{ width: '30px', height: '30px', backgroundColor: record.mau, border: '1px solid #000' }">
-                    </div>
-                  </div>
-                </template>
-                <template v-if="column.key === 'status'">
-                  <div class="center-cell">
-                    <b class="highlight">{{ formatCurrency(record.giaBan * record.soLuong) }}</b>
-                  </div>
-                </template>
-                <template v-if="column.key === 'operation'">
-                  <div class="d-flex gap-1 justify-content-center align-items-center">
-                    <a-tooltip title="Hủy sản phẩm">
-                      <a-button type="primary" @click="deleteProduc(record.id, record.idHDCT)"
-                        style="color: white; justify-content: center; background-color: #EE0000;"
-                        class="p-2 d-flex justify-content-center align-items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                          class="bi bi-trash" viewBox="0 0 16 16">
-                          <path
-                            d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
-                          <path
-                            d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H9.5a1 1 0 0 1 1 1H14a1 1 0 0 1 1 1zM4.118 4 .5 3.993 1.5 2h13l-1 2H4.118z" />
-                        </svg>
-                      </a-button>
-                    </a-tooltip>
-                  </div>
-                </template>
-              </template>
-            </a-table>
-          </div>
-          <div class="empty-cart" v-else>
-
-            <p>Không có sản phẩm nào trong giỏ hàng</p>
-          </div>
+        <div class="pos-product-toolbar">
+          <a-input id="search-query" v-model:value="localSearchQuery" placeholder="Tìm nhanh mã hoặc tên sản phẩm..."
+            class="pos-search-input" />
+          <a-select id="category-select" allow-clear :options="danhMucOptions" placeholder="Danh mục"
+            v-model:value="localSelectedCategory" />
+          <a-select id="search-color" v-model:value="localColor" @change="handleColorChange" allow-clear
+            :options="ColorOptions" placeholder="Màu sắc" />
+          <a-select id="search-size" v-model:value="localSize" @change="handleSizeChange" allow-clear
+            :options="SizeOptions" placeholder="Kích cỡ" />
+          <a-button @click="resetFilters" class="pos-reset-btn">
+            <ReloadOutlined /> Đặt lại
+          </a-button>
+        </div>
+        <div class="pos-product-grid" v-if="stateSP.products.length > 0">
+          <button v-for="product in stateSP.products" :key="product.id" class="pos-product-card"
+            @click="quickAddProduct(product.id)">
+            <img :src="product.anh || '/images/logo.jpg'" :alt="product.ten" class="pos-product-img" />
+            <span class="pos-product-name">{{ product.ten }}</span>
+            <span class="pos-product-meta">
+              <span v-if="product.kichThuoc">Size {{ product.kichThuoc }}</span>
+              <span v-if="product.mau" class="pos-color-dot" :style="{ backgroundColor: product.mau }"></span>
+            </span>
+            <strong class="pos-product-price">{{ formatCurrency(product.giaBan || 0) }}</strong>
+          </button>
+        </div>
+        <div class="empty-cart pos-empty-products" v-else>
+          <p>Không tìm thấy sản phẩm phù hợp</p>
+        </div>
+        <div class="pos-product-pagination">
+          <a-pagination :current="stateSP.paginationParams.page" :page-size="stateSP.paginationParams.size"
+            :total="stateSP.totalItems" show-size-changer :page-size-options="['12', '24', '36', '48']"
+            @change="(page, pageSize) => handleTableChange({ current: page, pageSize })" />
         </div>
       </div>
       <div v-if="isDeliveryEnabled == true" class="delivery-info-section">
@@ -311,8 +276,43 @@
 
     <div class="right-column">
 
+      <div class="card pos-cart-card">
+        <div class="card-header pos-card-header">
+          <div>
+            <h3>Hóa đơn hiện tại</h3>
+            <span class="pos-subtitle">{{ state.gioHang.length }} dòng sản phẩm</span>
+          </div>
+        </div>
+        <div class="pos-cart-list" v-if="activeTab && state.gioHang.length > 0">
+          <div v-for="record in state.gioHang" :key="record.idHDCT || record.id" class="pos-cart-row">
+            <img :src="record.anh || '/images/logo.jpg'" :alt="record.ten" class="pos-cart-img" />
+            <div class="pos-cart-info">
+              <strong>{{ record.ten }}</strong>
+              <span>{{ formatCurrency(record.giaBan || 0) }}</span>
+              <span v-if="record.kichThuoc || record.mau" class="pos-cart-variant">
+                <span v-if="record.kichThuoc">Size {{ record.kichThuoc }}</span>
+                <span v-if="record.mau" class="pos-color-dot" :style="{ backgroundColor: record.mau }"></span>
+              </span>
+            </div>
+            <div class="pos-cart-actions">
+              <div class="pos-qty-control">
+                <button class="quantity-btn" @click="decreaseQuantity(record.idHDCT, record.id)">-</button>
+                <input type="text" v-model="record.soLuong" class="quantity-input" readonly />
+                <button class="quantity-btn" @click="increaseQuantity(record.idHDCT, record.id)">+</button>
+              </div>
+              <strong>{{ formatCurrency((record.giaBan || 0) * (record.soLuong || 0)) }}</strong>
+              <button class="pos-remove-btn" @click="deleteProduc(record.id, record.idHDCT)" title="Xóa sản phẩm">
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="empty-cart" v-else>
+          <p>Chưa có sản phẩm trong hóa đơn</p>
+        </div>
+      </div>
 
-      <div class="card-body" style="margin-top: 80px;">
+      <div class="card-body pos-side-section">
         <div class="card mt-4">
           <div class="card-header">
             <h3 style="font-size: 18px;">Khách hàng</h3>
@@ -2463,6 +2463,16 @@ function selectProduct(idSPS: any) {
   showProductModal.value = false // Close product selection modal if open
 }
 
+async function quickAddProduct(idSPS: any) {
+  if (!idHDS.value) {
+    toast.error('Vui lòng tạo hoặc chọn hóa đơn trước khi thêm sản phẩm!');
+    return;
+  }
+  idSP.value = idSPS
+  selectedProduct.value.soLuong = 1
+  await confirmQuantity()
+}
+
 const startQrScanning = () => {
   const qrRegionId = 'reader'
   const qrRegionElement = document.getElementById(qrRegionId)
@@ -4150,12 +4160,12 @@ textarea.input-full-width {
 .discount-title {
   font-size: 16px;
   font-weight: 500;
-  color: #1890ff;
+  color: #1f7f98;
   cursor: pointer;
 }
 
 .discount-title:hover {
-  color: #40a9ff;
+  color: #2396b5;
 }
 
 .discount-details {
@@ -4267,14 +4277,14 @@ textarea.input-full-width {
 }
 
 .delivery-toggle-container :deep(.ant-switch-checked) {
-  background-color: #007bff;
+  background-color: #54BDDB;
   /* Màu xanh lá cây mặc định của Ant Design */
   /* Hoặc một màu xanh lá cây khác mà bạn thích */
   /* background-color: #4CAF50; */
 }
 
 .my-button:hover {
-  background-color: #007bff;
+  background-color: #54BDDB;
   /* Ví dụ: #f0f0f0 (màu xám nhạt) hoặc màu xanh bạn muốn */
   /* Hoặc nếu bạn muốn bỏ hiệu ứng nền, có thể dùng */
   /* background-color: transparent; */
@@ -4479,7 +4489,7 @@ textarea.input-full-width {
 
 .shipping-fee {
   font-weight: 600;
-  color: #1890ff;
+  color: #1f7f98;
 }
 
 /* Responsive adjustments */
@@ -4585,7 +4595,7 @@ textarea.input-full-width {
 :deep(.ant-input:hover),
 :deep(.ant-input:focus),
 :deep(.ant-input-focused) {
-  border-color: #58bddb !important;
+  border-color: #54BDDB !important;
   /* Màu xanh đậm hơn */
   box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2) !important;
   /* Đổ bóng màu xanh đậm */
@@ -4594,7 +4604,7 @@ textarea.input-full-width {
 :deep(.ant-select:hover),
 :deep(.ant-select:focus),
 :deep(.ant-select-focused) {
-  border-color: #58bddb !important;
+  border-color: #54BDDB !important;
   /* Màu xanh đậm hơn */
   /* box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2) !important; */
   /* Đổ bóng màu xanh đậm */
@@ -4604,7 +4614,7 @@ textarea.input-full-width {
 :deep(.ant-input-number:hover),
 :deep(.ant-input-number:focus),
 :deep(.ant-input-number-focused) {
-  border-color: #58bddb !important;
+  border-color: #54BDDB !important;
   box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2) !important;
 }
 
@@ -4618,7 +4628,7 @@ textarea.input-full-width {
 
 /* Dùng cho các component phức tạp có nhiều phần tử con */
   {
-  border-color: #58bddb !important;
+  border-color: #54BDDB !important;
   box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2) !important;
 }
 
@@ -4630,5 +4640,314 @@ textarea.input-full-width {
   /* box-shadow: 0 2px 8px rgba(0, 0, 0, 1); */
   /* Subtle shadow */
   /* Đổ bóng xanh */
+}
+.main-layout {
+  display: grid !important;
+  grid-template-columns: minmax(620px, 1fr) 460px;
+  gap: 18px !important;
+  align-items: start;
+}
+
+.left-column,
+.right-column {
+  min-width: 0;
+}
+
+.right-column {
+  position: sticky;
+  top: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.top-header,
+.card,
+.delivery-info-section {
+  border: 1px solid var(--admin-border, #dbe3ef) !important;
+  border-radius: var(--admin-radius, 8px) !important;
+  box-shadow: var(--admin-shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.06)) !important;
+}
+
+.top-header {
+  padding: 14px !important;
+}
+
+.search-and-create-section {
+  justify-content: flex-end !important;
+}
+
+.pos-card-header {
+  gap: 12px;
+}
+
+.pos-subtitle {
+  display: block;
+  margin-top: 4px;
+  color: var(--admin-muted, #64748b);
+  font-size: 13px;
+}
+
+.pos-products-card {
+  overflow: hidden;
+}
+
+.pos-product-toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) repeat(3, minmax(132px, 160px)) 104px;
+  gap: 10px;
+  padding: 14px;
+  background: var(--admin-surface-soft, #f8fafc);
+  border-bottom: 1px solid var(--admin-border, #dbe3ef);
+}
+
+.pos-search-input {
+  width: 100%;
+}
+
+.pos-reset-btn,
+.pos-scan-btn {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--admin-radius, 8px);
+}
+
+.pos-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 14px;
+  max-height: calc(100vh - 364px);
+  min-height: 360px;
+  overflow: auto;
+}
+
+.pos-product-card {
+  border: 1px solid var(--admin-border, #dbe3ef);
+  border-radius: var(--admin-radius, 8px);
+  background: #ffffff;
+  padding: 9px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.pos-product-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--admin-primary, #54BDDB);
+  box-shadow: 0 10px 24px rgba(84, 189, 219, 0.16);
+}
+
+.pos-product-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: var(--admin-radius, 8px);
+  background: #eef2f7;
+}
+
+.pos-product-name {
+  min-height: 40px;
+  color: var(--admin-text, #172033);
+  font-weight: 700;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pos-product-meta,
+.pos-cart-variant {
+  min-height: 20px;
+  color: var(--admin-muted, #64748b);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pos-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #cbd5e1;
+  display: inline-block;
+}
+
+.pos-product-price {
+  color: #1f7f98;
+  font-size: 16px;
+}
+
+.pos-product-pagination {
+  padding: 12px 16px 16px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--admin-border, #dbe3ef);
+}
+
+.pos-cart-card {
+  margin-top: 0 !important;
+}
+
+.pos-cart-list {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.pos-cart-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px 12px;
+  padding: 10px;
+  border: 1px solid var(--admin-border, #dbe3ef);
+  border-radius: var(--admin-radius, 8px);
+  background: #ffffff;
+}
+
+.pos-cart-img {
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: var(--admin-radius, 8px);
+}
+
+.pos-cart-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pos-cart-info strong {
+  color: var(--admin-text, #172033);
+  line-height: 1.3;
+}
+
+.pos-cart-info span {
+  color: var(--admin-muted, #64748b);
+  font-size: 13px;
+}
+
+.pos-cart-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pos-qty-control {
+  display: inline-flex;
+  align-items: center;
+}
+
+.quantity-btn {
+  width: 34px !important;
+  height: 34px;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--admin-border, #dbe3ef) !important;
+  background: rgba(84, 189, 219, 0.12) !important;
+  color: #1f7f98 !important;
+}
+
+.quantity-input {
+  width: 38px !important;
+  height: 34px;
+  margin: 0 4px;
+  border-radius: 8px !important;
+  border: 1px solid var(--admin-border, #dbe3ef) !important;
+  background: #ffffff !important;
+}
+
+.pos-remove-btn {
+  border: none;
+  background: #fee2e2;
+  color: var(--admin-danger, #dc2626);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-weight: 700;
+}
+
+.pos-side-section {
+  margin-top: 0 !important;
+  padding: 0 !important;
+}
+
+.payment-summary {
+  background: #f8fafc;
+  border: 1px solid var(--admin-border, #dbe3ef);
+  border-radius: var(--admin-radius, 8px);
+  padding: 12px !important;
+}
+
+.summary-item {
+  background: transparent !important;
+}
+
+.summary-item.total-amount {
+  font-size: 20px !important;
+}
+
+.btn-confirm-payment {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  min-height: 52px;
+  font-size: 17px !important;
+  box-shadow: 0 12px 24px rgba(84, 189, 219, 0.18);
+}
+
+@media (max-width: 1180px) {
+  .main-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .right-column {
+    position: static;
+    max-height: none;
+  }
+
+  .pos-product-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .pos-product-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .pos-product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    max-height: none;
+  }
+
+  .pos-cart-row {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .pos-cart-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
 }
 </style>

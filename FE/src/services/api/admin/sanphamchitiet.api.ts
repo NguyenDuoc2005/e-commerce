@@ -31,6 +31,11 @@ export type SanPhamResponse = ResponseList & {
   idMau: string,
   idSize: string,
   status: string,
+  anh?: string,
+  giaBan?: number,
+  kichThuoc?: string,
+  soLuong?: number,
+  idHDCT?: string,
 }
 
 export type ThuocTinhResponse = ResponseList & {

@@ -121,16 +121,16 @@ const toggleCollapse = () => {
     <div class="header">
       <!-- Toggle Button ở trên -->
       <div class="toggle-container">
-        <!-- <button @click="toggleCollapse" class="toggle-button" type="button"
+        <button @click="toggleCollapse" class="toggle-button" type="button"
           :title="isCollapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'" aria-label="Toggle sidebar collapse">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
             class="toggle-icon" :class="{ 'rotate-180': isCollapsed }">
             <path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
           </svg>
-        </button> -->
+        </button>
         <div class="logo-container">
           <router-link to="/" class="logo-link">
-            <img src="/images/logo.jpg" alt="Tên thương hiệu logo, biểu tượng màu sắc chủ đạo trắng đen tinh tế"
+            <img src="/images/logo.jpg" alt="Logo"
               class="logo" :class="{ 'collapsed': isCollapsed }" style="margin-bottom: 10px;" />
           </router-link>
         </div>
@@ -157,22 +157,22 @@ const toggleCollapse = () => {
 <style scoped>
 .sidebar {
   background-color: #ffffff;
-  /* width: 300px; */
+  width: 292px;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
-  color: #374151;
-  border-right: 1px solid #e5e7eb;
+  transition: width 0.24s ease, transform 0.24s ease;
+  color: var(--admin-text, #172033);
+  border-right: 1px solid var(--admin-border, #dbe3ef);
   user-select: none;
-  font-family: Roboto, sans-serif;
+  font-family: Inter, Arial, sans-serif;
   position: relative;
   z-index: 100;
 }
 
 /* Trạng thái thu gọn */
 .sidebar.collapsed {
-  width: 70px;
+  width: 78px;
 }
 
 .header {
@@ -180,8 +180,8 @@ const toggleCollapse = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1rem 0.5rem 0.5rem 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 14px 12px;
+  border-bottom: 1px solid var(--admin-border, #dbe3ef);
   min-height: 80px;
   position: relative;
 }
@@ -189,16 +189,19 @@ const toggleCollapse = () => {
 .toggle-container {
   width: 100%;
   display: flex;
-  justify-content: flex-end;
-  padding-bottom: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 0;
 }
 
 .logo-container {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
-  margin-bottom: 10px;
+  margin-bottom: 0;
+  order: 1;
 }
 
 .logo-link {
@@ -208,33 +211,39 @@ const toggleCollapse = () => {
 }
 
 .logo {
-  width: 160px;
+  width: 148px;
   max-width: 80%;
   height: auto;
   object-fit: contain;
   transition: opacity 0.3s ease;
 }
 
+.logo.collapsed {
+  width: 42px;
+}
+
 /* Toggle Button Styles */
 .toggle-button {
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  background-color: var(--admin-primary-soft, rgba(84, 189, 219, 0.14));
+  border: 1px solid transparent;
+  border-radius: 8px;
   padding: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
-  width: 28px;
-  height: 28px;
+  color: var(--admin-primary, #54BDDB);
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  order: 2;
 }
 
 .toggle-button:hover {
-  background-color: #59bddb;
+  background-color: var(--admin-primary, #54BDDB);
   color: white;
-  border-color: #59bddb;
+  border-color: var(--admin-primary, #54BDDB);
 }
 
 .toggle-icon {
@@ -250,7 +259,7 @@ const toggleCollapse = () => {
 .menu {
   flex-grow: 1;
   overflow-y: auto;
-  padding: 0.5rem 0;
+  padding: 12px;
   scrollbar-width: thin;
   scrollbar-color: #d1d5db transparent;
 }
@@ -274,7 +283,7 @@ const toggleCollapse = () => {
 
 .list-unstyled {
   margin: 0;
-  padding: 0 0.1rem;
+  padding: 0;
   list-style: none;
 }
 
@@ -341,12 +350,12 @@ const toggleCollapse = () => {
 
 /* Focus styles for accessibility */
 .toggle-button:focus {
-  outline: 2px solid #59bddb;
+  outline: 2px solid var(--admin-primary, #54BDDB);
   outline-offset: 2px;
 }
 
 .logo-link:focus {
-  outline: 2px solid #59bddb;
+  outline: 2px solid var(--admin-primary, #54BDDB);
   outline-offset: 4px;
   border-radius: 4px;
 }

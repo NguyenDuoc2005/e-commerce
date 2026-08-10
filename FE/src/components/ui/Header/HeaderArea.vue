@@ -42,11 +42,11 @@ const logout = () => {
 
 
 <template>
-  <header :class="['position-sticky top-0 z-3 w-100 shadow-sm', props.isNoSidebarPage ? 'bg-dark' : 'bg-white']"
+  <header :class="['admin-header position-sticky top-0 z-3 w-100', props.isNoSidebarPage ? 'bg-dark' : 'bg-white']"
     :style="headerStyle">
-    <div class="d-flex align-items-center justify-content-between py-3 px-4 shadow-sm">
+    <div class="admin-header-inner d-flex align-items-center justify-content-between py-3 px-4">
       <!-- Hamburger Toggle BTN -->
-      <button class="btn btn-outline-secondary d-lg-none" @click="toggleSidebar">
+      <button class="btn btn-outline-secondary admin-menu-toggle d-lg-none" @click="toggleSidebar">
         <span class="position-relative d-block" style="width: 24px; height: 24px;">
           <span class="position-absolute start-0 top-0 w-100 bg-dark" :class="{ 'd-none': sidebarStore.isSidebarOpen }"
             style="height: 3px; transition: 0.3s;"></span>
@@ -68,7 +68,7 @@ const logout = () => {
       <!-- Right-aligned profile or login button -->
       <div class="d-flex align-items-center gap-3 ml-auto">
         <!-- Conditionally show the user's profile or login button -->
-        <div v-if="userLogin" class="d-flex align-items-center gap-2" @click="toggleDropdown" style="cursor: pointer;">
+        <div v-if="userLogin" class="admin-profile d-flex align-items-center gap-2" @click="toggleDropdown">
           <!-- Avatar and username -->
           <img :src="userLogin.pictureUrl || '/images/default-avatar.png'" alt="User Avatar" class="rounded-circle"
             style="width: 35px; height: 35px; object-fit: cover;" />
@@ -200,5 +200,54 @@ img.rounded-circle {
 header {
   height: 70px;
   /* Tăng chiều cao cho thanh header */
+}
+.admin-header {
+  height: 70px;
+  font-family: Inter, Arial, sans-serif;
+  border-bottom: 1px solid var(--admin-border, #dbe3ef);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+
+.admin-header-inner {
+  height: 70px;
+  background-color: #ffffff;
+}
+
+.admin-menu-toggle,
+.btn-outline-secondary {
+  border: 1px solid var(--admin-border, #dbe3ef) !important;
+  color: var(--admin-text, #172033) !important;
+  height: 42px !important;
+  border-radius: 8px !important;
+}
+
+.admin-menu-toggle:hover,
+.btn-outline-secondary:hover {
+  background-color: rgba(84, 189, 219, 0.1) !important;
+  border-color: var(--admin-primary, #54BDDB) !important;
+  color: #1f7f98 !important;
+}
+
+.admin-profile {
+  cursor: pointer;
+  border: 1px solid var(--admin-border, #dbe3ef);
+  border-radius: 999px;
+  padding: 6px 12px 6px 6px;
+  background: #ffffff;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-profile:hover {
+  background: #f7fbfc;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.account-dropdown-menu {
+  border: 1px solid var(--admin-border, #dbe3ef);
+}
+
+.dropdown-entry:hover {
+  background-color: rgba(84, 189, 219, 0.1);
+  color: #1f7f98;
 }
 </style>

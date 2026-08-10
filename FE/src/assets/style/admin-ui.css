@@ -1,0 +1,177 @@
+:root {
+  --admin-bg: #f4f8fa;
+  --admin-surface: #ffffff;
+  --admin-surface-soft: #f7fbfc;
+  --admin-primary: #54BDDB;
+  --admin-primary-hover: #3aa9ca;
+  --admin-primary-soft: rgba(84, 189, 219, 0.14);
+  --admin-text: #172033;
+  --admin-muted: #64748b;
+  --admin-border: #d9e8ee;
+  --admin-danger: #dc2626;
+  --admin-success: #16a34a;
+  --admin-warning: #d97706;
+  --admin-radius: 8px;
+  --admin-shadow: 0 12px 34px rgba(23, 32, 51, 0.08);
+  --admin-shadow-sm: 0 5px 16px rgba(23, 32, 51, 0.055);
+}
+
+.admin-shell {
+  color: var(--admin-text);
+  font-family: Inter, Arial, sans-serif;
+  background: var(--admin-bg);
+}
+
+.admin-shell .admin-content {
+  min-height: calc(100vh - 70px);
+  padding: 24px;
+  background: var(--admin-bg);
+}
+
+.admin-shell .page-container,
+.admin-shell .main-layout {
+  color: var(--admin-text);
+}
+
+.admin-shell .breadcrumb-section,
+.admin-shell .card,
+.admin-shell .bg-white.rounded,
+.admin-shell .col-span-12.bg-white {
+  background: var(--admin-surface) !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius) !important;
+  box-shadow: var(--admin-shadow-sm) !important;
+}
+
+.admin-shell .breadcrumb-section {
+  padding: 16px 20px !important;
+  margin-bottom: 20px !important;
+}
+
+.admin-shell .section-title,
+.admin-shell .card-header h3 {
+  color: var(--admin-text) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+
+.admin-shell .section-title {
+  font-size: 16px !important;
+  margin: 22px 0 12px !important;
+}
+
+.admin-shell .card-header {
+  border-bottom: 1px solid var(--admin-border) !important;
+  background: #ffffff;
+  padding: 16px 18px !important;
+}
+
+.admin-shell .ant-table-wrapper .ant-table {
+  border-radius: var(--admin-radius) !important;
+  overflow: hidden;
+}
+
+.admin-shell .ant-table-thead > tr > th {
+  background: #eef9fc !important;
+  color: #1e293b !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid var(--admin-border) !important;
+}
+
+.admin-shell .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #eef2f7 !important;
+}
+
+.admin-shell .ant-table-tbody > tr:hover > td {
+  background: #f7fcfe !important;
+}
+
+.admin-shell .ant-input,
+.admin-shell .ant-input-number,
+.admin-shell .ant-picker,
+.admin-shell .ant-select-selector,
+.admin-shell .input-customer,
+.admin-shell .discount-input,
+.admin-shell .select-discount {
+  border-radius: var(--admin-radius) !important;
+  border-color: var(--admin-border) !important;
+  min-height: 38px;
+}
+
+.admin-shell .ant-input:hover,
+.admin-shell .ant-input:focus,
+.admin-shell .ant-input-number:hover,
+.admin-shell .ant-input-number-focused,
+.admin-shell .ant-picker:hover,
+.admin-shell .ant-picker-focused,
+.admin-shell .ant-select:not(.ant-select-disabled):hover .ant-select-selector,
+.admin-shell .ant-select-focused .ant-select-selector,
+.admin-shell .input-customer:focus,
+.admin-shell .discount-input:focus {
+  border-color: var(--admin-primary) !important;
+  box-shadow: 0 0 0 3px rgba(84, 189, 219, 0.16) !important;
+}
+
+.admin-shell .ant-btn-primary,
+.admin-shell .btn-create-new-invoice,
+.admin-shell .btn-add-product,
+.admin-shell .add-button,
+.admin-shell .select-discount-button,
+.admin-shell .btn-confirm-payment {
+  background: var(--admin-primary) !important;
+  border-color: var(--admin-primary) !important;
+  color: #ffffff !important;
+  border-radius: var(--admin-radius) !important;
+  font-weight: 700 !important;
+  transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.admin-shell .ant-btn-primary:hover,
+.admin-shell .btn-create-new-invoice:hover,
+.admin-shell .btn-add-product:hover,
+.admin-shell .add-button:hover,
+.admin-shell .select-discount-button:hover,
+.admin-shell .btn-confirm-payment:hover {
+  background: var(--admin-primary-hover) !important;
+  border-color: var(--admin-primary-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(84, 189, 219, 0.22);
+}
+
+.admin-shell .ant-modal-content,
+.admin-shell .modal-content {
+  border-radius: var(--admin-radius) !important;
+  box-shadow: var(--admin-shadow) !important;
+}
+
+.admin-shell .ant-modal-mask,
+.admin-shell .modal-backdrop {
+  backdrop-filter: blur(3px);
+}
+
+.admin-shell .ant-pagination-item-active {
+  border-color: var(--admin-primary) !important;
+}
+
+.admin-shell .ant-pagination-item-active a {
+  color: var(--admin-primary) !important;
+}
+
+.admin-shell .filter-container {
+  background: var(--admin-surface-soft) !important;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius) !important;
+}
+
+.admin-shell .filter-label,
+.admin-shell .form-group label,
+.admin-shell .form-group1 label {
+  color: #334155 !important;
+  font-weight: 700 !important;
+}
+
+@media (max-width: 992px) {
+  .admin-content {
+    padding: 16px;
+  }
+}

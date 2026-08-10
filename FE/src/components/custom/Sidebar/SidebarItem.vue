@@ -123,20 +123,21 @@ function handleChildClick(index) {
 
 <style scoped>
 .sidebar-item {
-  margin-bottom: 2px;
+  margin-bottom: 6px;
   position: relative;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  padding: 0.75rem 1rem;
-  color: #6b7280;
+  min-height: 42px;
+  padding: 0 12px;
+  color: #52606f;
   text-decoration: none;
   font-weight: 500;
-  font-size: 15px;
+  font-size: 14px;
   border-radius: 8px;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
   cursor: pointer;
   user-select: none;
   position: relative;
@@ -154,15 +155,18 @@ function handleChildClick(index) {
   justify-content: center;
 }
 
-.sidebar-item > .nav-link:hover {
-  background-color: #59bddb;
-  color: white;
+.sidebar-item > .nav-link:hover,
+.nav-dropdown.open {
+  background-color: rgba(84, 189, 219, 0.1);
+  color: #1f7f98;
+  transform: translateX(1px);
 }
 
 .nav-link.active {
-  background-color: #59bddb;
+  background-color: var(--admin-primary, #54BDDB);
   color: white;
-  font-weight: 500;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(84, 189, 219, 0.18);
 }
 
 .nav-link.active::before {
@@ -171,16 +175,16 @@ function handleChildClick(index) {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
+  width: 4px;
   height: 20px;
-  background-color: #59bddb;
+  background-color: #ffffff;
   border-radius: 0 2px 2px 0;
 }
 
 .icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 0.75rem;
+  width: 19px;
+  height: 19px;
+  margin-right: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -217,13 +221,12 @@ function handleChildClick(index) {
 }
 
 .nav-dropdown:focus {
-  outline: 2px solid #59bddb;
+  outline: 2px solid var(--admin-primary, #54BDDB);
   outline-offset: 2px;
 }
 
 .nav-dropdown.open {
-  background-color: #f3f4f6;
-  color: #374151;
+  font-weight: 700;
 }
 
 .dropdown-arrow {
@@ -308,14 +311,14 @@ function handleChildClick(index) {
 
 .tooltip-link:hover {
   background-color: #f8fafc;
-  color: #59bddb;
-  border-left-color: #59bddb;
+  color: #1f7f98;
+  border-left-color: var(--admin-primary, #54BDDB);
 }
 
 .tooltip-link.active {
-  background-color: #59bddb;
+  background-color: var(--admin-primary, #54BDDB);
   color: white;
-  border-left-color: #59bddb;
+  border-left-color: var(--admin-primary, #54BDDB);
   font-weight: 500;
 }
 

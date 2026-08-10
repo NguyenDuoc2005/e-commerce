@@ -1,6 +1,10 @@
 package com.ecommerce.order.service.impl;
 
 import com.ecommerce.common.base.ResponseObject;
+import com.ecommerce.order.client.CartClient;
+import com.ecommerce.order.client.CatalogClient;
+import com.ecommerce.order.client.PromotionClient;
+import com.ecommerce.order.client.UserClient;
 import com.ecommerce.order.constant.EntityLoaiHoaDon;
 import com.ecommerce.order.constant.EntityPhuongThucThanhToan;
 import com.ecommerce.order.constant.EntityTrangThaiHoaDon;
@@ -37,6 +41,10 @@ public class CheckoutServiceImpl implements CheckoutService {
     private static final int LUU_TAM = EntityTrangThaiHoaDon.LUU_TAM.ordinal();
 
     private final JdbcTemplate jdbcTemplate;
+    private final CatalogClient catalogClient;
+    private final PromotionClient promotionClient;
+    private final CartClient cartClient;
+    private final UserClient userClient;
 
     @Value("${vnpay.tmn-code:}")
     private String vnpTmnCode;
@@ -50,8 +58,12 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Value("${vnpay.return-url:http://localhost:8386/api/orders/vnpay-return}")
     private String vnpReturnUrl;
 
-    public CheckoutServiceImpl(JdbcTemplate jdbcTemplate) {
+    public CheckoutServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient, PromotionClient promotionClient, CartClient cartClient, UserClient userClient) {
         this.jdbcTemplate = jdbcTemplate;
+        this.catalogClient = catalogClient;
+        this.promotionClient = promotionClient;
+        this.cartClient = cartClient;
+        this.userClient = userClient;
     }
 
     @Override
@@ -129,11 +141,11 @@ public class CheckoutServiceImpl implements CheckoutService {
         Map<String, Object> order = getOrder(orderId);
         Object voucherId = order.get("id_voucher");
         if (voucherId != null) {
-            jdbcTemplate.update("UPDATE phieu_giam_gia SET so_luong_phieu = COALESCE(so_luong_phieu, 0) - 1 WHERE id = ?", voucherId);
+            promotionClient.decrementVoucher(String.valueOf(voucherId));
         }
         List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT id_spct, so_luong FROM hoa_don_chi_tiet WHERE id_hoa_don = ?", orderId);
         for (Map<String, Object> detail : details) {
-            jdbcTemplate.update("UPDATE san_pham_chi_tiet SET so_luong = COALESCE(so_luong, 0) - ? WHERE id = ?", intValue(detail.get("so_luong")), detail.get("id_spct"));
+            catalogClient.adjustStock(String.valueOf(detail.get("id_spct")), -intValue(detail.get("so_luong")));
         }
         clearCartItemsByOrder(orderId);
         return true;
@@ -141,11 +153,10 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     @Override
     public ResponseObject<?> getPhieuGiamGia(VoucherPaymentRequest request) {
-        List<Map<String, Object>> vouchers = jdbcTemplate.queryForList("SELECT * FROM phieu_giam_gia WHERE ma_phieu_giam_gia = ?", request.getMaPGG());
-        if (vouchers.isEmpty()) {
+        Map<String, Object> voucher = promotionClient.getVoucherByCode(request.getMaPGG());
+        if (voucher == null || voucher.isEmpty()) {
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Phieu giam gia khong ton tai");
         }
-        Map<String, Object> voucher = vouchers.get(0);
         if (intValue(voucher.get("status")) == 1) {
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Phieu giam gia nay da het han su dung");
         }
@@ -164,20 +175,8 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     @Override
     public ResponseObject<?> getAllApplicablePGG(String idKhachHang, Double tongTien) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                SELECT DISTINCT p.*
-                FROM phieu_giam_gia p
-                LEFT JOIN phieu_giam_gia_chi_tiet_khach_hang pggct ON p.id = pggct.id_phieu_giam_gia
-                WHERE p.status = 0
-                  AND p.so_luong_phieu > 0
-                  AND (p.loai_giam = false OR (p.loai_giam = true AND pggct.id_khach_hang = ?))
-                  AND NOT EXISTS (
-                      SELECT 1 FROM hoa_don hd
-                      WHERE hd.id_voucher = p.id
-                        AND hd.id_khach_hang = ?
-                        AND hd.trang_thai_hoa_don = ?
-                  )
-                """, idKhachHang, idKhachHang, EntityTrangThaiHoaDon.HOAN_THANH.ordinal());
+        List<Map<String, Object>> rows = new java.util.ArrayList<>(promotionClient.getApplicableVouchers(idKhachHang));
+        rows.removeIf(row -> voucherUsedByCustomer(String.valueOf(row.get("id")), idKhachHang));
         rows.removeIf(row -> intValue(row.get("so_luong_phieu")) <= 0 || doubleValue(row.get("dieu_kien")) > value(tongTien));
         rows.forEach(row -> row.put("giaTriGiamThucTe", discountValue(row, value(tongTien))));
         rows.sort((a, b) -> Double.compare(doubleValue(b.get("giaTriGiamThucTe")), doubleValue(a.get("giaTriGiamThucTe"))));
@@ -186,10 +185,10 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     @Override
     public ResponseObject<?> getKhachHang(String id) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT * FROM khach_hang WHERE id = ?", id);
-        return rows.isEmpty()
+        Map<String, Object> customer = userClient.getCustomer(id);
+        return customer == null || customer.isEmpty()
                 ? new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Khach hang khong ton tai")
-                : new ResponseObject<>(rows.get(0), HttpStatus.OK, "Lay khach hang thanh cong");
+                : new ResponseObject<>(customer, HttpStatus.OK, "Lay khach hang thanh cong");
     }
 
     private String insertOrder(CheckoutRequest request, int status) {
@@ -216,7 +215,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         insertDetails(orderId, request);
         if (request.getSanPham() != null) {
             for (CheckoutProductItem item : request.getSanPham()) {
-                jdbcTemplate.update("UPDATE san_pham_chi_tiet SET so_luong = COALESCE(so_luong, 0) - ? WHERE id = ?", value(item.getQuantity()), item.getId());
+                catalogClient.adjustStock(item.getId(), -value(item.getQuantity()));
             }
         }
     }
@@ -226,7 +225,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             return;
         }
         for (CheckoutProductItem item : request.getSanPham()) {
-            Double price = jdbcTemplate.queryForObject("SELECT gia_ban FROM san_pham_chi_tiet WHERE id = ?", Double.class, item.getId());
+            Double price = doubleValue(catalogClient.getProductDetail(item.getId()).get("giaBan"));
             jdbcTemplate.update("""
                     INSERT INTO hoa_don_chi_tiet (id, status, created_date, ma_hoa_don_chi_tiet, so_luong, gia_ban, id_spct, id_hoa_don)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -239,7 +238,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             return true;
         }
         for (CheckoutProductItem item : request.getSanPham()) {
-            Integer stock = jdbcTemplate.queryForObject("SELECT so_luong FROM san_pham_chi_tiet WHERE id = ?", Integer.class, item.getId());
+            Integer stock = intValue(catalogClient.getProductDetail(item.getId()).get("soLuong"));
             if (stock == null || stock < value(item.getQuantity())) {
                 return false;
             }
@@ -258,14 +257,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         if (request.getKhachHang() == null || request.getSanPham() == null || isRetailCustomer(request.getKhachHang())) {
             return;
         }
-        List<Map<String, Object>> carts = jdbcTemplate.queryForList("SELECT id FROM gio_hang WHERE id_khach_hang = ?", request.getKhachHang());
-        if (carts.isEmpty()) {
-            return;
-        }
-        Object cartId = carts.get(0).get("id");
-        for (CheckoutProductItem item : request.getSanPham()) {
-            jdbcTemplate.update("DELETE FROM gio_hang_chi_tiet WHERE id_gio_hang = ? AND id_san_pham_chi_tiet = ?", cartId, item.getId());
-        }
+        cartClient.deleteItems(request.getKhachHang(), request.getSanPham().stream().map(CheckoutProductItem::getId).toList());
     }
 
     private void clearCartItemsByOrder(String orderId) {
@@ -275,20 +267,13 @@ public class CheckoutServiceImpl implements CheckoutService {
             return;
         }
         List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT id_spct FROM hoa_don_chi_tiet WHERE id_hoa_don = ?", orderId);
-        List<Map<String, Object>> carts = jdbcTemplate.queryForList("SELECT id FROM gio_hang WHERE id_khach_hang = ?", customerId);
-        if (carts.isEmpty()) {
-            return;
-        }
-        Object cartId = carts.get(0).get("id");
-        for (Map<String, Object> detail : details) {
-            jdbcTemplate.update("DELETE FROM gio_hang_chi_tiet WHERE id_gio_hang = ? AND id_san_pham_chi_tiet = ?", cartId, detail.get("id_spct"));
-        }
+        cartClient.deleteItems(String.valueOf(customerId), details.stream().map(detail -> String.valueOf(detail.get("id_spct"))).toList());
     }
 
     private void applyVoucher(String code) {
         String voucherId = voucherId(code);
         if (voucherId != null) {
-            jdbcTemplate.update("UPDATE phieu_giam_gia SET so_luong_phieu = COALESCE(so_luong_phieu, 0) - 1 WHERE id = ?", voucherId);
+            promotionClient.decrementVoucher(voucherId);
         }
     }
 
@@ -296,15 +281,19 @@ public class CheckoutServiceImpl implements CheckoutService {
         if (code == null || code.isBlank()) {
             return null;
         }
-        List<String> ids = jdbcTemplate.queryForList("SELECT id FROM phieu_giam_gia WHERE ma_phieu_giam_gia = ?", String.class, code);
-        return ids.isEmpty() ? null : ids.get(0);
+        Map<String, Object> voucher = promotionClient.getVoucherByCode(code);
+        return voucher == null || voucher.isEmpty() ? null : String.valueOf(voucher.get("id"));
     }
 
     private boolean isVoucherAssigned(String voucherId, String customerId) {
+        return promotionClient.isVoucherAssigned(voucherId, customerId);
+    }
+
+    private boolean voucherUsedByCustomer(String voucherId, String customerId) {
         Integer count = jdbcTemplate.queryForObject("""
-                SELECT COUNT(*) FROM phieu_giam_gia_chi_tiet_khach_hang
-                WHERE id_phieu_giam_gia = ? AND id_khach_hang = ?
-                """, Integer.class, voucherId, customerId);
+                SELECT COUNT(*) FROM hoa_don
+                WHERE id_voucher = ? AND id_khach_hang = ? AND trang_thai_hoa_don = ?
+                """, Integer.class, voucherId, customerId, EntityTrangThaiHoaDon.HOAN_THANH.ordinal());
         return count != null && count > 0;
     }
 

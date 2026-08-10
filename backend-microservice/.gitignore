@@ -35,3 +35,24 @@ Thumbs.db
 node_modules/
 dist/
 .npm
+
+# ===== Eclipse (phòng khi có ai dùng) =====
+.classpath
+.project
+.settings/
+bin/
+
+# ===== JVM debug attach =====
+.attach_pid*
+
+# ===== Frontend log linh tinh =====
+npm-debug.log*
+yarn-error.log*
+
+# ===== Local DB file (nếu có test bằng H2) =====
+*.db
+*.mv.db
+
+# ===== Build artifact khác =====
+*.war
+*.ear

@@ -1,13 +1,12 @@
 package com.ecommerce.auth.security;
 
-import com.ecommerce.auth.entity.KhachHang;
-import com.ecommerce.auth.entity.NhanVien;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 
 public class UserPrincipal implements UserDetails {
 
@@ -23,12 +22,8 @@ public class UserPrincipal implements UserDetails {
         this.authorities = Collections.singletonList(new SimpleGrantedAuthority(role));
     }
 
-    public static UserPrincipal createFromKhachHang(KhachHang khachHang) {
-        return new UserPrincipal(khachHang.getId(), khachHang.getEmail(), khachHang.getMatKhau(), "USERS");
-    }
-
-    public static UserPrincipal createFromNhanVien(NhanVien nhanVien) {
-        return new UserPrincipal(nhanVien.getId(), nhanVien.getEmail(), nhanVien.getMatKhau(), "ADMIN");
+    public static UserPrincipal create(Map<String, Object> user, String role) {
+        return new UserPrincipal(String.valueOf(user.get("id")), String.valueOf(user.get("email")), String.valueOf(user.get("matKhau")), role);
     }
 
     public String getId() {

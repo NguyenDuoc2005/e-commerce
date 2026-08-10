@@ -8,7 +8,6 @@ import com.ecommerce.promotion.entity.PhieuGiamGia;
 import com.ecommerce.promotion.entity.PhieuGiamGiaChiTiet;
 import com.ecommerce.promotion.model.request.VoucherRequest;
 import com.ecommerce.promotion.model.request.VoucherSearchRequest;
-import com.ecommerce.promotion.repository.KhachHangRepository;
 import com.ecommerce.promotion.repository.PhieuGiamGiaChiTietRepository;
 import com.ecommerce.promotion.repository.VoucherRepository;
 import com.ecommerce.promotion.service.VoucherService;
@@ -26,16 +25,13 @@ import java.util.Optional;
 public class VoucherServiceImpl implements VoucherService {
 
     private final VoucherRepository voucherRepository;
-    private final KhachHangRepository khachHangRepository;
     private final PhieuGiamGiaChiTietRepository chiTietRepository;
 
     public VoucherServiceImpl(
             VoucherRepository voucherRepository,
-            KhachHangRepository khachHangRepository,
             PhieuGiamGiaChiTietRepository chiTietRepository
     ) {
         this.voucherRepository = voucherRepository;
-        this.khachHangRepository = khachHangRepository;
         this.chiTietRepository = chiTietRepository;
     }
 
@@ -93,12 +89,10 @@ public class VoucherServiceImpl implements VoucherService {
 
         if (request.getKhachHangIds() != null) {
             for (String khachHangId : request.getKhachHangIds()) {
-                khachHangRepository.findById(khachHangId).ifPresent(khachHang -> {
-                    PhieuGiamGiaChiTiet detail = new PhieuGiamGiaChiTiet();
-                    detail.setPhieuGiamGia(voucher);
-                    detail.setKhachHang(khachHang);
-                    chiTietRepository.save(detail);
-                });
+                PhieuGiamGiaChiTiet detail = new PhieuGiamGiaChiTiet();
+                detail.setPhieuGiamGia(voucher);
+                detail.setKhachHangId(khachHangId);
+                chiTietRepository.save(detail);
             }
         }
 

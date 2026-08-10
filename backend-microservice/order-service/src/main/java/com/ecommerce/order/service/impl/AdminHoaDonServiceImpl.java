@@ -46,7 +46,6 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
                     WHERE (? IS NULL OR ? = ''
                         OR LOWER(hd.ten_khach_hang) LIKE LOWER(?)
                         OR LOWER(hd.ma_hoa_don) LIKE LOWER(?)
-                        OR LOWER(hd.ten_hoa_don) LIKE LOWER(?)
                         OR LOWER(hd.so_dien_thoai_khach_hang) LIKE LOWER(?)
                         OR LOWER(hd.id_nhan_vien) LIKE LOWER(?))
                       AND (? IS NULL OR hd.trang_thai_hoa_don = ?)
@@ -59,7 +58,7 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
                             SELECT hd.id,
                                    hd.ma_hoa_don,
                                    hd.ten_khach_hang,
-                                   hd.so_dien_thoai_khach_hang,
+                                   hd.so_dien_thoai_khach_hang AS so_dien_thoai,
                                    hd.id_nhan_vien AS ma_nhan_vien,
                                    hd.id_nhan_vien AS ten_nhan_vien,
                                    hd.tong_tien_sau_giam,
@@ -79,11 +78,11 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
                             intOrNull(rs.getObject("loai_hoa_don")),
                             rs.getObject("created_date") == null ? null : rs.getLong("created_date"),
                             intOrNull(rs.getObject("trang_thai_hoa_don"))),
-                    q, q, q, q, q, q, q, status, status, request.getStartDate(), request.getStartDate(),
+                    q, q, q, q, q, q, status, status, request.getStartDate(), request.getStartDate(),
                     request.getEndDate(), request.getEndDate(), LUU_TAM, pageable.getPageSize(), pageable.getOffset());
 
             Long total = jdbcTemplate.queryForObject("SELECT COUNT(hd.id) FROM hoa_don hd " + where,
-                    Long.class, q, q, q, q, q, q, q, status, status, request.getStartDate(), request.getStartDate(),
+                    Long.class, q, q, q, q, q, q, status, status, request.getStartDate(), request.getStartDate(),
                     request.getEndDate(), request.getEndDate(), LUU_TAM);
 
             Map<EntityTrangThaiHoaDon, Long> countByStatus = new LinkedHashMap<>();
@@ -236,7 +235,7 @@ public class AdminHoaDonServiceImpl implements AdminHoaDonService {
     private static String detailSql() {
         return """
                 SELECT hd.ma_hoa_don AS maHoaDon,
-                       hd.ten_hoa_don AS tenHoaDon,
+                       hd.ma_hoa_don AS tenHoaDon,
                        hdct.ma_hoa_don_chi_tiet AS maHoaDonChiTiet,
                        COALESCE(hdct.ten_hoa_don_chi_tiet, hdct.id_spct) AS tenSanPham,
                        NULL AS anhSanPham,

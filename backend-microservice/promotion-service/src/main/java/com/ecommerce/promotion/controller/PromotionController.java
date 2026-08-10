@@ -2,17 +2,10 @@ package com.ecommerce.promotion.controller;
 
 import com.ecommerce.common.util.ResponseUtils;
 import com.ecommerce.promotion.entity.DotGiamGia;
-import com.ecommerce.promotion.entity.SanPham;
-import com.ecommerce.promotion.entity.SanPhamChiTiet;
 import com.ecommerce.promotion.model.request.CreatePromotionRequest;
 import com.ecommerce.promotion.model.request.FindPromotionRequest;
 import com.ecommerce.promotion.model.request.UpdatePromotionRequest;
 import com.ecommerce.promotion.model.response.PromotionByIdResponse;
-import com.ecommerce.promotion.model.response.PromotionByProductDetail;
-import com.ecommerce.promotion.repository.SanPhamChiTietRepository;
-import com.ecommerce.promotion.repository.SanPhamRepository;
-import com.ecommerce.promotion.repository.MauSacRepository;
-import com.ecommerce.promotion.repository.KichCoRepository;
 import com.ecommerce.promotion.service.PromotionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -26,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin("*")
@@ -33,17 +27,9 @@ import java.util.List;
 public class PromotionController {
 
     private final PromotionService promotionService;
-    private final MauSacRepository mauSacRepository;
-    private final KichCoRepository kichCoRepository;
 
-    public PromotionController(
-            PromotionService promotionService,
-            MauSacRepository mauSacRepository,
-            KichCoRepository kichCoRepository
-    ) {
+    public PromotionController(PromotionService promotionService) {
         this.promotionService = promotionService;
-        this.mauSacRepository = mauSacRepository;
-        this.kichCoRepository = kichCoRepository;
     }
 
     @GetMapping
@@ -52,28 +38,28 @@ public class PromotionController {
     }
 
     @GetMapping("/san-pham")
-    public ResponseEntity<List<SanPham>> getSanPham() {
+    public ResponseEntity<List<Map<String, Object>>> getSanPham() {
         return ResponseEntity.ok(promotionService.getSanPham());
     }
 
     @GetMapping("/san-pham-chi-tiet/{id}")
-    public ResponseEntity<List<SanPhamChiTiet>> getSanPhamCT(@PathVariable String id) {
+    public ResponseEntity<List<Map<String, Object>>> getSanPhamCT(@PathVariable String id) {
         return ResponseEntity.ok(promotionService.getSanPhamCT(id));
     }
 
     @GetMapping("/san-pham-chi-tiet-by-dot/{id}")
-    public ResponseEntity<List<SanPhamChiTiet>> getSanPhamCTByDot(@PathVariable String id) {
+    public ResponseEntity<List<Map<String, Object>>> getSanPhamCTByDot(@PathVariable String id) {
         return ResponseEntity.ok(promotionService.getSanPhamByDot(id));
     }
 
     @GetMapping("/mau-sac")
     public ResponseEntity<?> getMauSac() {
-        return ResponseEntity.ok(mauSacRepository.findAll());
+        return ResponseEntity.ok(promotionService.getMauSac());
     }
 
     @GetMapping("/size")
     public ResponseEntity<?> getSize() {
-        return ResponseEntity.ok(kichCoRepository.findAll());
+        return ResponseEntity.ok(promotionService.getKichCo());
     }
 
     @PostMapping
@@ -98,7 +84,7 @@ public class PromotionController {
     }
 
     @GetMapping("/byProductDetail/{id}")
-    public ResponseEntity<List<PromotionByProductDetail>> getByProductDetailId(@PathVariable String id) {
+    public ResponseEntity<List<Map<String, Object>>> getByProductDetailId(@PathVariable String id) {
         return ResponseEntity.ok(promotionService.getByIdProductDetail(id));
     }
 }

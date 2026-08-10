@@ -1,6 +1,7 @@
 package com.ecommerce.promotion.repository;
 
 import com.ecommerce.promotion.entity.PhieuGiamGia;
+import com.ecommerce.promotion.constant.EntityStatus;
 import com.ecommerce.promotion.model.request.VoucherSearchRequest;
 import com.ecommerce.promotion.model.response.VoucherResponse;
 import org.springframework.data.domain.Page;
@@ -10,8 +11,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface VoucherRepository extends JpaRepository<PhieuGiamGia, String> {
+    Optional<PhieuGiamGia> findByMa(String ma);
+
+    List<PhieuGiamGia> findByStatusAndSoLuongPhieuGreaterThan(EntityStatus status, Integer soLuongPhieu);
 
     @Query(value = """
             SELECT
@@ -65,11 +70,10 @@ public interface VoucherRepository extends JpaRepository<PhieuGiamGia, String> {
     Optional<VoucherResponse> getVoucherById(@Param("id") String id);
 
     @Query("""
-            SELECT DISTINCT pggct.khachHang.id
+            SELECT DISTINCT pggct.khachHangId
             FROM PhieuGiamGiaChiTiet pggct
-            JOIN pggct.khachHang kh
             WHERE pggct.phieuGiamGia.id = :id
-              AND (:search IS NULL OR kh.ten LIKE %:search% OR kh.sdt LIKE %:search%)
+              AND (:search IS NULL OR :search = '' OR pggct.khachHangId LIKE CONCAT('%', :search, '%'))
             """)
     Page<String> getDanhSachKhachHang(@Param("id") String id, @Param("search") String search, Pageable pageable);
 

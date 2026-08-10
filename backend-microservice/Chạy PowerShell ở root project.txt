@@ -1,0 +1,23 @@
+Chạy PowerShell ở root project:
+
+  cd "C:\My Project\e-commerce"
+
+  Nếu dùng Docker MySQL của project:
+
+  powershell -ExecutionPolicy Bypass -File backend-microservice\reset-demo-databases.ps1 -UseDocker -Force
+
+  Nếu dùng MySQL local cài trực tiếp port 3306:
+
+  powershell -ExecutionPolicy Bypass -File backend-microservice\reset-demo-databases.ps1 -Force
+
+  Lệnh này sẽ drop sạch DB cũ, tạo lại các DB con, rồi insert data mẫu luôn.
+
+  Sau đó chạy backend với Docker MySQL port 3307:
+
+  powershell -ExecutionPolicy Bypass -File backend-microservice\run-all.ps1 -DbPort 3307
+
+  Tài khoản test sau khi seed:
+
+  admin@ecommerce.local / Admin@123
+  staff@ecommerce.local / Admin@123
+  customer1@ecommerce.local / Admin@123

@@ -1,5 +1,6 @@
 package com.ecommerce.catalog.repository;
 
+import com.ecommerce.catalog.constant.EntityStatus;
 import com.ecommerce.catalog.entity.SanPhamChiTiet;
 import com.ecommerce.catalog.model.request.ProductDetailSearchRequest;
 import com.ecommerce.catalog.model.response.ListOptionResponse;
@@ -14,6 +15,9 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface SanPhamChiTietRepository extends JpaRepository<SanPhamChiTiet, String> {
+    List<SanPhamChiTiet> findBySanPhamIdAndStatusOrderByCreatedDateDesc(String productId, EntityStatus status);
+
+    List<SanPhamChiTiet> findByIdIn(List<String> ids);
 
     @Query(value = """
             SELECT

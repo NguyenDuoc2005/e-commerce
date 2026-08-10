@@ -1,6 +1,7 @@
 package com.ecommerce.catalog.repository;
 
 import com.ecommerce.catalog.entity.SanPham;
+import com.ecommerce.catalog.constant.EntityStatus;
 import com.ecommerce.catalog.model.request.ProductSearchRequest;
 import com.ecommerce.catalog.model.response.ListOptionResponse;
 import com.ecommerce.catalog.model.response.ProductResponse;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SanPhamRepository extends JpaRepository<SanPham, String> {
+    List<SanPham> findByStatusOrderByCreatedDateDesc(EntityStatus status);
 
     @Query(value = """
             SELECT

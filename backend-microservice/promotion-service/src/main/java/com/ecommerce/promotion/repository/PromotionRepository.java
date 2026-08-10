@@ -45,37 +45,19 @@ public interface PromotionRepository extends JpaRepository<DotGiamGia, String> {
                 po.ngay_bat_dau AS startDate,
                 po.ngay_ket_thuc AS endDate,
                 po.trang_thai_dot AS status,
-                (SELECT GROUP_CONCAT(DISTINCT pd.id) FROM san_pham_chi_tiet pd JOIN dot_giam_gia_chi_tiet_san_pham ppd ON pd.id = ppd.id_chi_tiet_san_pham WHERE ppd.trang_thai = 'DANG_SU_DUNG' AND ppd.id_dot_giam_gia = po.id) AS productDetail,
-                GROUP_CONCAT(DISTINCT pd.id) AS productDetailUpdate,
-                GROUP_CONCAT(DISTINCT p.id) AS product,
+                (SELECT GROUP_CONCAT(DISTINCT ppd2.id_chi_tiet_san_pham) FROM dot_giam_gia_chi_tiet_san_pham ppd2 WHERE ppd2.trang_thai = 'DANG_SU_DUNG' AND ppd2.id_dot_giam_gia = po.id) AS productDetail,
+                GROUP_CONCAT(DISTINCT ppd.id_chi_tiet_san_pham) AS productDetailUpdate,
+                NULL AS product,
                 GROUP_CONCAT(DISTINCT ppd.id) AS promotionProductDetail
             FROM dot_giam_gia po
                 LEFT JOIN dot_giam_gia_chi_tiet_san_pham ppd ON po.id = ppd.id_dot_giam_gia
-                LEFT JOIN san_pham_chi_tiet pd ON pd.id = ppd.id_chi_tiet_san_pham
-                LEFT JOIN san_pham p ON p.id = pd.id_san_pham
             WHERE po.id = :id
             GROUP BY po.id
             """, nativeQuery = true)
     PromotionByIdResponse getByIdPromotion(@Param("id") String id);
 
-    @Query(value = """
-            SELECT
-                pd.anh_san_pham AS image,
-                p.ma_san_pham AS code,
-                p.ten_san_pham AS name,
-                pr.ten_dot_giam_gia AS namePromotion,
-                pr.phan_tram AS valuePromotion,
-                ppd.trang_thai AS statusPromotion
-            FROM san_pham_chi_tiet pd
-                JOIN san_pham p ON p.id = pd.id_san_pham
-                JOIN dot_giam_gia_chi_tiet_san_pham ppd ON ppd.id_chi_tiet_san_pham = pd.id
-                JOIN dot_giam_gia pr ON pr.id = ppd.id_dot_giam_gia
-            WHERE pd.id = :id
-            """, nativeQuery = true)
-    List<PromotionByProductDetail> getByIdProductDetail(@Param("id") String id);
-
     Optional<DotGiamGia> findByTen(String name);
 
-    @Query("SELECT d FROM DotGiamGia d JOIN DotGiamGiaChiTietSanPham dc ON d.id = dc.dotGiamGia.id WHERE dc.sanPhamChiTiet.id IN :productDetailIds")
+    @Query("SELECT d FROM DotGiamGia d JOIN DotGiamGiaChiTietSanPham dc ON d.id = dc.dotGiamGia.id WHERE dc.sanPhamChiTietId IN :productDetailIds")
     List<DotGiamGia> findAllByProductDetails(List<String> productDetailIds);
 }

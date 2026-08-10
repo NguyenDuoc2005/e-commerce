@@ -20,9 +20,8 @@ public class PhieuGiamGiaChiTiet extends PrimaryEntity implements Serializable {
     @Column(name = "ma_phieu_giam_gia_chi_tiet")
     private String ma;
 
-    @ManyToOne
-    @JoinColumn(name = "id_khach_hang", referencedColumnName = "id")
-    private KhachHang khachHang;
+    @Column(name = "id_khach_hang")
+    private String khachHangId;
 
     @ManyToOne
     @JoinColumn(name = "id_phieu_giam_gia", referencedColumnName = "id")
@@ -37,8 +36,8 @@ public class PhieuGiamGiaChiTiet extends PrimaryEntity implements Serializable {
 
     public String getMa() { return ma; }
     public void setMa(String ma) { this.ma = ma; }
-    public KhachHang getKhachHang() { return khachHang; }
-    public void setKhachHang(KhachHang khachHang) { this.khachHang = khachHang; }
+    public String getKhachHangId() { return khachHangId; }
+    public void setKhachHangId(String khachHangId) { this.khachHangId = khachHangId; }
     public PhieuGiamGia getPhieuGiamGia() { return phieuGiamGia; }
     public void setPhieuGiamGia(PhieuGiamGia phieuGiamGia) { this.phieuGiamGia = phieuGiamGia; }
 }

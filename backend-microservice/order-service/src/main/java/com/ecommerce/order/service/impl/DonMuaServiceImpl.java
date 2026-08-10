@@ -3,6 +3,7 @@ package com.ecommerce.order.service.impl;
 import com.ecommerce.common.base.ResponseObject;
 import com.ecommerce.order.constant.EntityLoaiHoaDon;
 import com.ecommerce.order.constant.EntityTrangThaiHoaDon;
+import com.ecommerce.order.client.CatalogClient;
 import com.ecommerce.order.model.request.HoaDonSearchRequest;
 import com.ecommerce.order.model.request.SanPhamChiTietSearchRequest;
 import com.ecommerce.order.model.request.ThemSanPhamRequest;
@@ -28,9 +29,11 @@ public class DonMuaServiceImpl implements DonMuaService {
     private static final int LUU_TAM = EntityTrangThaiHoaDon.LUU_TAM.ordinal();
 
     private final JdbcTemplate jdbcTemplate;
+    private final CatalogClient catalogClient;
 
-    public DonMuaServiceImpl(JdbcTemplate jdbcTemplate) {
+    public DonMuaServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient) {
         this.jdbcTemplate = jdbcTemplate;
+        this.catalogClient = catalogClient;
     }
 
     @Override
@@ -41,24 +44,14 @@ public class DonMuaServiceImpl implements DonMuaService {
             List<Map<String, Object>> page = jdbcTemplate.queryForList("""
                     SELECT hd.id AS id,
                            hd.ma_hoa_don AS maHoaDon,
-                           spct.anh_san_pham AS anh,
-                           sp.ten_san_pham AS tenSanPham,
-                           th.ten_thuong_hieu AS tenThuongHieu,
-                           ms.ten_mau_sac AS mauSac,
-                           kc.ten_kich_co AS kichCo,
+                           hdct.id_spct AS idSPCT,
                            hdct.so_luong AS soLuong,
                            hdct.gia_ban AS giaBan,
                            hd.trang_thai_hoa_don AS status,
                            hd.tong_tien_sau_giam AS tongTien
                     FROM hoa_don hd
                     JOIN hoa_don_chi_tiet hdct ON hdct.id_hoa_don = hd.id
-                    JOIN san_pham_chi_tiet spct ON spct.id = hdct.id_spct
-                    LEFT JOIN san_pham sp ON sp.id = spct.id_san_pham
-                    LEFT JOIN thuong_hieu th ON th.id = sp.id_thuong_hieu
-                    LEFT JOIN mau_sac ms ON ms.id = spct.id_mau_sac
-                    LEFT JOIN kich_co kc ON kc.id = spct.id_kich_co
-                    LEFT JOIN khach_hang kh ON kh.id = hd.id_khach_hang
-                    WHERE (? IS NULL OR ? = '' OR LOWER(kh.id) LIKE LOWER(?))
+                    WHERE (? IS NULL OR ? = '' OR LOWER(hd.id_khach_hang) LIKE LOWER(?))
                       AND (? IS NULL OR hd.trang_thai_hoa_don = ?)
                       AND hd.loai_hoa_don = ?
                       AND hd.trang_thai_hoa_don != ?
@@ -68,13 +61,12 @@ public class DonMuaServiceImpl implements DonMuaService {
                     SELECT COUNT(hd.id)
                     FROM hoa_don hd
                     JOIN hoa_don_chi_tiet hdct ON hdct.id_hoa_don = hd.id
-                    LEFT JOIN khach_hang kh ON kh.id = hd.id_khach_hang
-                    WHERE (? IS NULL OR ? = '' OR LOWER(kh.id) LIKE LOWER(?))
+                    WHERE (? IS NULL OR ? = '' OR LOWER(hd.id_khach_hang) LIKE LOWER(?))
                       AND (? IS NULL OR hd.trang_thai_hoa_don = ?)
                       AND hd.loai_hoa_don = ?
                       AND hd.trang_thai_hoa_don != ?
                     """, Long.class, q, q, q, status, status, ONLINE, LUU_TAM);
-            return new ResponseObject<>(Map.of("page", page, "totalRecords", total == null ? 0 : total, "countByStatus", countOnlineByStatus(q)), HttpStatus.OK, "Lay danh sach lich su don hang thanh cong");
+            return new ResponseObject<>(Map.of("page", enrichOrderRows(page), "totalRecords", total == null ? 0 : total, "countByStatus", countOnlineByStatus(q)), HttpStatus.OK, "Lay danh sach lich su don hang thanh cong");
         } catch (Exception e) {
             return new ResponseObject<>(null, HttpStatus.INTERNAL_SERVER_ERROR, "Loi khi lay danh sach don hang: " + e.getMessage());
         }
@@ -85,68 +77,53 @@ public class DonMuaServiceImpl implements DonMuaService {
         List<Map<String, Object>> page = jdbcTemplate.queryForList("""
                 SELECT hd.id AS id,
                        hd.ma_hoa_don AS maHoaDon,
-                       spct.anh_san_pham AS anh,
-                       sp.ten_san_pham AS tenSanPham,
-                       th.ten_thuong_hieu AS tenThuongHieu,
-                       ms.ten_mau_sac AS mauSac,
-                       kc.ten_kich_co AS kichCo,
+                       hdct.id_spct AS idSPCT,
                        hdct.so_luong AS soLuong,
                        hdct.gia_ban AS giaBan,
                        hd.trang_thai_hoa_don AS status,
                        hd.tong_tien_sau_giam AS tongTien
                 FROM hoa_don hd
                 JOIN hoa_don_chi_tiet hdct ON hdct.id_hoa_don = hd.id
-                JOIN san_pham_chi_tiet spct ON spct.id = hdct.id_spct
-                LEFT JOIN san_pham sp ON sp.id = spct.id_san_pham
-                LEFT JOIN thuong_hieu th ON th.id = sp.id_thuong_hieu
-                LEFT JOIN mau_sac ms ON ms.id = spct.id_mau_sac
-                LEFT JOIN kich_co kc ON kc.id = spct.id_kich_co
                 WHERE hd.ma_hoa_don = ?
                   AND hd.trang_thai_hoa_don != ?
                 ORDER BY hd.created_date, hd.ma_hoa_don ASC
                 """, code, LUU_TAM);
-        return new ResponseObject<>(Map.of("page", page, "totalRecords", page.size(), "countByStatus", countByCode(code)), HttpStatus.OK, "Lay danh sach lich su don hang thanh cong");
+        return new ResponseObject<>(Map.of("page", enrichOrderRows(page), "totalRecords", page.size(), "countByStatus", countByCode(code)), HttpStatus.OK, "Lay danh sach lich su don hang thanh cong");
+    }
+
+    @Override
+    public List<Map<String, Object>> getCustomerOrderHistory(String customerId) {
+        return jdbcTemplate.queryForList("""
+                SELECT hd.id AS id,
+                       hd.ma_hoa_don AS ma,
+                       hd.ten_hoa_don AS ten,
+                       hd.so_dien_thoai_khach_hang AS sdt,
+                       hd.ten_khach_hang AS tenKH,
+                       hd.phi_van_chuyen AS phiVanChuyen,
+                       hd.dia_chi_giao_hang AS diaChi,
+                       hd.tong_tien_sau_giam AS tongTienSauGiam,
+                       hd.tong_tien AS tongTien,
+                       hd.ghi_chu AS ghiChu,
+                       hd.phuong_thuc_thanh_toan AS phuongThucThanhToan,
+                       hd.loai_hoa_don AS loaiHoaDon,
+                       hd.trang_thai_hoa_don AS trangThaiHoaDon,
+                       hd.created_date AS ngayTao
+                FROM hoa_don hd
+                WHERE hd.id_khach_hang = ?
+                  AND hd.loai_hoa_don = ?
+                ORDER BY hd.created_date DESC
+                """, customerId, ONLINE);
     }
 
     @Override
     public ResponseObject<?> getAllSanPhamChiTiet(SanPhamChiTietSearchRequest request) {
-        String q = like(request.getQ());
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                SELECT ROW_NUMBER() OVER (ORDER BY sp.id DESC) AS stt,
-                       spct.id AS id,
-                       sp.ten_san_pham AS ten,
-                       spct.so_luong AS soLuong,
-                       th.ten_thuong_hieu AS tenThuongHieu,
-                       ld.ten_loai_de AS tenLoaiDe,
-                       cl.ten_chat_lieu AS tenChatLieu,
-                       dm.ten_danh_muc AS tenDanhMuc,
-                       spct.gia_ban AS giaBan,
-                       kc.ten_kich_co AS kichThuoc,
-                       ms.mau AS mau,
-                       ms.ten_mau_sac AS tenMau,
-                       spct.anh_san_pham AS anh,
-                       spct.status AS status,
-                       (SELECT MAX(spct2.gia_ban) FROM san_pham_chi_tiet spct2) AS giaMax
-                FROM san_pham_chi_tiet spct
-                LEFT JOIN san_pham sp ON sp.id = spct.id_san_pham
-                LEFT JOIN thuong_hieu th ON th.id = sp.id_thuong_hieu
-                LEFT JOIN loai_de ld ON ld.id = sp.id_loai_de
-                LEFT JOIN danh_muc dm ON dm.id = sp.id_danh_muc
-                LEFT JOIN chat_lieu cl ON cl.id = sp.id_chat_lieu
-                LEFT JOIN kich_co kc ON kc.id = spct.id_kich_co
-                LEFT JOIN mau_sac ms ON ms.id = spct.id_mau_sac
-                WHERE (? IS NULL OR spct.id_san_pham = ?)
-                  AND (? IS NULL OR ? = '' OR sp.ten_san_pham LIKE ? OR spct.ma_san_pham LIKE ?)
-                  AND (? IS NULL OR spct.status = ?)
-                  AND (? IS NULL OR spct.gia_ban >= ?)
-                  AND (? IS NULL OR spct.gia_ban <= ?)
-                  AND (? IS NULL OR spct.id_kich_co = ?)
-                  AND (? IS NULL OR spct.id_mau_sac = ?)
-                ORDER BY spct.created_date DESC
-                LIMIT ? OFFSET ?
-                """, request.getIdSP(), request.getIdSP(), q, q, q, q, request.getEntityStatus(), request.getEntityStatus(),
-                request.getPriceMin(), request.getPriceMin(), request.getPriceMax(), request.getPriceMax(), request.getIdKT(), request.getIdKT(),
-                request.getIdMS(), request.getIdMS(), pageSize(request), Math.max(request.getPage() - 1, 0) * pageSize(request));
+        List<Map<String, Object>> rows = catalogClient.searchProductDetails(like(request.getQ()), stringValue(request.getEntityStatus()),
+                request.getIdMS(), request.getIdKT(), null, null, null, null, request.getIdSP(), request.getPriceMin(), request.getPriceMax());
+        int offset = Math.max(request.getPage() - 1, 0) * pageSize(request);
+        for (int i = 0; i < rows.size(); i++) {
+            rows.get(i).put("stt", i + 1);
+        }
+        rows = slice(rows, offset, pageSize(request));
         return new ResponseObject<>(rows, HttpStatus.OK, "Lay danh sach san pham chi tiet thanh cong");
     }
 
@@ -202,15 +179,15 @@ public class DonMuaServiceImpl implements DonMuaService {
     @Override
     @Transactional
     public ResponseObject<?> themSanPham(ThemSanPhamRequest request) {
-        Map<String, Object> sanPham = jdbcTemplate.queryForMap("SELECT id, so_luong, gia_ban FROM san_pham_chi_tiet WHERE id = ?", request.getIdSP());
+        Map<String, Object> sanPham = catalogClient.getProductDetail(request.getIdSP());
         List<Map<String, Object>> existing = jdbcTemplate.queryForList("""
                 SELECT id, so_luong, gia_ban
                 FROM hoa_don_chi_tiet
                 WHERE id_hoa_don = ? AND id_spct = ?
                 ORDER BY created_date DESC
                 """, request.getIdHD(), request.getIdSP());
-        int stock = intValue(sanPham.get("so_luong"));
-        double currentPrice = doubleValue(sanPham.get("gia_ban"));
+        int stock = intValue(sanPham.get("soLuong"));
+        double currentPrice = doubleValue(sanPham.get("giaBan"));
         if (existing.isEmpty()) {
             if (stock < 1) {
                 return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
@@ -241,8 +218,7 @@ public class DonMuaServiceImpl implements DonMuaService {
         jdbcTemplate.query("""
                 SELECT hd.trang_thai_hoa_don, COUNT(hd.id) AS total
                 FROM hoa_don hd
-                LEFT JOIN khach_hang kh ON kh.id = hd.id_khach_hang
-                WHERE (? IS NULL OR ? = '' OR LOWER(kh.id) LIKE LOWER(?))
+                WHERE (? IS NULL OR ? = '' OR LOWER(hd.id_khach_hang) LIKE LOWER(?))
                   AND hd.loai_hoa_don = ?
                   AND hd.trang_thai_hoa_don != ?
                 GROUP BY hd.trang_thai_hoa_don
@@ -271,6 +247,32 @@ public class DonMuaServiceImpl implements DonMuaService {
                 """, UUID.randomUUID().toString(), System.currentTimeMillis(), generateCodeHoaDonChiTiet(), quantity, price, sanPhamChiTietId, hoaDonId);
     }
 
+    private List<Map<String, Object>> enrichOrderRows(List<Map<String, Object>> rows) {
+        return rows.stream().map(row -> {
+            Map<String, Object> enriched = new LinkedHashMap<>(row);
+            Object productDetailId = row.get("idSPCT");
+            if (productDetailId == null) {
+                productDetailId = row.get("idspct");
+            }
+            if (productDetailId != null) {
+                Map<String, Object> product = catalogClient.getProductDetail(String.valueOf(productDetailId));
+                enriched.put("anh", product.get("anh"));
+                enriched.put("tenSanPham", product.get("ten"));
+                enriched.put("tenThuongHieu", product.get("tenThuongHieu"));
+                enriched.put("mauSac", product.get("tenMau"));
+                enriched.put("kichCo", product.get("kichThuoc"));
+            }
+            return enriched;
+        }).toList();
+    }
+
+    private static List<Map<String, Object>> slice(List<Map<String, Object>> rows, int offset, int size) {
+        if (offset >= rows.size()) {
+            return List.of();
+        }
+        return rows.subList(offset, Math.min(rows.size(), offset + size));
+    }
+
     private static String like(String q) {
         return q == null || q.trim().isEmpty() ? "" : "%" + q.trim() + "%";
     }
@@ -288,6 +290,16 @@ public class DonMuaServiceImpl implements DonMuaService {
 
     private static int pageSize(SanPhamChiTietSearchRequest request) {
         return request.getSize() <= 0 ? 10 : request.getSize();
+    }
+
+    private static String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Enum<?> enumValue) {
+            return String.valueOf(enumValue.ordinal());
+        }
+        return String.valueOf(value);
     }
 
     private static String generateCodeHoaDonChiTiet() {

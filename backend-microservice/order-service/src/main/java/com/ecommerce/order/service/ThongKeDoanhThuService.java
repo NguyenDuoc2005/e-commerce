@@ -1,6 +1,7 @@
 package com.ecommerce.order.service;
 
 import com.ecommerce.order.constant.EntityTrangThaiHoaDon;
+import com.ecommerce.order.client.CatalogClient;
 import com.ecommerce.order.model.response.ThongKeDoanhThuResponse;
 import com.ecommerce.order.model.response.ThongKeDonHangResponse;
 import com.ecommerce.order.model.response.ThongKeTrangThaiHoaDonResponse;
@@ -20,9 +21,11 @@ import java.util.stream.Collectors;
 @Service
 public class ThongKeDoanhThuService {
     private final HoaDonRepository hoaDonRepository;
+    private final CatalogClient catalogClient;
 
-    public ThongKeDoanhThuService(HoaDonRepository hoaDonRepository) {
+    public ThongKeDoanhThuService(HoaDonRepository hoaDonRepository, CatalogClient catalogClient) {
         this.hoaDonRepository = hoaDonRepository;
+        this.catalogClient = catalogClient;
     }
 
     public ThongKeDoanhThuResponse getThongKeDoanhThu() {
@@ -62,15 +65,16 @@ public class ThongKeDoanhThuService {
     public List<TopSanPhamBanChayResponse> layTop3SanPhamBanChay(Long startDate, Long endDate) {
         List<TopSanPhamBanChayResponse> result = new ArrayList<>();
         for (Object[] row : hoaDonRepository.layTop3SanPhamBanChay(startDate, endDate)) {
+            Map<String, Object> product = catalogClient.getProductDetail((String) row[0]);
             TopSanPhamBanChayResponse response = new TopSanPhamBanChayResponse();
             response.setId((String) row[0]);
-            response.setMaSanPham((String) row[1]);
-            response.setTenSanPham((String) row[2]);
-            response.setAnhSanPham((String) row[3]);
-            response.setSoLuongBan(((Number) row[4]).longValue());
-            response.setDoanhThu(row[5] == null ? 0.0 : ((Number) row[5]).doubleValue());
-            response.setThuongHieu((String) row[6]);
-            response.setGiaBan(row[7] == null ? 0.0 : ((Number) row[7]).doubleValue());
+            response.setMaSanPham((String) product.get("ma"));
+            response.setTenSanPham((String) product.get("ten"));
+            response.setAnhSanPham((String) product.get("anh"));
+            response.setSoLuongBan(((Number) row[1]).longValue());
+            response.setDoanhThu(row[2] == null ? 0.0 : ((Number) row[2]).doubleValue());
+            response.setThuongHieu((String) product.get("tenThuongHieu"));
+            response.setGiaBan(row[3] == null ? 0.0 : ((Number) row[3]).doubleValue());
             result.add(response);
         }
         return result;

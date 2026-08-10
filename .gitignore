@@ -3,3 +3,64 @@ hs_err_pid*.log
 replay_pid*.log
 *.hprof
 core.*
+
+
+
+# ===== Gradle =====
+.gradle/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ===== IntelliJ IDEA =====
+.idea/
+*.iml
+*.iws
+out/
+
+# ===== VS Code (nếu dùng) =====
+.vscode/
+
+# ===== Java =====
+*.class
+*.jar
+!gradle-wrapper.jar
+
+# ===== Logs =====
+logs/
+*.log
+*.pid
+
+# ===== Environment / Secrets =====
+.env
+.env.local
+.env.*.local
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Node/Vue (nếu có frontend) =====
+node_modules/
+dist/
+.npm
+
+# ===== Eclipse (phòng khi có ai dùng) =====
+.classpath
+.project
+.settings/
+bin/
+
+# ===== JVM debug attach =====
+.attach_pid*
+
+# ===== Frontend log linh tinh =====
+npm-debug.log*
+yarn-error.log*
+
+# ===== Local DB file (nếu có test bằng H2) =====
+*.db
+*.mv.db
+
+# ===== Build artifact khác =====
+*.war
+*.ear

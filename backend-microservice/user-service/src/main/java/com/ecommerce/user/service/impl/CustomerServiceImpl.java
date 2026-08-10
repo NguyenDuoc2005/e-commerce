@@ -3,6 +3,7 @@ package com.ecommerce.user.service.impl;
 import com.ecommerce.common.base.PageableObject;
 import com.ecommerce.common.base.ResponseObject;
 import com.ecommerce.common.util.PageUtils;
+import com.ecommerce.user.client.OrderClient;
 import com.ecommerce.user.constant.EntityStatus;
 import com.ecommerce.user.entity.KhachHang;
 import com.ecommerce.user.model.request.ADKhachHangSearchRequest;
@@ -28,9 +29,12 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final FileStorageService fileStorageService;
 
-    public CustomerServiceImpl(KhachHangRepository khachHangRepository, FileStorageService fileStorageService) {
+    private final OrderClient orderClient;
+
+    public CustomerServiceImpl(KhachHangRepository khachHangRepository, FileStorageService fileStorageService, OrderClient orderClient) {
         this.khachHangRepository = khachHangRepository;
         this.fileStorageService = fileStorageService;
+        this.orderClient = orderClient;
     }
 
     @Override
@@ -110,7 +114,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public ResponseObject<?> getLSKH(String id) {
-        return new ResponseObject<>(khachHangRepository.getLSKH(id), HttpStatus.OK, "Lay danh sach lich su hoa don thanh cong");
+        return new ResponseObject<>(orderClient.getCustomerOrderHistory(id), HttpStatus.OK, "Lay danh sach lich su hoa don thanh cong");
     }
 
     private void applyRequest(KhachHang khachHang, UserUpsertRequest request) {

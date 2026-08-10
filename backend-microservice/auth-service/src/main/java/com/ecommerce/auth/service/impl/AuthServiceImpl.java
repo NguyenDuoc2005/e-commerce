@@ -1,10 +1,8 @@
 package com.ecommerce.auth.service.impl;
 
-import com.ecommerce.auth.constant.EntityStatus;
+import com.ecommerce.auth.client.UserClient;
 import com.ecommerce.auth.dto.request.ChangePasswordRequest;
 import com.ecommerce.auth.dto.request.RegisterRequest;
-import com.ecommerce.auth.entity.KhachHang;
-import com.ecommerce.auth.repository.KhachHangAuthRepository;
 import com.ecommerce.auth.service.AuthService;
 import com.ecommerce.common.base.ResponseObject;
 import org.springframework.http.HttpStatus;
@@ -12,18 +10,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.Optional;
+import java.util.Map;
 
 @Service
 @Validated
 public class AuthServiceImpl implements AuthService {
 
-    private final KhachHangAuthRepository authUserRepository;
+    private final UserClient userClient;
 
     private final PasswordEncoder passwordEncoder;
 
-    public AuthServiceImpl(KhachHangAuthRepository authUserRepository, PasswordEncoder passwordEncoder) {
-        this.authUserRepository = authUserRepository;
+    public AuthServiceImpl(UserClient userClient, PasswordEncoder passwordEncoder) {
+        this.userClient = userClient;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -43,8 +41,7 @@ public class AuthServiceImpl implements AuthService {
         if (!request.getEmail().matches(emailRegex)) {
             return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Email khong hop le");
         }
-        Optional<KhachHang> existingUser = authUserRepository.findByEmail(request.getEmail());
-        if (existingUser.isPresent()) {
+        if (!userClient.getCustomerByEmail(request.getEmail(), false).isEmpty()) {
             return new ResponseObject<>(null, HttpStatus.CONFLICT, "Email da ton tai");
         }
 
@@ -55,8 +52,7 @@ public class AuthServiceImpl implements AuthService {
         if (!request.getPhone().matches(phoneRegex)) {
             return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "So dien thoai khong hop le");
         }
-        Optional<KhachHang> existingPhone = authUserRepository.findBySdt(request.getPhone());
-        if (existingPhone.isPresent()) {
+        if (!userClient.getCustomerByPhone(request.getPhone()).isEmpty()) {
             return new ResponseObject<>(null, HttpStatus.CONFLICT, "So dien thoai da ton tai");
         }
 
@@ -71,27 +67,19 @@ public class AuthServiceImpl implements AuthService {
             return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Mat khau phai chua ca chu va so");
         }
 
-        KhachHang newUser = new KhachHang();
-        newUser.setTen(request.getUserName());
-        newUser.setSdt(request.getPhone());
-        newUser.setEmail(request.getEmail());
-        newUser.setMatKhau(passwordEncoder.encode(request.getPassword()));
-        newUser.setStatus(EntityStatus.ACTIVE);
-
-        authUserRepository.save(newUser);
+        userClient.createCustomer(request.getUserName(), request.getEmail(), request.getPhone(), passwordEncoder.encode(request.getPassword()));
 
         return new ResponseObject<>().success("Dang ky thanh cong");
     }
 
     @Override
     public ResponseObject<?> changePassword(String email, ChangePasswordRequest request) {
-        Optional<KhachHang> optionalUser = authUserRepository.findByEmail(email);
-        if (optionalUser.isEmpty()) {
+        Map<String, Object> user = userClient.getCustomerByEmail(email, false);
+        if (user.isEmpty()) {
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Khong tim thay nguoi dung");
         }
 
-        KhachHang user = optionalUser.get();
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getMatKhau())) {
+        if (!passwordEncoder.matches(request.getCurrentPassword(), String.valueOf(user.get("matKhau")))) {
             return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Mat khau hien tai khong dung");
         }
 
@@ -100,8 +88,7 @@ public class AuthServiceImpl implements AuthService {
             return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Mat khau moi phai chua ca chu va so, toi thieu 6 ky tu");
         }
 
-        user.setMatKhau(passwordEncoder.encode(newPassword));
-        authUserRepository.save(user);
+        userClient.updateCustomerPassword(email, passwordEncoder.encode(newPassword));
 
         return new ResponseObject<>().success("Doi mat khau thanh cong");
     }

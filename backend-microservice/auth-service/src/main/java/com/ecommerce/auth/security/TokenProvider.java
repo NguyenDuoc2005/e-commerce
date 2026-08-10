@@ -1,10 +1,7 @@
 package com.ecommerce.auth.security;
 
+import com.ecommerce.auth.client.UserClient;
 import com.ecommerce.auth.constant.Role;
-import com.ecommerce.auth.entity.KhachHang;
-import com.ecommerce.auth.entity.NhanVien;
-import com.ecommerce.auth.repository.KhachHangAuthRepository;
-import com.ecommerce.auth.repository.NhanVienAuthRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -17,7 +14,6 @@ import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 public class TokenProvider {
@@ -28,40 +24,34 @@ public class TokenProvider {
     @Value("${jwt.secret}")
     private String tokenSecret;
 
-    private final KhachHangAuthRepository khachHangAuthRepository;
+    private final UserClient userClient;
 
-    private final NhanVienAuthRepository nhanVienAuthRepository;
-
-    public TokenProvider(
-            KhachHangAuthRepository khachHangAuthRepository,
-            NhanVienAuthRepository nhanVienAuthRepository
-    ) {
-        this.khachHangAuthRepository = khachHangAuthRepository;
-        this.nhanVienAuthRepository = nhanVienAuthRepository;
+    public TokenProvider(UserClient userClient) {
+        this.userClient = userClient;
     }
 
     public String createTokenForKhachHang(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        Optional<KhachHang> userOpt = khachHangAuthRepository.findByEmail(userPrincipal.getEmail());
-        return userOpt.map(user -> buildTokenKhachHang(user, ACCESS_TOKEN_EXPIRATION, Role.USERS.name())).orElse(null);
+        Map<String, Object> user = userClient.getCustomerByEmail(userPrincipal.getEmail(), false);
+        return user.isEmpty() ? null : buildToken(user, ACCESS_TOKEN_EXPIRATION, Role.USERS.name());
     }
 
     public String createRefreshTokenForKhachHang(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        Optional<KhachHang> userOpt = khachHangAuthRepository.findByEmail(userPrincipal.getEmail());
-        return userOpt.map(user -> buildTokenKhachHang(user, REFRESH_TOKEN_EXPIRATION, Role.USERS.name())).orElse(null);
+        Map<String, Object> user = userClient.getCustomerByEmail(userPrincipal.getEmail(), false);
+        return user.isEmpty() ? null : buildToken(user, REFRESH_TOKEN_EXPIRATION, Role.USERS.name());
     }
 
     public String createTokenForAdmin(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        Optional<NhanVien> userOpt = nhanVienAuthRepository.findByEmail(userPrincipal.getEmail());
-        return userOpt.map(user -> buildTokenAdmin(user, ACCESS_TOKEN_EXPIRATION, Role.ADMIN.name())).orElse(null);
+        Map<String, Object> user = userClient.getStaffByEmail(userPrincipal.getEmail(), false);
+        return user.isEmpty() ? null : buildToken(user, ACCESS_TOKEN_EXPIRATION, Role.ADMIN.name());
     }
 
     public String createRefreshTokenForAdmin(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        Optional<NhanVien> userOpt = nhanVienAuthRepository.findByEmail(userPrincipal.getEmail());
-        return userOpt.map(user -> buildTokenAdmin(user, REFRESH_TOKEN_EXPIRATION, Role.ADMIN.name())).orElse(null);
+        Map<String, Object> user = userClient.getStaffByEmail(userPrincipal.getEmail(), false);
+        return user.isEmpty() ? null : buildToken(user, REFRESH_TOKEN_EXPIRATION, Role.ADMIN.name());
     }
 
     public boolean validateToken(String token) {
@@ -92,26 +82,15 @@ public class TokenProvider {
                 .getBody();
     }
 
-    private String buildTokenKhachHang(KhachHang user, long expirationMillis, String role) {
+    private String buildToken(Map<String, Object> user, long expirationMillis, String role) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("email", user.getEmail());
-        claims.put("userId", user.getId());
-        claims.put("fullName", user.getTen());
-        claims.put("pictureUrl", user.getAvatar());
+        claims.put("email", user.get("email"));
+        claims.put("userId", user.get("id"));
+        claims.put("fullName", user.get("ten"));
+        claims.put("pictureUrl", user.get("avatar"));
         claims.put("role", role);
 
-        return buildToken(user.getEmail(), claims, expirationMillis);
-    }
-
-    private String buildTokenAdmin(NhanVien nhanVien, long expirationMillis, String role) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("email", nhanVien.getEmail());
-        claims.put("userId", nhanVien.getId());
-        claims.put("fullName", nhanVien.getTen());
-        claims.put("pictureUrl", nhanVien.getAvatar());
-        claims.put("role", role);
-
-        return buildToken(nhanVien.getEmail(), claims, expirationMillis);
+        return buildToken(String.valueOf(user.get("email")), claims, expirationMillis);
     }
 
     private String buildToken(String subject, Map<String, Object> claims, long expirationMillis) {

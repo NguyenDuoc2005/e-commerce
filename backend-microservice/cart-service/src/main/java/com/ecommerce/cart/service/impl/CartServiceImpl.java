@@ -1,16 +1,13 @@
 package com.ecommerce.cart.service.impl;
 
+import com.ecommerce.cart.client.CatalogClient;
 import com.ecommerce.cart.constant.EntityStatus;
 import com.ecommerce.cart.entity.Cart;
 import com.ecommerce.cart.entity.CartDetail;
-import com.ecommerce.cart.entity.KhachHang;
-import com.ecommerce.cart.entity.SanPhamChiTiet;
 import com.ecommerce.cart.model.request.CartDetailRequest;
 import com.ecommerce.cart.model.request.CartGetAllRequest;
 import com.ecommerce.cart.repository.CartDetailRepository;
 import com.ecommerce.cart.repository.CartRepository;
-import com.ecommerce.cart.repository.KhachHangRepository;
-import com.ecommerce.cart.repository.SanPhamChiTietRepository;
 import com.ecommerce.cart.service.CartService;
 import com.ecommerce.common.base.ResponseObject;
 import jakarta.persistence.EntityNotFoundException;
@@ -18,51 +15,51 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
-    private final KhachHangRepository khachHangRepository;
     private final CartDetailRepository cartDetailRepository;
-    private final SanPhamChiTietRepository sanPhamChiTietRepository;
+    private final CatalogClient catalogClient;
 
     public CartServiceImpl(
             CartRepository cartRepository,
-            KhachHangRepository khachHangRepository,
             CartDetailRepository cartDetailRepository,
-            SanPhamChiTietRepository sanPhamChiTietRepository
+            CatalogClient catalogClient
     ) {
         this.cartRepository = cartRepository;
-        this.khachHangRepository = khachHangRepository;
         this.cartDetailRepository = cartDetailRepository;
-        this.sanPhamChiTietRepository = sanPhamChiTietRepository;
+        this.catalogClient = catalogClient;
     }
 
     @Override
     public ResponseObject<?> getAllProductCart(CartGetAllRequest req) {
-        List<CartDetail> list = cartDetailRepository.getAllCart(findByCart(req.getIdUser()).getId());
+        List<Map<String, Object>> list = cartDetailRepository.getAllCart(findByCart(req.getIdUser()).getId())
+                .stream()
+                .map(this::toCartResponse)
+                .toList();
         return new ResponseObject<>(list, HttpStatus.OK, "Lay du lieu thanh cong");
     }
 
     @Override
     public ResponseObject<?> createCartDetail(CartDetailRequest req) {
-        KhachHang khachHang = khachHang(req.getIdKhachHang());
-        Cart cart = cartRepository.findByKhachHang(khachHang).orElseGet(() -> createCart(khachHang));
-        SanPhamChiTiet sanPhamChiTiet = findBySPCT(req.getIdSPCT());
+        Cart cart = cartRepository.findByKhachHangId(req.getIdKhachHang()).orElseGet(() -> createCart(req.getIdKhachHang()));
+        Map<String, Object> sanPhamChiTiet = findBySPCT(req.getIdSPCT());
         int quantity = Integer.parseInt(req.getQuantity());
 
-        if (sanPhamChiTiet.getSoLuong() < quantity) {
+        if (intValue(sanPhamChiTiet.get("soLuong")) < quantity) {
             return new ResponseObject<>().success("So luong san pham khong du");
         }
 
-        String existingCartDetailId = cartRepository.checkChungSp(cart.getId(), sanPhamChiTiet.getId());
+        String existingCartDetailId = cartRepository.checkChungSp(cart.getId(), req.getIdSPCT());
         if (existingCartDetailId == null) {
             CartDetail cartDetail = new CartDetail();
             cartDetail.setPrice(Double.parseDouble(req.getPrice()));
             cartDetail.setCart(cart);
-            cartDetail.setSanPhamChiTiet(sanPhamChiTiet);
+            cartDetail.setSanPhamChiTietId(req.getIdSPCT());
             cartDetail.setQuantity(quantity);
             cartDetail.setStatus(EntityStatus.ACTIVE);
             cartDetailRepository.save(cartDetail);
@@ -72,7 +69,7 @@ public class CartServiceImpl implements CartService {
         CartDetail cartDetail = cartDetailRepository.findById(existingCartDetailId).orElseThrow();
         cartDetail.setPrice(cartDetail.getPrice() + Double.parseDouble(req.getPrice()));
         cartDetail.setQuantity(cartDetail.getQuantity() + quantity);
-        if (cartDetail.getQuantity() > sanPhamChiTiet.getSoLuong()) {
+        if (cartDetail.getQuantity() > intValue(sanPhamChiTiet.get("soLuong"))) {
             return new ResponseObject<>().success("So luong san pham trong gio hang da vuot qua so luong san pham");
         }
         cartDetailRepository.save(cartDetail);
@@ -85,22 +82,41 @@ public class CartServiceImpl implements CartService {
         return new ResponseObject<>().success("Xoa thanh cong");
     }
 
-    private Cart createCart(KhachHang khachHang) {
+    private Cart createCart(String khachHangId) {
         Cart cart = new Cart();
-        cart.setKhachHang(khachHang);
+        cart.setKhachHangId(khachHangId);
         cart.setStatus(EntityStatus.ACTIVE);
         return cartRepository.save(cart);
     }
 
-    private SanPhamChiTiet findBySPCT(String id) {
-        return sanPhamChiTietRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Khong tim thay"));
+    private Map<String, Object> findBySPCT(String id) {
+        Map<String, Object> productDetail = catalogClient.getProductDetail(id);
+        if (productDetail == null || productDetail.isEmpty()) {
+            throw new EntityNotFoundException("Khong tim thay");
+        }
+        return productDetail;
     }
 
     private Cart findByCart(String id) {
-        return cartRepository.findByKhachHang(khachHang(id)).orElseThrow(() -> new EntityNotFoundException("Khong tim thay"));
+        return cartRepository.findByKhachHangId(id).orElseThrow(() -> new EntityNotFoundException("Khong tim thay"));
     }
 
-    private KhachHang khachHang(String id) {
-        return khachHangRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Khong tim thay khach hang"));
+    private Map<String, Object> toCartResponse(CartDetail detail) {
+        Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("id", detail.getId());
+        row.put("quantity", detail.getQuantity());
+        row.put("price", detail.getPrice());
+        row.put("cartId", detail.getCart() == null ? null : detail.getCart().getId());
+        row.put("sanPhamChiTietId", detail.getSanPhamChiTietId());
+        row.put("sanPhamChiTiet", findBySPCT(detail.getSanPhamChiTietId()));
+        row.put("status", detail.getStatus());
+        return row;
+    }
+
+    private int intValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return value == null ? 0 : Integer.parseInt(String.valueOf(value));
     }
 }

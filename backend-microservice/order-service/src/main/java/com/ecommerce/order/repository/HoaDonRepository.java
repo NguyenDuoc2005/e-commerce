@@ -33,17 +33,14 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String> {
     List<Object[]> thongKeDonHangHoanThanhTheoNgay(@Param("startDate") Long startDate, @Param("endDate") Long endDate);
 
     @Query(value = """
-            SELECT sp.id, sp.ma_san_pham, sp.ten_san_pham, spct.anh_san_pham, SUM(hdct.so_luong) as soLuongBan,
-                   SUM(hdct.so_luong * spct.gia_ban) as doanhThu, th.ten_thuong_hieu, spct.gia_ban as giaBan
+            SELECT hdct.id_spct, SUM(hdct.so_luong) as soLuongBan,
+                   SUM(hdct.so_luong * hdct.gia_ban) as doanhThu, MAX(hdct.gia_ban) as giaBan
             FROM hoa_don_chi_tiet hdct
-            INNER JOIN san_pham_chi_tiet spct ON hdct.id_spct = spct.id
-            INNER JOIN san_pham sp ON spct.id_san_pham = sp.id
             INNER JOIN hoa_don h ON hdct.id_hoa_don = h.id
-            LEFT JOIN thuong_hieu th ON sp.id_thuong_hieu = th.id
             WHERE h.trang_thai_hoa_don = '4'
               AND (:startDate IS NULL OR h.created_date >= :startDate)
               AND (:endDate IS NULL OR h.created_date <= :endDate)
-            GROUP BY sp.id, sp.ma_san_pham, sp.ten_san_pham, spct.anh_san_pham, th.ten_thuong_hieu, spct.gia_ban
+            GROUP BY hdct.id_spct
             ORDER BY SUM(hdct.so_luong) DESC
             LIMIT 3
             """, nativeQuery = true)

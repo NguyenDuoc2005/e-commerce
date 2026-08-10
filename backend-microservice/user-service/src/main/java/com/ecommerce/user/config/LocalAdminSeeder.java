@@ -8,6 +8,7 @@ import com.ecommerce.user.repository.NhanVienRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class LocalAdminSeeder {
@@ -15,13 +16,9 @@ public class LocalAdminSeeder {
     public static final String ADMIN_ID = "00000000-0000-0000-0000-000000000001";
 
     @Bean
-    CommandLineRunner seedLocalAdmin(NhanVienRepository nhanVienRepository) {
+    CommandLineRunner seedLocalAdmin(NhanVienRepository nhanVienRepository, PasswordEncoder passwordEncoder) {
         return args -> {
-            if (nhanVienRepository.existsById(ADMIN_ID)) {
-                return;
-            }
-
-            NhanVien admin = new NhanVien();
+            NhanVien admin = nhanVienRepository.findById(ADMIN_ID).orElseGet(NhanVien::new);
             admin.setId(ADMIN_ID);
             admin.setStatus(EntityStatus.ACTIVE);
             admin.setMa("ADMIN001");
@@ -32,6 +29,10 @@ public class LocalAdminSeeder {
             admin.setDiaChi("Local development");
             admin.setVaitro(EntityVaiTro.QUAN_LY);
             admin.setChucVu(EntityRole.ADMIN);
+            if (admin.getMatKhau() == null || admin.getMatKhau().isBlank()
+                    || !passwordEncoder.matches("Admin@123", admin.getMatKhau())) {
+                admin.setMatKhau(passwordEncoder.encode("Admin@123"));
+            }
 
             nhanVienRepository.save(admin);
         };

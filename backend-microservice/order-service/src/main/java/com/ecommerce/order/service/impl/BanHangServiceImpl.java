@@ -4,6 +4,9 @@ import com.ecommerce.common.base.ResponseObject;
 import com.ecommerce.order.constant.EntityLoaiHoaDon;
 import com.ecommerce.order.constant.EntityPhuongThucThanhToan;
 import com.ecommerce.order.constant.EntityTrangThaiHoaDon;
+import com.ecommerce.order.client.CatalogClient;
+import com.ecommerce.order.client.PromotionClient;
+import com.ecommerce.order.client.UserClient;
 import com.ecommerce.order.model.request.BanHangRequest;
 import com.ecommerce.order.service.BanHangService;
 import org.springframework.http.HttpStatus;
@@ -25,9 +28,15 @@ public class BanHangServiceImpl implements BanHangService {
     private static final int ACTIVE = 0;
 
     private final JdbcTemplate jdbcTemplate;
+    private final CatalogClient catalogClient;
+    private final PromotionClient promotionClient;
+    private final UserClient userClient;
 
-    public BanHangServiceImpl(JdbcTemplate jdbcTemplate) {
+    public BanHangServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient, PromotionClient promotionClient, UserClient userClient) {
         this.jdbcTemplate = jdbcTemplate;
+        this.catalogClient = catalogClient;
+        this.promotionClient = promotionClient;
+        this.userClient = userClient;
     }
 
     @Override
@@ -96,12 +105,12 @@ public class BanHangServiceImpl implements BanHangService {
     @Transactional
     public ResponseObject<?> themSanPham(BanHangRequest request) {
         int quantity = parseQuantity(request.getSoLuong());
-        Map<String, Object> product = jdbcTemplate.queryForMap("SELECT so_luong, gia_ban FROM ecommerce_catalog.san_pham_chi_tiet WHERE id = ?", request.getIdSP());
-        if (intValue(product.get("so_luong")) < quantity) {
+        Map<String, Object> product = catalogClient.getProductDetail(request.getIdSP());
+        if (intValue(product.get("soLuong")) < quantity) {
             return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
         }
         List<Map<String, Object>> existing = jdbcTemplate.queryForList("SELECT id, so_luong, gia_ban FROM hoa_don_chi_tiet WHERE id_hoa_don = ? AND id_spct = ? ORDER BY created_date DESC", request.getIdHD(), request.getIdSP());
-        double currentPrice = doubleValue(product.get("gia_ban"));
+        double currentPrice = doubleValue(product.get("giaBan"));
         if (existing.isEmpty()) {
             insertDetail(request.getIdHD(), request.getIdSP(), quantity, currentPrice);
             return new ResponseObject<>(null, HttpStatus.OK, "them san pham thanh cong");
@@ -112,7 +121,7 @@ public class BanHangServiceImpl implements BanHangService {
             return new ResponseObject<>(null, HttpStatus.OK, "San pham nay dang dc thay doi gia tu " + detail.get("gia_ban") + "d thanh " + currentPrice);
         }
         int nextQuantity = intValue(detail.get("so_luong")) + quantity;
-        if (intValue(product.get("so_luong")) < nextQuantity) {
+        if (intValue(product.get("soLuong")) < nextQuantity) {
             return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
         }
         jdbcTemplate.update("UPDATE hoa_don_chi_tiet SET so_luong = ? WHERE id = ?", nextQuantity, detail.get("id"));
@@ -121,24 +130,23 @@ public class BanHangServiceImpl implements BanHangService {
 
     @Override
     public List<Map<String, Object>> getListGioHang(String id) {
-        return jdbcTemplate.queryForList("""
-                SELECT ROW_NUMBER() OVER (ORDER BY sp.id DESC) AS stt,
-                       hdct.id AS idHDCT,
-                       spct.id AS id,
-                       sp.ten_san_pham AS ten,
-                       hdct.so_luong AS soLuong,
-                       hdct.gia_ban AS giaBan,
-                       kc.ten_kich_co AS kichThuoc,
-                       ms.mau_sac AS mau,
-                       spct.anh_san_pham AS anh
-                FROM hoa_don_chi_tiet hdct
-                LEFT JOIN ecommerce_catalog.san_pham_chi_tiet spct ON hdct.id_spct = spct.id
-                LEFT JOIN ecommerce_catalog.san_pham sp ON spct.id_san_pham = sp.id
-                LEFT JOIN ecommerce_catalog.mau_sac ms ON ms.id = spct.id_mau_sac
-                LEFT JOIN ecommerce_catalog.kich_co kc ON kc.id = spct.id_kich_co
-                WHERE hdct.id_hoa_don = ?
-                ORDER BY spct.created_date DESC
+        List<Map<String, Object>> details = jdbcTemplate.queryForList("""
+                SELECT id AS idHDCT, id_spct AS id, so_luong AS soLuong, gia_ban AS giaBan
+                FROM hoa_don_chi_tiet
+                WHERE id_hoa_don = ?
+                ORDER BY created_date DESC
                 """, id);
+        for (int i = 0; i < details.size(); i++) {
+            Map<String, Object> row = new LinkedHashMap<>(details.get(i));
+            Map<String, Object> product = catalogClient.getProductDetail(String.valueOf(row.get("id")));
+            row.put("stt", i + 1);
+            row.put("ten", product.get("ten"));
+            row.put("kichThuoc", product.get("kichThuoc"));
+            row.put("mau", product.get("mau"));
+            row.put("anh", product.get("anh"));
+            details.set(i, row);
+        }
+        return details;
     }
 
     @Override
@@ -149,12 +157,12 @@ public class BanHangServiceImpl implements BanHangService {
     @Override
     public ResponseObject<?> themSoLuong(BanHangRequest request) {
         Map<String, Object> detail = jdbcTemplate.queryForMap("SELECT so_luong, gia_ban FROM hoa_don_chi_tiet WHERE id = ?", request.getIdHDCT());
-        Map<String, Object> product = jdbcTemplate.queryForMap("SELECT so_luong, gia_ban FROM ecommerce_catalog.san_pham_chi_tiet WHERE id = ?", request.getIdSP());
-        if (Math.abs(doubleValue(detail.get("gia_ban")) - doubleValue(product.get("gia_ban"))) > 0.0001D) {
-            return new ResponseObject<>(null, HttpStatus.OK, "San pham nay dang dc thay doi gia tu " + detail.get("gia_ban") + "d thanh " + product.get("gia_ban"));
+        Map<String, Object> product = catalogClient.getProductDetail(request.getIdSP());
+        if (Math.abs(doubleValue(detail.get("gia_ban")) - doubleValue(product.get("giaBan"))) > 0.0001D) {
+            return new ResponseObject<>(null, HttpStatus.OK, "San pham nay dang dc thay doi gia tu " + detail.get("gia_ban") + "d thanh " + product.get("giaBan"));
         }
         int next = intValue(detail.get("so_luong")) + 1;
-        if (intValue(product.get("so_luong")) < next) {
+        if (intValue(product.get("soLuong")) < next) {
             return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
         }
         jdbcTemplate.update("UPDATE hoa_don_chi_tiet SET so_luong = ? WHERE id = ?", next, request.getIdHDCT());
@@ -174,20 +182,8 @@ public class BanHangServiceImpl implements BanHangService {
 
     @Override
     public ResponseObject<?> listKhachHang(BanHangRequest request) {
-        String q = like(request.getQ());
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                SELECT id, ten_khach_hang AS ten, so_dien_thoai AS sdt
-                FROM ecommerce_user.khach_hang
-                WHERE status = 0 AND (? = '' OR ten_khach_hang LIKE ? OR ma_khach_hang LIKE ? OR so_dien_thoai LIKE ?)
-                ORDER BY created_date DESC
-                LIMIT ? OFFSET ?
-                """, q, q, q, q, pageSize(request), offset(request));
-        Long total = jdbcTemplate.queryForObject("""
-                SELECT COUNT(*)
-                FROM ecommerce_user.khach_hang
-                WHERE status = 0 AND (? = '' OR ten_khach_hang LIKE ? OR ma_khach_hang LIKE ? OR so_dien_thoai LIKE ?)
-                """, Long.class, q, q, q, q);
-        return new ResponseObject<>(page(rows, request, total), HttpStatus.OK, "lay danh sach khach hang thanh cong");
+        List<Map<String, Object>> all = userClient.searchCustomers(request.getQ());
+        return new ResponseObject<>(page(slice(all, offset(request), pageSize(request)), request, (long) all.size()), HttpStatus.OK, "lay danh sach khach hang thanh cong");
     }
 
     @Override
@@ -197,25 +193,15 @@ public class BanHangServiceImpl implements BanHangService {
 
     @Override
     public ResponseObject<?> themMoiKhachHang(BanHangRequest request) {
-        String id = UUID.randomUUID().toString();
-        jdbcTemplate.update("INSERT INTO ecommerce_user.khach_hang (id, status, created_date, ma_khach_hang, ten_khach_hang, so_dien_thoai) VALUES (?, 0, ?, ?, ?, ?)",
-                id, System.currentTimeMillis(), generateCode("KH"), request.getTen(), request.getSdt());
-        Map<String, Object> customer = new LinkedHashMap<>();
-        customer.put("id", id);
-        customer.put("ten", request.getTen());
-        customer.put("sdt", request.getSdt());
+        Map<String, Object> customer = userClient.createCustomer(request.getTen(), request.getSdt());
         return new ResponseObject<>(customer, HttpStatus.OK, "them moi khach hang thanh cong");
     }
 
     @Override
     public Map<String, Object> getKhachHang(String id) {
-        return jdbcTemplate.queryForMap("""
-                SELECT kh.id AS id, kh.ten_khach_hang AS ten, kh.so_dien_thoai AS sdt, kh.dia_chi AS diaChi,
-                       kh.tinh AS tinh, kh.huyen AS huyen, kh.xa AS xa
-                FROM hoa_don hd
-                LEFT JOIN ecommerce_user.khach_hang kh ON kh.id = hd.id_khach_hang
-                WHERE hd.id = ?
-                """, id);
+        Map<String, Object> order = getOrder(id);
+        Object customerId = order.get("id_khach_hang");
+        return customerId == null ? Map.of() : userClient.getCustomer(String.valueOf(customerId));
     }
 
     @Override
@@ -243,56 +229,11 @@ public class BanHangServiceImpl implements BanHangService {
         String idChatLieu = blankToNull(request.getIdChatLieu());
         String idThuongHieu = blankToNull(request.getIdThuongHieu());
         String idLoaiDe = blankToNull(request.getIdLoaiDe());
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                SELECT ROW_NUMBER() OVER (ORDER BY sp.id DESC) AS stt,
-                       spct.id AS id, sp.ten_san_pham AS ten, spct.so_luong AS soLuong,
-                       th.ten_thuong_hieu AS tenThuongHieu, ld.ten_loai_de AS tenLoaiDe,
-                       cl.ten_chat_lieu AS tenChatLieu, dm.ten_danh_muc AS tenDanhMuc,
-                       spct.gia_ban AS giaBan, kc.ten_kich_co AS kichThuoc,
-                       ms.mau_sac AS mau, ms.ten_mau_sac AS tenMau,
-                       spct.anh_san_pham AS anh, spct.status AS status,
-                       (SELECT MAX(spct2.gia_ban) FROM ecommerce_catalog.san_pham_chi_tiet spct2) AS giaMax
-                FROM ecommerce_catalog.san_pham_chi_tiet spct
-                LEFT JOIN ecommerce_catalog.san_pham sp ON spct.id_san_pham = sp.id
-                LEFT JOIN ecommerce_catalog.thuong_hieu th ON th.id = sp.id_thuong_hieu
-                LEFT JOIN ecommerce_catalog.kich_co kc ON kc.id = spct.id_kich_co
-                LEFT JOIN ecommerce_catalog.loai_de ld ON ld.id = sp.id_loai_de
-                LEFT JOIN ecommerce_catalog.danh_muc dm ON dm.id = sp.id_danh_muc
-                LEFT JOIN ecommerce_catalog.chat_lieu cl ON cl.id = sp.id_chat_lieu
-                LEFT JOIN ecommerce_catalog.mau_sac ms ON ms.id = spct.id_mau_sac
-                WHERE spct.so_luong > 0 AND spct.status = 0
-                  AND (? = '' OR sp.ten_san_pham LIKE ? OR spct.ma_san_pham LIKE ?)
-                  AND (? IS NULL OR spct.status = ?)
-                  AND (? IS NULL OR spct.id_mau_sac = ?)
-                  AND (? IS NULL OR spct.id_kich_co = ?)
-                  AND (? IS NULL OR sp.id_danh_muc = ?)
-                  AND (? IS NULL OR sp.id_chat_lieu = ?)
-                  AND (? IS NULL OR sp.id_thuong_hieu = ?)
-                  AND (? IS NULL OR sp.id_loai_de = ?)
-                ORDER BY spct.created_date DESC
-                LIMIT ? OFFSET ?
-                """, q, q, q, status, status, idMauSac, idMauSac,
-                idKichThuoc, idKichThuoc, idDanhMuc, idDanhMuc,
-                idChatLieu, idChatLieu, idThuongHieu, idThuongHieu,
-                idLoaiDe, idLoaiDe, pageSize(request), offset(request));
-        Long total = jdbcTemplate.queryForObject("""
-                SELECT COUNT(*)
-                FROM ecommerce_catalog.san_pham_chi_tiet spct
-                LEFT JOIN ecommerce_catalog.san_pham sp ON spct.id_san_pham = sp.id
-                WHERE spct.so_luong > 0 AND spct.status = 0
-                  AND (? = '' OR sp.ten_san_pham LIKE ? OR spct.ma_san_pham LIKE ?)
-                  AND (? IS NULL OR spct.status = ?)
-                  AND (? IS NULL OR spct.id_mau_sac = ?)
-                  AND (? IS NULL OR spct.id_kich_co = ?)
-                  AND (? IS NULL OR sp.id_danh_muc = ?)
-                  AND (? IS NULL OR sp.id_chat_lieu = ?)
-                  AND (? IS NULL OR sp.id_thuong_hieu = ?)
-                  AND (? IS NULL OR sp.id_loai_de = ?)
-                """, Long.class, q, q, q, status, status, idMauSac, idMauSac,
-                idKichThuoc, idKichThuoc, idDanhMuc, idDanhMuc,
-                idChatLieu, idChatLieu, idThuongHieu, idThuongHieu,
-                idLoaiDe, idLoaiDe);
-        return new ResponseObject<>(page(rows, request, total), HttpStatus.OK, "Lay danh sach san pham chi tiet thanh cong");
+        List<Map<String, Object>> rows = catalogClient.searchProductDetails(q, status, idMauSac, idKichThuoc, idDanhMuc, idChatLieu, idThuongHieu, idLoaiDe, null, null, null);
+        for (int i = 0; i < rows.size(); i++) {
+            rows.get(i).put("stt", i + 1);
+        }
+        return new ResponseObject<>(page(slice(rows, offset(request), pageSize(request)), request, (long) rows.size()), HttpStatus.OK, "Lay danh sach san pham chi tiet thanh cong");
     }
 
     @Override
@@ -300,11 +241,11 @@ public class BanHangServiceImpl implements BanHangService {
     public ResponseObject<?> thanhToanThanhCong(BanHangRequest request) {
         List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT id_spct, so_luong FROM hoa_don_chi_tiet WHERE id_hoa_don = ?", request.getIdHD());
         for (Map<String, Object> detail : details) {
-            Integer stock = jdbcTemplate.queryForObject("SELECT so_luong FROM ecommerce_catalog.san_pham_chi_tiet WHERE id = ?", Integer.class, detail.get("id_spct"));
-            if (stock == null || stock < intValue(detail.get("so_luong"))) {
+            Map<String, Object> product = catalogClient.getProductDetail(String.valueOf(detail.get("id_spct")));
+            if (intValue(product.get("soLuong")) < intValue(detail.get("so_luong"))) {
                 return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham khong du");
             }
-            jdbcTemplate.update("UPDATE ecommerce_catalog.san_pham_chi_tiet SET so_luong = so_luong - ? WHERE id = ?", intValue(detail.get("so_luong")), detail.get("id_spct"));
+            catalogClient.adjustStock(String.valueOf(detail.get("id_spct")), -intValue(detail.get("so_luong")));
         }
         int loaiHoaDon = intValue(getOrder(request.getIdHD()).get("loai_hoa_don"));
         int nextStatus = loaiHoaDon == EntityLoaiHoaDon.GIAO_HANG.ordinal()
@@ -318,7 +259,7 @@ public class BanHangServiceImpl implements BanHangService {
                 """, nextStatus, request.getTienHang(), request.getTen(), request.getDiaChi(), request.getSdt(),
                 paymentMethod(request.getPhuongThucThanhToan()), request.getTienShip(), request.getGiamGia(), request.getTongTien(), request.getIdPGG(), request.getIdHD());
         if (request.getIdPGG() != null) {
-            jdbcTemplate.update("UPDATE ecommerce_promotion.phieu_giam_gia SET so_luong_phieu = COALESCE(so_luong_phieu, 0) - 1 WHERE id = ?", request.getIdPGG());
+            promotionClient.decrementVoucher(request.getIdPGG());
         }
         insertStatusHistory(request.getIdHD(), nextStatus, nextStatus == EntityTrangThaiHoaDon.HOAN_THANH.ordinal()
                 ? "Don hang da duoc khach hang thanh toan thanh cong."
@@ -356,15 +297,11 @@ public class BanHangServiceImpl implements BanHangService {
     }
 
     private List<Map<String, Object>> voucherRows(String customerId) {
-        return jdbcTemplate.queryForList("""
-                SELECT DISTINCT p.*
-                FROM ecommerce_promotion.phieu_giam_gia p
-                LEFT JOIN ecommerce_promotion.phieu_giam_gia_chi_tiet_khach_hang pggct ON p.id = pggct.id_phieu_giam_gia
-                WHERE p.status = 0
-                  AND p.so_luong_phieu > 0
-                  AND (p.loai_giam = false OR (p.loai_giam = true AND pggct.id_khach_hang = ?))
-                  AND NOT EXISTS (SELECT 1 FROM hoa_don hd WHERE hd.id_voucher = p.id AND hd.id_khach_hang = ?)
-                """, customerId, customerId);
+        return promotionClient.getApplicableVouchers(customerId).stream()
+                .filter(v -> jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM hoa_don WHERE id_voucher = ? AND id_khach_hang = ?",
+                        Integer.class, v.get("id"), customerId) == 0)
+                .toList();
     }
 
     private Map<String, Object> getOrder(String id) {
@@ -422,6 +359,13 @@ public class BanHangServiceImpl implements BanHangService {
         result.put("currentPage", Math.max(request.getPage() - 1, 0));
         result.put("totalElements", totalElements);
         return result;
+    }
+
+    private static List<Map<String, Object>> slice(List<Map<String, Object>> rows, int offset, int size) {
+        if (offset >= rows.size()) {
+            return List.of();
+        }
+        return rows.subList(offset, Math.min(rows.size(), offset + size));
     }
 
     private static int pageSize(BanHangRequest request) {

@@ -1,5 +1,6 @@
 package com.ecommerce.catalog.service.impl;
 
+import com.ecommerce.catalog.client.PromotionClient;
 import com.ecommerce.catalog.constant.EntityStatus;
 import com.ecommerce.catalog.entity.SanPham;
 import com.ecommerce.catalog.entity.SanPhamChiTiet;
@@ -18,7 +19,6 @@ import com.ecommerce.common.base.ResponseObject;
 import com.ecommerce.common.util.PageUtils;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -37,7 +37,7 @@ public class ProductServiceImpl implements ProductService {
     private final LoaiDeRepository loaiDeRepository;
     private final XuatSuRepository xuatSuRepository;
     private final ChatLieuRepository chatLieuRepository;
-    private final JdbcTemplate jdbcTemplate;
+    private final PromotionClient promotionClient;
 
     public ProductServiceImpl(
             SanPhamRepository sanPhamRepository,
@@ -47,7 +47,7 @@ public class ProductServiceImpl implements ProductService {
             LoaiDeRepository loaiDeRepository,
             XuatSuRepository xuatSuRepository,
             ChatLieuRepository chatLieuRepository,
-            JdbcTemplate jdbcTemplate
+            PromotionClient promotionClient
     ) {
         this.sanPhamRepository = sanPhamRepository;
         this.sanPhamChiTietRepository = sanPhamChiTietRepository;
@@ -56,7 +56,7 @@ public class ProductServiceImpl implements ProductService {
         this.loaiDeRepository = loaiDeRepository;
         this.xuatSuRepository = xuatSuRepository;
         this.chatLieuRepository = chatLieuRepository;
-        this.jdbcTemplate = jdbcTemplate;
+        this.promotionClient = promotionClient;
     }
 
     @Override
@@ -158,42 +158,31 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ResponseObject<?> getSanPhamMoi(ProductSearchRequest request) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(publicProductSelect() + publicProductGroupBy() + " ORDER BY sp.created_date DESC LIMIT ? OFFSET ?", pageSize(request), offset(request));
+        List<Map<String, Object>> rows = publicProductRows(request);
         enrichPublicProducts(rows);
         return new ResponseObject<>(pageMap(rows, request), HttpStatus.OK, "Lay danh sach san pham moi thanh cong");
     }
 
     @Override
     public ResponseObject<?> getSanPhamGiamGia(ProductSearchRequest request) {
-        long now = System.currentTimeMillis();
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(publicProductSelect() + """
-                 AND EXISTS (
-                    SELECT 1
-                    FROM dot_giam_gia_chi_tiet_san_pham dggct
-                    JOIN dot_giam_gia dgg ON dgg.id = dggct.id_dot_giam_gia
-                    WHERE dggct.id_chi_tiet_san_pham = sct.id
-                      AND dggct.trang_thai = 'DANG_SU_DUNG'
-                      AND dgg.trang_thai_dot = 'DANG_KICH_HOAT'
-                      AND dgg.ngay_bat_dau <= ?
-                      AND dgg.ngay_ket_thuc >= ?
-                 )
-                """ + publicProductGroupBy() + """
-                ORDER BY sp.created_date DESC
-                LIMIT ? OFFSET ?
-                """, now, now, pageSize(request), offset(request));
+        List<Map<String, Object>> rows = publicProductRows(request);
         enrichPublicProducts(rows);
+        rows = rows.stream().filter(row -> row.get("dotGiamGia") != null).toList();
         return new ResponseObject<>(pageMap(rows, request), HttpStatus.OK, "Lay danh sach san pham giam gia thanh cong");
     }
 
     @Override
     public ResponseObject<?> getThuongHieuTrangChu(ProductSearchRequest request) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                SELECT id AS id, ma_thuong_hieu AS ma, ten_thuong_hieu AS ten
-                FROM thuong_hieu
-                WHERE status = 0
-                ORDER BY created_date DESC
-                LIMIT ? OFFSET ?
-                """, pageSize(request), offset(request));
+        List<Map<String, Object>> all = thuongHieuRepository.findByStatusOrderByCreatedDateDesc(EntityStatus.ACTIVE).stream()
+                .map(attribute -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", attribute.getId());
+                    row.put("ma", attribute.getMa());
+                    row.put("ten", attribute.getTen());
+                    return row;
+                })
+                .toList();
+        List<Map<String, Object>> rows = slice(all, offset(request), pageSize(request));
         return new ResponseObject<>(pageMap(rows, request), HttpStatus.OK, "lay thuong hieu thanh cong");
     }
 
@@ -217,67 +206,50 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    private String publicProductSelect() {
-        return """
-                SELECT sp.id AS id,
-                       sp.ten_san_pham AS ten,
-                       MIN(sct.anh_san_pham) AS anh,
-                       th.ten_thuong_hieu AS tenThuongHieu,
-                       dm.ten_danh_muc AS tenDanhMuc,
-                       cl.ten_chat_lieu AS tenChatLieu,
-                       xs.ten_xuat_su AS tenXuatXu,
-                       sp.mo_ta AS moTa,
-                       MIN(sct.gia_ban) AS giaBan,
-                       sp.created_date AS createdDate
-                FROM san_pham sp
-                JOIN san_pham_chi_tiet sct ON sct.id_san_pham = sp.id
-                LEFT JOIN thuong_hieu th ON th.id = sp.id_thuong_hieu
-                LEFT JOIN danh_muc dm ON dm.id = sp.id_danh_muc
-                LEFT JOIN chat_lieu cl ON cl.id = sp.id_chat_lieu
-                LEFT JOIN xuat_su xs ON xs.id = sp.id_xuat_su
-                WHERE sct.status = 0 AND sp.status = 0
-                """;
-    }
-
-    private String publicProductGroupBy() {
-        return " GROUP BY sp.id, sp.ten_san_pham, th.ten_thuong_hieu, dm.ten_danh_muc, cl.ten_chat_lieu, xs.ten_xuat_su, sp.mo_ta, sp.created_date ";
+    private List<Map<String, Object>> publicProductRows(ProductSearchRequest request) {
+        List<Map<String, Object>> all = sanPhamRepository.findByStatusOrderByCreatedDateDesc(EntityStatus.ACTIVE).stream()
+                .map(product -> {
+                    List<SanPhamChiTiet> details = sanPhamChiTietRepository.findBySanPhamIdAndStatusOrderByCreatedDateDesc(product.getId(), EntityStatus.ACTIVE);
+                    if (details.isEmpty()) {
+                        return null;
+                    }
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", product.getId());
+                    row.put("ten", product.getTen());
+                    row.put("anh", details.stream().map(SanPhamChiTiet::getAnh).filter(java.util.Objects::nonNull).findFirst().orElse(null));
+                    row.put("tenThuongHieu", product.getThuongHieu() == null ? null : product.getThuongHieu().getTen());
+                    row.put("tenDanhMuc", product.getDanhMuc() == null ? null : product.getDanhMuc().getTen());
+                    row.put("tenChatLieu", product.getChatLieu() == null ? null : product.getChatLieu().getTen());
+                    row.put("tenXuatXu", product.getXuatSu() == null ? null : product.getXuatSu().getTen());
+                    row.put("moTa", product.getMoTa());
+                    row.put("giaBan", details.stream().map(SanPhamChiTiet::getGiaBan).filter(java.util.Objects::nonNull).mapToDouble(Double::doubleValue).min().orElse(0D));
+                    row.put("createdDate", product.getCreatedDate());
+                    return row;
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return slice(all, offset(request), pageSize(request));
     }
 
     private void enrichPublicProducts(List<Map<String, Object>> rows) {
         long now = System.currentTimeMillis();
         for (Map<String, Object> row : rows) {
             String productId = String.valueOf(row.get("id"));
-            row.put("kichCo", jdbcTemplate.queryForList("""
-                    SELECT DISTINCT kc.ten_kich_co
-                    FROM san_pham_chi_tiet spct
-                    JOIN kich_co kc ON kc.id = spct.id_kich_co
-                    WHERE spct.id_san_pham = ?
-                    """, String.class, productId));
-            row.put("mauSac", jdbcTemplate.queryForList("""
-                    SELECT DISTINCT ms.ten_mau_sac
-                    FROM san_pham_chi_tiet spct
-                    JOIN mau_sac ms ON ms.id = spct.id_mau_sac
-                    WHERE spct.id_san_pham = ?
-                    """, String.class, productId));
-            row.put("dsAnh", jdbcTemplate.queryForList("SELECT anh_san_pham FROM san_pham_chi_tiet WHERE id_san_pham = ? AND anh_san_pham IS NOT NULL", String.class, productId));
-            List<Map<String, Object>> discounts = jdbcTemplate.queryForList("""
-                    SELECT dgg.ten_dot_giam_gia AS ten,
-                           dgg.phan_tram AS phanTramGiam,
-                           dggct.gia_truoc_khi_giam AS giaTruoc,
-                           dggct.gia_sau_khi_giam AS giaSau,
-                           dgg.ngay_bat_dau AS ngayBatDau,
-                           dgg.ngay_ket_thuc AS ngayKetThuc
-                    FROM san_pham_chi_tiet spct
-                    JOIN dot_giam_gia_chi_tiet_san_pham dggct ON dggct.id_chi_tiet_san_pham = spct.id
-                    JOIN dot_giam_gia dgg ON dgg.id = dggct.id_dot_giam_gia
-                    WHERE spct.id_san_pham = ?
-                      AND dggct.trang_thai = 'DANG_SU_DUNG'
-                      AND dgg.trang_thai_dot = 'DANG_KICH_HOAT'
-                      AND dgg.ngay_bat_dau <= ?
-                      AND dgg.ngay_ket_thuc >= ?
-                    ORDER BY dgg.phan_tram_giam DESC
-                    LIMIT 1
-                    """, productId, now, now);
+            List<SanPhamChiTiet> details = sanPhamChiTietRepository.findBySanPhamIdAndStatusOrderByCreatedDateDesc(productId, EntityStatus.ACTIVE);
+            row.put("kichCo", details.stream()
+                    .map(SanPhamChiTiet::getKichCo)
+                    .filter(java.util.Objects::nonNull)
+                    .map(com.ecommerce.catalog.entity.KichCo::getTen)
+                    .distinct()
+                    .toList());
+            row.put("mauSac", details.stream()
+                    .map(SanPhamChiTiet::getMauSac)
+                    .filter(java.util.Objects::nonNull)
+                    .map(com.ecommerce.catalog.entity.MauSac::getTen)
+                    .distinct()
+                    .toList());
+            row.put("dsAnh", details.stream().map(SanPhamChiTiet::getAnh).filter(java.util.Objects::nonNull).toList());
+            List<Map<String, Object>> discounts = promotionClient.getActiveDiscounts(details.stream().map(SanPhamChiTiet::getId).toList());
             row.put("dotGiamGia", discounts.isEmpty() ? null : discounts.get(0));
         }
     }
@@ -297,5 +269,12 @@ public class ProductServiceImpl implements ProductService {
 
     private int offset(ProductSearchRequest request) {
         return Math.max(request.getPage() - 1, 0) * pageSize(request);
+    }
+
+    private List<Map<String, Object>> slice(List<Map<String, Object>> rows, int offset, int size) {
+        if (offset >= rows.size()) {
+            return List.of();
+        }
+        return rows.subList(offset, Math.min(rows.size(), offset + size));
     }
 }

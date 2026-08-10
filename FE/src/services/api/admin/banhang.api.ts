@@ -16,7 +16,8 @@ export interface ParamsGetSanPham extends PaginationParams {
 
 export interface ParamsPhieuGiamGia extends PaginationParams {
   idKH?: string | undefined;
-  idHD?: number | null;
+  idHD?: string | number | null;
+  tongTien?: number | string | null;
 }
 
 export interface ParamsGetHoaDon extends PaginationParams {

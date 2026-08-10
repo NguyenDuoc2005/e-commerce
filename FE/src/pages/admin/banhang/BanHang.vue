@@ -589,7 +589,7 @@
       </div>
       <template #footer>
         <a-button key="back" @click="showDiscountModal = false">Đóng</a-button>
-        <a-button key="clear" @click="resetDiscount" v-if="selectedDiscount">Bỏ chọn</a-button>
+        <a-button key="clear" @click="clearSelectedDiscount" v-if="selectedDiscount">Bỏ chọn</a-button>
       </template>
     </a-modal>
   </div>
@@ -1206,8 +1206,9 @@ const fetchDiscounts = async (idHD: string) => {
     }
     console.log("giảm giác 0" + tongTien.value.toString())
     const params: ParamsPhieuGiamGia = {
-      idHD: tongTienTruocGiam.value.toString(),
+      idHD: idHD,
       idKH: state.detailKhachHang?.id || '',
+      tongTien: tongTienTruocGiam.value,
     };
 
     const response = await getMaGiamGia(params);
@@ -1547,9 +1548,17 @@ const fetchHoaDon = async () => {
 
 const resetDiscount = () => {
   state.discountList = []
+  clearSelectedDiscount()
+}
+
+const clearSelectedDiscount = () => {
   selectedDiscount.value = null
   selectedDiscountCode.value = ''
   giamGia.value = 0
+  phieuNgon.value = ''
+  isBestDiscountApplied.value = false
+  localStorage.removeItem('selectedDiscount')
+  localStorage.setItem('isBestDiscountApplied', JSON.stringify(false))
   calculateTotalAmounts()
 }
 

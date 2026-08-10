@@ -775,6 +775,8 @@ Ngay cap nhat: 2026-08-03
 - `POST /api/v1/admin/ban-hang/thanh-toan-thanh-cong` da check ton kho, tru ton kho, update hoa don, tru voucher, ghi lich su trang thai va lich su thanh toan nhu monolith. Nhanh `GIAO_HANG` chuyen `DA_XAC_NHAN`, nhanh tai quay chuyen `HOAN_THANH`.
 - `GET /api/v1/admin/ban-hang/danh-sach-phieu-giam-gia` va `/danh-sach-phieu-giam-gia-ko_du` da tinh `giaTriGiamThucTe`, best voucher va better voucher theo logic cu.
 - Cac response hien dung `Map` alias theo projection cu thay vi interface projection JPA de tranh keo quan he entity cross-service.
+- Sua ngay 2026-08-10 cho chon ma giam gia man admin ban hang: FE gui lai `idHD` dung id hoa don va gui them `tongTien`; `order-service` chap nhan `tienHang`/`tongTien`/legacy `idHD` numeric hoac tinh tong tien tu `hoa_don_chi_tiet`, dong thoi map voucher Feign tu promotion ve alias cu `ma`, `ten`, `giaTriGiam`, `laPhanTram`, `giaTriGiamThucTe` de modal hien ma cho admin chon. Doi chieu AGENTS.md muc 5: khong them bang/join DB cheo, giu public route `/api/v1/admin/ban-hang/danh-sach-phieu-giam-gia`; `:order-service:compileJava -x :common-lib:jar --no-daemon --max-workers=1` PASS, full compile bi chan do `common-lib-0.0.1-SNAPSHOT.jar` dang bi lock.
+- Sua tiep ngay 2026-08-10 cho popup chon ma giam gia: nut `Bo chon` tren FE khong goi `resetDiscount()` nua vi ham nay xoa ca `state.discountList`; tach `clearSelectedDiscount()` de chi bo ma dang ap dung, giu danh sach ma trong popup khi mo lai.
 
 ### Notification-service da migrate
 

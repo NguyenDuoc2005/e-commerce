@@ -42,20 +42,20 @@ public class BanHangServiceImpl implements BanHangService {
     @Override
     public Map<String, Object> availableVouchers(String idHD, String idKH, Double tongTien) {
         List<Map<String, Object>> vouchers = voucherRows(idKH);
-        double total = value(tongTien);
+        double total = resolveVoucherTotal(idHD, null, tongTien);
         final double voucherTotal = total;
         List<Map<String, Object>> available = vouchers.stream()
                 .filter(v -> intValue(v.get("so_luong_phieu")) > 0 && doubleValue(v.get("dieu_kien")) <= voucherTotal)
-                .peek(v -> v.put("giaTriGiamThucTe", discountValue(v, voucherTotal)))
+                .map(v -> voucherResponse(v, voucherTotal))
                 .toList();
         Map<String, Object> best = available.stream().max(Comparator.comparingDouble(v -> doubleValue(v.get("giaTriGiamThucTe")))).orElse(null);
         Map<String, Object> better = vouchers.stream()
-                .peek(v -> v.put("giaTriGiamThucTe", discountValue(v, voucherTotal)))
+                .map(v -> voucherResponse(v, voucherTotal))
                 .filter(v -> doubleValue(v.get("dieu_kien")) > voucherTotal && doubleValue(v.get("giaTriGiamThucTe")) > (best == null ? 0D : doubleValue(best.get("giaTriGiamThucTe"))))
                 .findFirst()
                 .map(v -> {
                     Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("ma", v.get("ma_phieu_giam_gia"));
+                    row.put("ma", v.get("ma"));
                     row.put("giaTriGiamThucTe", v.get("giaTriGiamThucTe"));
                     row.put("amountNeeded", doubleValue(v.get("dieu_kien")) - voucherTotal);
                     return row;
@@ -272,17 +272,14 @@ public class BanHangServiceImpl implements BanHangService {
 
     @Override
     public ResponseObject<?> danhSachPhieuGiamGia(BanHangRequest request) {
-        Double total = request.getTienHang();
-        if (total == null) {
-            total = request.getTongTien();
-        }
-        if (total == null) {
+        Double total = resolveVoucherTotal(request.getIdHD(), request.getTienHang(), request.getTongTien());
+        if (total == null || total <= 0D) {
             return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Tong tien khong duoc de trong");
         }
         final double voucherTotal = total;
         List<Map<String, Object>> vouchers = voucherRows(request.getIdKH()).stream()
                 .filter(v -> intValue(v.get("so_luong_phieu")) > 0 && doubleValue(v.get("dieu_kien")) <= voucherTotal)
-                .peek(v -> v.put("giaTriGiamThucTe", discountValue(v, voucherTotal)))
+                .map(v -> voucherResponse(v, voucherTotal))
                 .sorted((a, b) -> Double.compare(doubleValue(b.get("giaTriGiamThucTe")), doubleValue(a.get("giaTriGiamThucTe"))))
                 .toList();
         return new ResponseObject<>(vouchers, HttpStatus.CREATED, "Lay gia tri phieu giam gia thanh cong");
@@ -302,6 +299,37 @@ public class BanHangServiceImpl implements BanHangService {
                         "SELECT COUNT(*) FROM hoa_don WHERE id_voucher = ? AND id_khach_hang = ?",
                         Integer.class, v.get("id"), customerId) == 0)
                 .toList();
+    }
+
+    private Double resolveVoucherTotal(String orderIdOrTotal, Double tienHang, Double tongTien) {
+        if (tienHang != null) {
+            return tienHang;
+        }
+        if (tongTien != null) {
+            return tongTien;
+        }
+        Double legacyTotal = parseDouble(orderIdOrTotal);
+        if (legacyTotal != null) {
+            return legacyTotal;
+        }
+        if (orderIdOrTotal == null || orderIdOrTotal.isBlank()) {
+            return null;
+        }
+        return jdbcTemplate.queryForObject("""
+                SELECT COALESCE(SUM(hdct.gia_ban * hdct.so_luong), 0)
+                FROM hoa_don_chi_tiet hdct
+                WHERE hdct.id_hoa_don = ?
+                """, Double.class, orderIdOrTotal);
+    }
+
+    private static Map<String, Object> voucherResponse(Map<String, Object> voucher, double total) {
+        Map<String, Object> row = new LinkedHashMap<>(voucher);
+        row.put("ma", voucher.get("ma_phieu_giam_gia"));
+        row.put("ten", voucher.get("ten_phieu_giam_gia"));
+        row.put("giaTriGiam", voucher.get("phan_tram"));
+        row.put("laPhanTram", booleanValue(voucher.get("kieu_giam")));
+        row.put("giaTriGiamThucTe", discountValue(voucher, total));
+        return row;
     }
 
     private Map<String, Object> getOrder(String id) {
@@ -400,6 +428,17 @@ public class BanHangServiceImpl implements BanHangService {
 
     private static double doubleValue(Object value) {
         return value == null ? 0D : ((Number) value).doubleValue();
+    }
+
+    private static Double parseDouble(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private static String generateCode(String prefix) {

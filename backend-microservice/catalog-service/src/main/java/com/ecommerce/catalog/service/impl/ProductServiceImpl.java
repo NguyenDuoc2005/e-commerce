@@ -25,6 +25,7 @@ import org.springframework.util.StringUtils;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 import java.util.Optional;
 
 @Service
@@ -61,12 +62,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ResponseObject<?> getAll(ProductSearchRequest request) {
-        Pageable pageable = PageUtils.createPageable(request, "createdDate");
-        if (request.getStatus() != null && !request.getStatus().isEmpty()) {
-            request.setEntityStatus("0".equals(request.getStatus()) ? EntityStatus.INACTIVE : EntityStatus.ACTIVE);
-        }
+        List<Map<String, Object>> rows = filteredPublicProductRows(request);
+        enrichPublicProducts(rows);
         return new ResponseObject<>(
-                PageableObject.of(sanPhamRepository.getAllSanPhamByFilter(pageable, request)),
+                pageMap(rows, request),
                 HttpStatus.OK,
                 "Lay danh sach san pham thanh cong"
         );
@@ -158,14 +157,14 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ResponseObject<?> getSanPhamMoi(ProductSearchRequest request) {
-        List<Map<String, Object>> rows = publicProductRows(request);
+        List<Map<String, Object>> rows = filteredPublicProductRows(request);
         enrichPublicProducts(rows);
         return new ResponseObject<>(pageMap(rows, request), HttpStatus.OK, "Lay danh sach san pham moi thanh cong");
     }
 
     @Override
     public ResponseObject<?> getSanPhamGiamGia(ProductSearchRequest request) {
-        List<Map<String, Object>> rows = publicProductRows(request);
+        List<Map<String, Object>> rows = filteredPublicProductRows(request);
         enrichPublicProducts(rows);
         rows = rows.stream().filter(row -> row.get("dotGiamGia") != null).toList();
         return new ResponseObject<>(pageMap(rows, request), HttpStatus.OK, "Lay danh sach san pham giam gia thanh cong");
@@ -206,60 +205,167 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    private List<Map<String, Object>> publicProductRows(ProductSearchRequest request) {
+    private List<Map<String, Object>> filteredPublicProductRows(ProductSearchRequest request) {
+        String q = request.getQ() == null ? "" : request.getQ().trim().toLowerCase();
+        List<String> brandIds = splitIds(request.getThuongHieuIds());
+        List<String> materialIds = splitIds(request.getChatLieuIds());
+        List<String> soleIds = splitIds(request.getLoaiDeIds());
+        List<String> categoryIds = splitIds(request.getDanhMucIds());
+
         List<Map<String, Object>> all = sanPhamRepository.findByStatusOrderByCreatedDateDesc(EntityStatus.ACTIVE).stream()
+                .filter(product -> q.isEmpty()
+                        || safe(product.getTen()).toLowerCase().contains(q)
+                        || safe(product.getMa()).toLowerCase().contains(q))
+                .filter(product -> brandIds.isEmpty() || (product.getThuongHieu() != null && brandIds.contains(product.getThuongHieu().getId())))
+                .filter(product -> materialIds.isEmpty() || (product.getChatLieu() != null && materialIds.contains(product.getChatLieu().getId())))
+                .filter(product -> soleIds.isEmpty() || (product.getLoaiDe() != null && soleIds.contains(product.getLoaiDe().getId())))
+                .filter(product -> categoryIds.isEmpty() || (product.getDanhMuc() != null && categoryIds.contains(product.getDanhMuc().getId())))
                 .map(product -> {
                     List<SanPhamChiTiet> details = sanPhamChiTietRepository.findBySanPhamIdAndStatusOrderByCreatedDateDesc(product.getId(), EntityStatus.ACTIVE);
+                    details = details.stream()
+                            .filter(detail -> request.getGiaMin() == null || value(detail.getGiaBan()) >= request.getGiaMin())
+                            .filter(detail -> request.getGiaMax() == null || value(detail.getGiaBan()) <= request.getGiaMax())
+                            .toList();
                     if (details.isEmpty()) {
                         return null;
                     }
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("id", product.getId());
-                    row.put("ten", product.getTen());
-                    row.put("anh", details.stream().map(SanPhamChiTiet::getAnh).filter(java.util.Objects::nonNull).findFirst().orElse(null));
-                    row.put("tenThuongHieu", product.getThuongHieu() == null ? null : product.getThuongHieu().getTen());
-                    row.put("tenDanhMuc", product.getDanhMuc() == null ? null : product.getDanhMuc().getTen());
-                    row.put("tenChatLieu", product.getChatLieu() == null ? null : product.getChatLieu().getTen());
-                    row.put("tenXuatXu", product.getXuatSu() == null ? null : product.getXuatSu().getTen());
+                    row.put("tenSanPham", product.getTen());
+                    row.put("hinhAnhDaiDien", details.stream().map(SanPhamChiTiet::getAnh).filter(java.util.Objects::nonNull).findFirst().orElse(null));
+                    row.put("thuongHieu", product.getThuongHieu() == null ? null : product.getThuongHieu().getTen());
+                    row.put("danhMuc", product.getDanhMuc() == null ? null : product.getDanhMuc().getTen());
+                    row.put("chatLieu", product.getChatLieu() == null ? null : product.getChatLieu().getTen());
+                    row.put("xuatXu", product.getXuatSu() == null ? null : product.getXuatSu().getTen());
                     row.put("moTa", product.getMoTa());
                     row.put("giaBan", details.stream().map(SanPhamChiTiet::getGiaBan).filter(java.util.Objects::nonNull).mapToDouble(Double::doubleValue).min().orElse(0D));
-                    row.put("createdDate", product.getCreatedDate());
+                    row.put("ngayTao", product.getCreatedDate());
+                    row.put("_details", details);
                     return row;
                 })
                 .filter(java.util.Objects::nonNull)
                 .toList();
-        return slice(all, offset(request), pageSize(request));
+        return sortProducts(all, request.getSortBy());
     }
 
     private void enrichPublicProducts(List<Map<String, Object>> rows) {
-        long now = System.currentTimeMillis();
         for (Map<String, Object> row : rows) {
-            String productId = String.valueOf(row.get("id"));
-            List<SanPhamChiTiet> details = sanPhamChiTietRepository.findBySanPhamIdAndStatusOrderByCreatedDateDesc(productId, EntityStatus.ACTIVE);
+            @SuppressWarnings("unchecked")
+            List<SanPhamChiTiet> details = (List<SanPhamChiTiet>) row.get("_details");
             row.put("kichCo", details.stream()
-                    .map(SanPhamChiTiet::getKichCo)
-                    .filter(java.util.Objects::nonNull)
-                    .map(com.ecommerce.catalog.entity.KichCo::getTen)
-                    .distinct()
+                    .filter(detail -> detail.getKichCo() != null)
+                    .collect(java.util.stream.Collectors.toMap(
+                            detail -> detail.getKichCo().getId(),
+                            detail -> {
+                                Map<String, Object> size = new LinkedHashMap<>();
+                                size.put("id", detail.getKichCo().getId());
+                                size.put("ten", detail.getKichCo().getTen());
+                                size.put("soLuong", value(detail.getSoLuong()));
+                                return size;
+                            },
+                            (left, right) -> {
+                                left.put("soLuong", ((Integer) left.get("soLuong")) + ((Integer) right.get("soLuong")));
+                                return left;
+                            },
+                            LinkedHashMap::new
+                    ))
+                    .values()
+                    .stream()
                     .toList());
             row.put("mauSac", details.stream()
-                    .map(SanPhamChiTiet::getMauSac)
-                    .filter(java.util.Objects::nonNull)
-                    .map(com.ecommerce.catalog.entity.MauSac::getTen)
-                    .distinct()
+                    .filter(detail -> detail.getMauSac() != null)
+                    .collect(java.util.stream.Collectors.toMap(
+                            detail -> detail.getMauSac().getId(),
+                            detail -> {
+                                Map<String, Object> color = new LinkedHashMap<>();
+                                color.put("id", detail.getMauSac().getId());
+                                color.put("ten", detail.getMauSac().getTen());
+                                color.put("tenMauSac", detail.getMauSac().getTen());
+                                color.put("maMau", detail.getMauSac().getMau());
+                                return color;
+                            },
+                            (left, right) -> left,
+                            LinkedHashMap::new
+                    ))
+                    .values()
+                    .stream()
                     .toList());
-            row.put("dsAnh", details.stream().map(SanPhamChiTiet::getAnh).filter(java.util.Objects::nonNull).toList());
-            List<Map<String, Object>> discounts = promotionClient.getActiveDiscounts(details.stream().map(SanPhamChiTiet::getId).toList());
-            row.put("dotGiamGia", discounts.isEmpty() ? null : discounts.get(0));
+            row.put("dsAnh", details.stream().map(SanPhamChiTiet::getAnh).filter(java.util.Objects::nonNull).distinct().toList());
+            List<Map<String, Object>> discounts = safeActiveDiscounts(details.stream().map(SanPhamChiTiet::getId).toList());
+            Map<String, Object> discount = discounts.isEmpty() ? null : publicDiscountMap(discounts.get(0));
+            row.put("dotGiamGia", discount);
+            row.put("giaSauGiam", discount == null ? null : discount.get("giaSau"));
+            row.remove("_details");
         }
     }
 
+    private List<Map<String, Object>> sortProducts(List<Map<String, Object>> rows, String sortBy) {
+        Comparator<Map<String, Object>> comparator = Comparator.comparing(row -> String.valueOf(row.get("ngayTao")));
+        if ("createdAt_asc".equals(sortBy)) {
+            return rows.stream().sorted(comparator).toList();
+        }
+        if ("giaBan_asc".equals(sortBy)) {
+            return rows.stream().sorted(Comparator.comparingDouble(row -> doubleValue(row.get("giaBan")))).toList();
+        }
+        if ("giaBan_desc".equals(sortBy)) {
+            return rows.stream().sorted(Comparator.comparingDouble((Map<String, Object> row) -> doubleValue(row.get("giaBan"))).reversed()).toList();
+        }
+        if ("ten_asc".equals(sortBy)) {
+            return rows.stream().sorted(Comparator.comparing(row -> safe(row.get("tenSanPham")))).toList();
+        }
+        if ("ten_desc".equals(sortBy)) {
+            return rows.stream().sorted(Comparator.comparing((Map<String, Object> row) -> safe(row.get("tenSanPham"))).reversed()).toList();
+        }
+        return rows.stream().sorted(comparator.reversed()).toList();
+    }
+
+    private Map<String, Object> publicDiscountMap(Map<String, Object> discount) {
+        Map<String, Object> row = new LinkedHashMap<>(discount);
+        row.put("tenDotGiamGia", discount.get("ten"));
+        return row;
+    }
+
+    private List<Map<String, Object>> safeActiveDiscounts(List<String> productDetailIds) {
+        try {
+            return promotionClient.getActiveDiscounts(productDetailIds);
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    private List<String> splitIds(String ids) {
+        if (ids == null || ids.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(ids.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .toList();
+    }
+
+    private String safe(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private int value(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private double value(Double value) {
+        return value == null ? 0D : value;
+    }
+
+    private double doubleValue(Object value) {
+        return value == null ? 0D : ((Number) value).doubleValue();
+    }
+
     private Map<String, Object> pageMap(List<Map<String, Object>> rows, ProductSearchRequest request) {
+        List<Map<String, Object>> pageRows = slice(rows, offset(request), pageSize(request));
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("data", rows);
-        result.put("totalPages", 1);
+        result.put("data", pageRows);
+        result.put("totalPages", (long) Math.ceil((double) rows.size() / pageSize(request)));
         result.put("currentPage", Math.max(request.getPage() - 1, 0));
-        result.put("totalElements", rows.size());
+        result.put("totalElements", (long) rows.size());
         return result;
     }
 

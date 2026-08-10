@@ -4,6 +4,7 @@ import com.ecommerce.common.base.ResponseObject;
 import com.ecommerce.order.constant.EntityLoaiHoaDon;
 import com.ecommerce.order.constant.EntityTrangThaiHoaDon;
 import com.ecommerce.order.client.CatalogClient;
+import com.ecommerce.order.model.request.HoaDonDetailRequest;
 import com.ecommerce.order.model.request.HoaDonSearchRequest;
 import com.ecommerce.order.model.request.SanPhamChiTietSearchRequest;
 import com.ecommerce.order.model.request.ThemSanPhamRequest;
@@ -89,6 +90,47 @@ public class DonMuaServiceImpl implements DonMuaService {
                 ORDER BY hd.created_date, hd.ma_hoa_don ASC
                 """, code, LUU_TAM);
         return new ResponseObject<>(Map.of("page", enrichOrderRows(page), "totalRecords", page.size(), "countByStatus", countByCode(code)), HttpStatus.OK, "Lay danh sach lich su don hang thanh cong");
+    }
+
+    @Override
+    public ResponseObject<?> getHoaDonChiTiet(HoaDonDetailRequest request) {
+        if (request.getMaHoaDon() == null || request.getMaHoaDon().isBlank()) {
+            return new ResponseObject<>(List.of(), HttpStatus.BAD_REQUEST, "Ma hoa don khong duoc de trong");
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT hd.id AS idHoaDon,
+                       hd.ma_hoa_don AS maHoaDon,
+                       hd.ma_hoa_don AS tenHoaDon,
+                       hdct.ma_hoa_don_chi_tiet AS maHoaDonChiTiet,
+                       hdct.id_spct AS idSPCT,
+                       hdct.so_luong AS soLuong,
+                       hdct.gia_ban AS giaBan,
+                       (hdct.gia_ban * hdct.so_luong) AS thanhTienSP,
+                       (SELECT SUM(hdsub.so_luong * hdsub.gia_ban) FROM hoa_don_chi_tiet hdsub WHERE hdsub.id_hoa_don = hd.id) AS thanhTien,
+                       hd.ten_khach_hang AS tenKhachHang,
+                       hd.so_dien_thoai_khach_hang AS sdtKH,
+                       hd.email AS email,
+                       hd.dia_chi_giao_hang AS diaChi,
+                       hd.loai_hoa_don AS loaiHoaDon,
+                       hd.trang_thai_hoa_don AS trangThaiHoaDon,
+                       hd.created_date AS ngayTao,
+                       hd.phi_van_chuyen AS phiVanChuyen,
+                       hd.id_voucher AS maVoucher,
+                       hd.id_voucher AS tenVoucher,
+                       hd.giam_gia AS giaTriVoucher,
+                       hd.tong_tien_sau_giam AS tongTienSauGiam,
+                       hd.tong_tien_sau_giam AS tongTien,
+                       hd.phuong_thuc_thanh_toan AS phuongThucThanhToan,
+                       hd.du_no AS duNo,
+                       hd.hoan_phi AS hoanPhi
+                FROM hoa_don_chi_tiet hdct
+                JOIN hoa_don hd ON hdct.id_hoa_don = hd.id
+                WHERE hd.ma_hoa_don = ?
+                  AND hd.loai_hoa_don = ?
+                  AND hd.trang_thai_hoa_don != ?
+                ORDER BY hdct.created_date ASC
+                """, request.getMaHoaDon(), ONLINE, LUU_TAM);
+        return new ResponseObject<>(enrichOrderDetailRows(rows), HttpStatus.OK, "Lay danh sach chi tiet hoa don thanh cong");
     }
 
     @Override
@@ -264,6 +306,42 @@ public class DonMuaServiceImpl implements DonMuaService {
             }
             return enriched;
         }).toList();
+    }
+
+    private List<Map<String, Object>> enrichOrderDetailRows(List<Map<String, Object>> rows) {
+        return rows.stream().map(row -> {
+            Map<String, Object> enriched = new LinkedHashMap<>(row);
+            Object productDetailId = row.get("idSPCT");
+            if (productDetailId == null) {
+                productDetailId = row.get("idspct");
+            }
+            Map<String, Object> product = productDetailId == null ? Map.of() : safeProductDetail(String.valueOf(productDetailId));
+            enriched.put("tenSanPham", firstNonNull(product.get("tenSanPham"), product.get("ten"), productDetailId));
+            enriched.put("anhSanPham", firstNonNull(product.get("anh"), product.get("hinhAnh")));
+            enriched.put("thuongHieu", firstNonNull(product.get("tenThuongHieu"), product.get("thuongHieu")));
+            enriched.put("mauSac", firstNonNull(product.get("tenMauSac"), product.get("tenMau"), product.get("mau")));
+            enriched.put("size", firstNonNull(product.get("tenKichCo"), product.get("kichThuoc"), product.get("size")));
+            enriched.put("xuatSu", firstNonNull(product.get("tenXuatXu"), product.get("xuatXu")));
+            return enriched;
+        }).toList();
+    }
+
+    private Map<String, Object> safeProductDetail(String productDetailId) {
+        try {
+            Map<String, Object> product = catalogClient.getProductDetail(productDetailId);
+            return product == null ? Map.of() : product;
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    private static Object firstNonNull(Object... values) {
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private static List<Map<String, Object>> slice(List<Map<String, Object>> rows, int offset, int size) {

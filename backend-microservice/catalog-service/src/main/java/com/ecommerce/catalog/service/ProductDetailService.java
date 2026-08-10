@@ -6,6 +6,8 @@ import com.ecommerce.common.base.ResponseObject;
 
 public interface ProductDetailService {
     ResponseObject<?> getAll(ProductDetailSearchRequest request);
+
+    ResponseObject<?> getPublicDetail(String productId);
     ResponseObject<?> changeSanPhamStatus(String id);
     ResponseObject<?> getSPCTById(String id);
     ResponseObject<?> getDetailSPCT(String id);

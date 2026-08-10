@@ -20,7 +20,9 @@ public class PublicProductDetailController {
 
     @GetMapping("/get-all/san-pham-chi-tiet")
     public ResponseEntity<?> getAll(ProductDetailSearchRequest request) {
-        request.setStatus("1");
-        return ResponseUtils.createResponseEntity(service.getAll(request));
+        String productId = request.getIdSP() == null || request.getIdSP().isBlank()
+                ? request.getIdSanPham()
+                : request.getIdSP();
+        return ResponseUtils.createResponseEntity(service.getPublicDetail(productId));
     }
 }

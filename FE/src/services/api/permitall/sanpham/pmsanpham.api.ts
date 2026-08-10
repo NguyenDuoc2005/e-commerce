@@ -50,37 +50,65 @@ export interface SanPhamMoiResponse {
 
 export interface ParamsGetSanPhamMoi extends PaginationParams {}
 
+const emptyProductPage = (message = 'Không thể tải danh sách sản phẩm') =>
+  ({
+    data: {
+      data: [],
+      totalPages: 0,
+      totalElements: 0,
+      currentPage: 0
+    },
+    message,
+    status: 'ERROR',
+    success: false
+  }) as DefaultResponse<PaginationResponse<SanPhamMoiResponse[]>>
+
 export const GetSanPhamMoiTrangChu = async (
   params: ParamsGetSanPhamMoi
 ) => {
-  const res = (await request({
-    url: `${PREFIX_API_SANPHAM_PERMITALL}/get-all/san-pham-moi`,
-    method: 'GET',
-    params
-  })) as AxiosResponse<DefaultResponse<PaginationResponse<SanPhamMoiResponse[]>>>
-  return res.data
+  try {
+    const res = (await request({
+      url: `${PREFIX_API_SANPHAM_PERMITALL}/get-all/san-pham-moi`,
+      method: 'GET',
+      params
+    })) as AxiosResponse<DefaultResponse<PaginationResponse<SanPhamMoiResponse[]>>>
+    return res.data
+  } catch (error) {
+    console.error('Không thể tải sản phẩm mới:', error)
+    return emptyProductPage()
+  }
 }
 
 export const GetDanhSachSanPhamTrangSanPham = async (
   params: ParamsGetSanPhamMoi
 ) => {
-  const res = (await request({
-    url: `${PREFIX_API_SANPHAM_PERMITALL}/get-all/danh-sach-san-pham`,
-    method: 'GET',
-    params
-  })) as AxiosResponse<DefaultResponse<PaginationResponse<SanPhamMoiResponse[]>>>
-  return res.data
+  try {
+    const res = (await request({
+      url: `${PREFIX_API_SANPHAM_PERMITALL}/get-all/danh-sach-san-pham`,
+      method: 'GET',
+      params
+    })) as AxiosResponse<DefaultResponse<PaginationResponse<SanPhamMoiResponse[]>>>
+    return res.data
+  } catch (error) {
+    console.error('Không thể tải danh sách sản phẩm:', error)
+    return emptyProductPage()
+  }
 }
 
 export const GetSanPhamGiamGiaTrangChu = async (
   params: ParamsGetSanPhamMoi
 ) => { 
-  const res = (await request({
-    url: `${PREFIX_API_SANPHAM_PERMITALL}/get-all/san-pham-giam-gia`,
-    method: 'GET',
-    params
-  })) as AxiosResponse<DefaultResponse<PaginationResponse<SanPhamMoiResponse[]>>>
-  return res.data
+  try {
+    const res = (await request({
+      url: `${PREFIX_API_SANPHAM_PERMITALL}/get-all/san-pham-giam-gia`,
+      method: 'GET',
+      params
+    })) as AxiosResponse<DefaultResponse<PaginationResponse<SanPhamMoiResponse[]>>>
+    return res.data
+  } catch (error) {
+    console.error('Không thể tải sản phẩm giảm giá:', error)
+    return emptyProductPage()
+  }
 }
 
 

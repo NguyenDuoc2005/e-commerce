@@ -79,13 +79,26 @@ export interface ParamsGetSanPhamChiTiet {
   idSanPham: string
 }
 
+const emptyProductDetail = (message = 'Không thể tải chi tiết sản phẩm') =>
+  ({
+    data: null,
+    message,
+    status: 'ERROR',
+    success: false
+  }) as unknown as DefaultResponse<SanPhamChiTietResponse>
+
 export const GetSanPhamChiTietById = async (
   params: ParamsGetSanPhamChiTiet
 ) => {
-  const res = (await request({
-    url: `${PREFIX_API_SANPHAMCHITIET_PERMITALL}/get-all/san-pham-chi-tiet`,
-    method: 'GET',
-    params, 
-  })) as AxiosResponse<DefaultResponse<SanPhamChiTietResponse>>
-  return res.data
+  try {
+    const res = (await request({
+      url: `${PREFIX_API_SANPHAMCHITIET_PERMITALL}/get-all/san-pham-chi-tiet`,
+      method: 'GET',
+      params, 
+    })) as AxiosResponse<DefaultResponse<SanPhamChiTietResponse>>
+    return res.data
+  } catch (error) {
+    console.error('Không thể tải chi tiết sản phẩm:', error)
+    return emptyProductDetail()
+  }
 }

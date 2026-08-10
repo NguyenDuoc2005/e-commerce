@@ -1,6 +1,7 @@
 package com.ecommerce.order.service;
 
 import com.ecommerce.common.base.ResponseObject;
+import com.ecommerce.order.model.request.HoaDonDetailRequest;
 import com.ecommerce.order.model.request.HoaDonSearchRequest;
 import com.ecommerce.order.model.request.SanPhamChiTietSearchRequest;
 import com.ecommerce.order.model.request.ThemSanPhamRequest;
@@ -13,6 +14,8 @@ public interface DonMuaService {
     ResponseObject<?> getAllHoaDon(HoaDonSearchRequest request);
 
     ResponseObject<?> getAllHoaDonByCode(String code);
+
+    ResponseObject<?> getHoaDonChiTiet(HoaDonDetailRequest request);
 
     ResponseObject<?> getAllSanPhamChiTiet(SanPhamChiTietSearchRequest request);
 

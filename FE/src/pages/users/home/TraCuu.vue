@@ -119,7 +119,14 @@ const viewOrderDetail = (maHoaDon?: string, id?: string) => {
 
 // Utility Functions
 const getStatusText = (status: string) => {
+  const normalizedStatus = String(status ?? "");
   const textMap: Record<string, string> = {
+    '0': 'Chá» xÃ¡c nháº­n',
+    '1': 'ÄÃ£ xÃ¡c nháº­n',
+    '2': 'Chá» giao',
+    '3': 'Äang giao',
+    '4': 'HoÃ n thÃ nh',
+    '5': 'ÄÃ£ há»§y',
     'CHO_XAC_NHAN': 'Chờ xác nhận',
     'DA_XAC_NHAN': 'Đã xác nhận',
     'CHO_GIAO': 'Chờ giao',
@@ -127,7 +134,7 @@ const getStatusText = (status: string) => {
     'HOAN_THANH': 'Hoàn thành',
     'DA_HUY': 'Đã hủy'
   };
-  return textMap[status] || 'Không rõ';
+  return textMap[normalizedStatus] || 'Không rõ';
 };
 
 const formatCurrency = (value: number) => {

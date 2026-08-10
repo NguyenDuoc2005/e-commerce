@@ -56,7 +56,7 @@ public class DonMuaController {
 
     @GetMapping("/all")
     public ResponseEntity<?> getHoaDonChiTiet(@ModelAttribute HoaDonDetailRequest request) {
-        return ResponseEntity.ok(adminHoaDonService.getAllHoaDonChiTiet(request));
+        return ResponseEntity.ok(donMuaService.getHoaDonChiTiet(request));
     }
 
     @GetMapping("/{id}")

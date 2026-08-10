@@ -99,12 +99,11 @@
             </div>
           </transition>
         </div>
-        <button class="rounded-circle d-flex align-items-center justify-content-center position-relative p-0 ms-2"
+        <button class="jp-cart-button rounded-circle d-flex align-items-center justify-content-center position-relative p-0 ms-2"
           style="width:44px; height:44px; background:#EA2F38; border:none;" @click="goToCart" aria-label="Giỏ hàng">
           <ShoppingCartOutlined style="font-size:1.28rem; color:#fff;" />
-          <span v-if="cartItemCount > 0" class="position-absolute badge rounded-pill shadow"
-            style="display: flex; align-items: center; justify-content: center; font-size:0.78rem; font-weight:600; min-width:20px; height:20px; padding:0 5px; background:#e53935; color:#fff; border:2px solid #e53935; right: -9px; top: -8px; box-shadow:0 2px 8px #e539354d; z-index:1;">
-            {{ cartItemCount }}
+          <span v-if="cartItemCount > 0" class="jp-cart-count-badge">
+            {{ cartBadgeText }}
           </span>
         </button>
       </div>
@@ -197,17 +196,23 @@ import { SearchOutlined, ShoppingCartOutlined, UserOutlined, PhoneOutlined } fro
 import { useAuthStore } from '@/stores/auth'
 import { router } from '@/routes/router'
 import { useRoute } from 'vue-router'
-import { GetThuongHieus } from '@/services/api/admin/thuonghieu.api'
 import { localStorageAction } from '@/utils/storage'
 import { USER_INFO_STORAGE_KEY, CART_STORAGE_KEY } from '@/constants/storageKey'
 import { getAllCart, type requestCart } from '@/services/api/permitall/cart/cart'
-import { toast } from 'vue3-toastify'
 import { GetAllThuongHieusTrangChu } from '@/services/api/permitall/thuonghieu/pmthuonghieu.api'
 
-// Hàm gửi sự kiện tùy chỉnh khi giỏ hàng thay đổi
-const dispatchCartUpdate = () => {
-  window.dispatchEvent(new Event('cartUpdated'))
+// Normalize cart responses from monolith and microservice shapes.
+const getRows = (data: any) => {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.content)) return data.content
+  if (Array.isArray(data?.data)) return data.data
+  if (Array.isArray(data?.page)) return data.page
+  return []
 }
+
+const itemQuantity = (item: any) => Number(item?.quantity ?? item?.soLuongMua ?? item?.soLuong ?? 1) || 0
+
+const totalCartQuantity = (items: any[]) => items.reduce((sum, item) => sum + itemQuantity(item), 0)
 
 // Lấy giỏ hàng từ server khi đã đăng nhập
 const fetchCartFromServer = async () => {
@@ -215,11 +220,8 @@ const fetchCartFromServer = async () => {
   const param: requestCart = { idUser: idUser.userId }
   try {
     const res = await getAllCart(param)
-    // Đếm số lượng sản phẩm duy nhất dựa trên idSPCT
-    console.log(res)
-    const uniqueItems = new Set(res.data.map((item) => item.idSPCT))
-    cartItemCount.value = res.data.length
-    console.log('Unique items from server:', uniqueItems.size) // Debug
+    // Count total product quantity in cart, not only unique cart lines.
+    cartItemCount.value = totalCartQuantity(getRows(res.data))
   } catch (error) {
     console.error('Lỗi khi lấy giỏ hàng từ server:', error)
     // toast.error('Không thể tải số lượng giỏ hàng.')
@@ -230,15 +232,16 @@ const fetchCartFromServer = async () => {
 // Lấy giỏ hàng tạm từ localStorage khi chưa đăng nhập
 const fetchCartFromLocalStorage = () => {
   const tempCart = localStorageAction.get(CART_STORAGE_KEY) || []
-  if (!Array.isArray(tempCart)) return
-  // Đếm số lượng sản phẩm duy nhất dựa trên idChiTietSanPham
-  const uniqueItems = new Set(tempCart.map((item: any) => item.idChiTietSanPham))
-  console.log(uniqueItems)
-  cartItemCount.value = uniqueItems.size
-  console.log('Unique items from local:', uniqueItems.size) // Debug
+  if (!Array.isArray(tempCart)) {
+    cartItemCount.value = 0
+    return
+  }
+  // Count total product quantity in cart, not only unique variants.
+  cartItemCount.value = totalCartQuantity(tempCart)
 }
 const keyword = ref('')
 const cartItemCount = ref(0) // Khởi tạo số lượng là 0
+const cartBadgeText = computed(() => cartItemCount.value > 99 ? '99+' : String(cartItemCount.value))
 const showMobileSearch = ref(false)
 const showSideMenu = ref(false)
 const isMenuSticky = ref(false)
@@ -252,7 +255,7 @@ const user = localStorageAction.get(USER_INFO_STORAGE_KEY)
 const isLogin = computed(() =>
   !!userLogin.value &&
   !!userLogin.value.fullName &&
-  user.role === 'USERS'
+  user?.role === 'USERS'
 )
 
 const menuItems = ref([])
@@ -489,6 +492,31 @@ const closeSideMenu = () => { showSideMenu.value = false }
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.jp-cart-button {
+  overflow: visible;
+}
+
+.jp-cart-count-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: #EA2F38;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px #00000033;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  z-index: 2;
 }
 
 .jp-hotline {

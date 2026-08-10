@@ -3,6 +3,7 @@ package com.ecommerce.catalog.service.impl;
 import com.ecommerce.catalog.constant.EntityStatus;
 import com.ecommerce.catalog.entity.SanPham;
 import com.ecommerce.catalog.entity.SanPhamChiTiet;
+import com.ecommerce.catalog.client.PromotionClient;
 import com.ecommerce.catalog.model.request.ProductDetailRequest;
 import com.ecommerce.catalog.model.request.ProductDetailSearchRequest;
 import com.ecommerce.catalog.model.request.ProductRequest;
@@ -20,7 +21,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductDetailServiceImpl implements ProductDetailService {
@@ -30,19 +36,22 @@ public class ProductDetailServiceImpl implements ProductDetailService {
     private final KichCoRepository kichCoRepository;
     private final MauSacRepository mauSacRepository;
     private final ProductService productService;
+    private final PromotionClient promotionClient;
 
     public ProductDetailServiceImpl(
             SanPhamChiTietRepository repository,
             SanPhamRepository sanPhamRepository,
             KichCoRepository kichCoRepository,
             MauSacRepository mauSacRepository,
-            ProductService productService
+            ProductService productService,
+            PromotionClient promotionClient
     ) {
         this.repository = repository;
         this.sanPhamRepository = sanPhamRepository;
         this.kichCoRepository = kichCoRepository;
         this.mauSacRepository = mauSacRepository;
         this.productService = productService;
+        this.promotionClient = promotionClient;
     }
 
     @Override
@@ -52,6 +61,73 @@ public class ProductDetailServiceImpl implements ProductDetailService {
             request.setEntityStatus("0".equals(request.getStatus()) ? EntityStatus.INACTIVE : EntityStatus.ACTIVE);
         }
         return new ResponseObject<>(PageableObject.of(repository.getAllSanPhamChiTietByFilter(pageable, request)), HttpStatus.OK, "Lay danh sach san pham chi tiet thanh cong");
+    }
+
+    @Override
+    public ResponseObject<?> getPublicDetail(String productId) {
+        if (productId == null || productId.isBlank()) {
+            return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Id san pham khong duoc de trong");
+        }
+        Optional<SanPham> optionalProduct = sanPhamRepository.findById(productId);
+        if (optionalProduct.isEmpty() || optionalProduct.get().getStatus() != EntityStatus.ACTIVE) {
+            return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Khong tim thay san pham");
+        }
+
+        SanPham product = optionalProduct.get();
+        List<SanPhamChiTiet> details = repository.findBySanPhamIdAndStatusOrderByCreatedDateDesc(productId, EntityStatus.ACTIVE);
+        Map<String, Map<String, Object>> discounts = safeActiveDiscounts(details.stream().map(SanPhamChiTiet::getId).toList())
+                .stream()
+                .collect(Collectors.toMap(
+                        discount -> String.valueOf(discount.get("productDetailId")),
+                        this::publicDiscountMap,
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("id", product.getId());
+        response.put("tenSanPham", product.getTen());
+        response.put("moTa", product.getMoTa());
+        response.put("thuongHieu", attributeMap(
+                product.getThuongHieu(),
+                attr -> attr.getId(),
+                attr -> attr.getTen(),
+                "tenThuongHieu",
+                "maThuongHieu"
+        ));
+        response.put("xuatXu", attributeMap(
+                product.getXuatSu(),
+                attr -> attr.getId(),
+                attr -> attr.getTen(),
+                "tenNuoc",
+                "maNuoc"
+        ));
+        response.put("chatLieu", attributeMap(
+                product.getChatLieu(),
+                attr -> attr.getId(),
+                attr -> attr.getTen(),
+                "tenChatLieu",
+                "maChatLieu"
+        ));
+        response.put("danhMuc", attributeMap(
+                product.getDanhMuc(),
+                attr -> attr.getId(),
+                attr -> attr.getTen(),
+                "tenDanhMuc",
+                "maDanhMuc"
+        ));
+        response.put("loaiDe", attributeMap(
+                product.getLoaiDe(),
+                attr -> attr.getId(),
+                attr -> attr.getTen(),
+                "tenLoaiDe",
+                "maLoaiDe"
+        ));
+        response.put("chiTietSanPham", details.stream()
+                .map(detail -> publicDetailMap(detail, discounts.get(detail.getId())))
+                .toList());
+
+        return new ResponseObject<>(response, HttpStatus.OK, "Lay chi tiet san pham thanh cong");
     }
 
     @Override
@@ -156,6 +232,65 @@ public class ProductDetailServiceImpl implements ProductDetailService {
             request.getAnh().getBytes();
         } catch (IOException ex) {
             throw new IllegalArgumentException("Loi khi doc file anh: " + ex.getMessage(), ex);
+        }
+    }
+
+    private Map<String, Object> publicDetailMap(SanPhamChiTiet detail, Map<String, Object> discount) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", detail.getId());
+        row.put("mauSac", colorMap(detail));
+        row.put("kichCo", sizeMap(detail));
+        row.put("giaBan", detail.getGiaBan());
+        row.put("soLuong", detail.getSoLuong() == null ? 0 : detail.getSoLuong());
+        row.put("hinhAnh", detail.getAnh());
+        row.put("dotGiamGia", discount);
+        return row;
+    }
+
+    private Map<String, Object> colorMap(SanPhamChiTiet detail) {
+        if (detail.getMauSac() == null) {
+            return null;
+        }
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", detail.getMauSac().getId());
+        row.put("tenMauSac", detail.getMauSac().getTen());
+        row.put("maMau", detail.getMauSac().getMau());
+        return row;
+    }
+
+    private Map<String, Object> sizeMap(SanPhamChiTiet detail) {
+        if (detail.getKichCo() == null) {
+            return null;
+        }
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", detail.getKichCo().getId());
+        row.put("tenKichCo", detail.getKichCo().getTen());
+        row.put("maKichCo", detail.getKichCo().getMa());
+        return row;
+    }
+
+    private <T> Map<String, Object> attributeMap(T attribute, Function<T, String> idGetter, Function<T, String> nameGetter, String nameKey, String codeKey) {
+        if (attribute == null) {
+            return null;
+        }
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", idGetter.apply(attribute));
+        row.put(nameKey, nameGetter.apply(attribute));
+        row.put(codeKey, null);
+        return row;
+    }
+
+    private Map<String, Object> publicDiscountMap(Map<String, Object> discount) {
+        Map<String, Object> row = new LinkedHashMap<>(discount);
+        row.put("tenDotGiamGia", discount.get("ten"));
+        return row;
+    }
+
+    private List<Map<String, Object>> safeActiveDiscounts(List<String> productDetailIds) {
+        try {
+            return promotionClient.getActiveDiscounts(productDetailIds);
+        } catch (RuntimeException ignored) {
+            return List.of();
         }
     }
 

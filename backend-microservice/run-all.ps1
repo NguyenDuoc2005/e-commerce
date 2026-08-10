@@ -9,11 +9,14 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$gradle = Join-Path $repoRoot "BE\gradlew.bat"
 $projectDir = Join-Path $repoRoot "backend-microservice"
+$gradle = Join-Path $projectDir "gradlew.bat"
 $logDir = Join-Path $projectDir "logs"
 
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+
+Write-Host "Building common-lib before starting services..."
+& $gradle -p $projectDir ":common-lib:jar" "--no-daemon" "--max-workers=1"
 
 function Start-ServiceProcess {
     param(

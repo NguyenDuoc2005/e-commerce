@@ -335,7 +335,7 @@ const applyBestVoucher = async () => {
   try {
     const req = {
       idKH: idKH?.userId || "khách lẻ",
-      TongTien: tongTienTruocGiam.value,
+      tongTien: tongTienTruocGiam.value,
       maPGG: "",
     };
 
@@ -365,7 +365,7 @@ const handleShowVouchers = async () => {
   try {
     const req = {
       idKH: idKH?.userId || "khách lẻ",
-      TongTien: tongTienTruocGiam.value,
+      tongTien: tongTienTruocGiam.value,
       maPGG: "",
     };
 
@@ -410,7 +410,7 @@ const handleApplyDiscount = async () => {
   try {
     const req = {
       idKH: idKH?.userId || "khách lẻ",
-      TongTien: tongTienTruocGiam.value,
+      tongTien: tongTienTruocGiam.value,
       maPGG: form.value.maGiamGia,
     };
 

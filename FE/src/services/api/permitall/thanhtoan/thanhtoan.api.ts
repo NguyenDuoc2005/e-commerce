@@ -15,7 +15,8 @@ interface ParamsThanhToan {
   phiShip: number;
   giamGia: number;
   tongCong: number;
-  items: Array<{ id: string; quantity: number }>;
+  items?: Array<{ id: string; quantity: number }>;
+  sanPham?: Array<{ id: string; quantity: number }>;
   KhachHang: string;
 }
 
@@ -34,7 +35,7 @@ export const ThanhToan = async (data: ParamsThanhToan) => {
 
 export const ThanhToanVnPay = async (data: ParamsThanhToan) => {
   const res = (await request({
-    url: `${API_URL_1}/orders/create-vnpay`,
+    url: `${API_URL_1}/orders/create`,
     method: "POST",
     data: data, // Sử dụng 'data' thay vì 'params' để gửi body JSON
     headers: {

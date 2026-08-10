@@ -655,6 +655,15 @@ const tongTienThanhToan = computed(() =>
   (lichSuThanhToan.value || []).reduce((sum, item) => sum + (item.soTien || 0), 0)
 );
 
+const normalizeResponseRows = (data: any) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.page)) return data.page;
+  return [];
+};
+
+const normalizeEnumValue = (value: unknown) => String(value ?? "");
 
 // Load provinces
 const loadProvinces = async () => {
@@ -849,9 +858,10 @@ const fetchOrderDetail = async (orderId: string) => {
     const maHoaDon = route.params.maHoaDon as string;
     const idHoaDon = route.params.id as string;
     const response = await getHoaDonChiTiets({ maHoaDon });
-    if (response.status === "OK" && response.data && response.data.length > 0) {
-      const firstItem = response.data[0];
-      const products = response.data.map((item) => ({
+    const detailRows = normalizeResponseRows(response.data);
+    if (response.status === "OK" && detailRows.length > 0) {
+      const firstItem = detailRows[0];
+      const products = detailRows.map((item) => ({
         maHoaDonChiTiet: item.maHoaDonChiTiet,
         tenSanPham: item.tenSanPham,
         thuongHieu: item.thuongHieu,
@@ -865,7 +875,7 @@ const fetchOrderDetail = async (orderId: string) => {
       orderDetail.value = {
         maHoaDon: firstItem.maHoaDon,
         tenHoaDon: firstItem.tenHoaDon,
-        trangThaiHoaDon: firstItem.trangThaiHoaDon,
+        trangThaiHoaDon: normalizeEnumValue(firstItem.trangThaiHoaDon),
         tenKhachHang: firstItem.tenKhachHang,
         sdtKH: firstItem.sdtKH,
         email: firstItem.email,
@@ -875,7 +885,7 @@ const fetchOrderDetail = async (orderId: string) => {
         thanhTien: firstItem.thanhTien,
         tongTienSauGiam: firstItem.tongTienSauGiam,
         loaiHoaDon: firstItem.loaiHoaDon,
-        phuongThucThanhToan: firstItem.phuongThucThanhToan,
+        phuongThucThanhToan: normalizeEnumValue(firstItem.phuongThucThanhToan),
         maVoucher: firstItem.maVoucher,
         tenVoucher: firstItem.tenVoucher,
         giaTriVoucher: firstItem.giaTriVoucher,
@@ -891,7 +901,10 @@ const fetchOrderDetail = async (orderId: string) => {
           statusResponse.status === "OK" &&
           statusResponse.data
         ) {
-          timelineStatusData.value = statusResponse.data;
+          timelineStatusData.value = normalizeResponseRows(statusResponse.data).map((item) => ({
+            ...item,
+            trangThai: normalizeEnumValue(item.trangThai),
+          }));
         }
       } catch (statusError) {
         console.warn("Lỗi khi lấy dữ liệu timeline:", statusError);

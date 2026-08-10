@@ -27,6 +27,7 @@ Quy tac bat buoc:
 - Reset sach va seed data demo bang MySQL local: `powershell -ExecutionPolicy Bypass -File backend-microservice\reset-demo-databases.ps1 -Force`
 - Reset sach va seed data demo bang Docker MySQL: `powershell -ExecutionPolicy Bypass -File backend-microservice\reset-demo-databases.ps1 -UseDocker -Force`
 - Docker MySQL publish ra host port `3307`, nen khi chay backend bang runner local can dung: `powershell -ExecutionPolicy Bypass -File backend-microservice\run-all.ps1 -DbPort 3307`
+- Runner `backend-microservice\run-all.ps1` dung Gradle wrapper cua `backend-microservice` va build `common-lib` truoc khi start service; neu chi thay gateway len Eureka, kiem tra log service truoc vi thuong la `common-lib` jar dang bi lock/stale lam service fail compile.
 - Runner mac dinh dung database rieng theo service: `ecommerce_auth`, `ecommerce_user`, `ecommerce_catalog`, `ecommerce_promotion`, `ecommerce_cart`, `ecommerce_order`.
 - Hibernate `ddl-auto=update` tu tao bang khi service boot.
 - Data demo seed san tai khoan: `admin@ecommerce.local`, `staff@ecommerce.local`, `customer1@ecommerce.local`; mat khau chung `Admin@123`.
@@ -733,6 +734,16 @@ Ngay cap nhat: 2026-08-03
 - `POST /api/orders/pgg` giu validation voucher: ton tai, active, con so luong, voucher ca nhan phai gan voi khach hang, don du dieu kien.
 - `POST /api/orders/pgg/list` loc voucher hop le va sap xep theo `giaTriGiamThucTe` giam dan nhu monolith.
 - Email xac nhan don hang chua gui truc tiep; se chuyen sang `notification-service`/Kafka.
+- Sua ngay 2026-08-10 cho user-site checkout: FE doi param voucher tu `TongTien` sang `tongTien`; `order-service` map voucher promotion ve alias public `ma`, `ten`, `phanTramGiam`, `giaGiam`, `kieuGiam`, `loaiGiam`, `giaTriGiamThucTe`; API FE `ThanhToanVnPay` tro ve `/api/orders/create` vi microservice khong co `/api/orders/create-vnpay`.
+
+### Ghi chu user-site public catalog/cart ngay 2026-08-10
+
+- `GET /api/v1/permitall/san-pham/get-all/danh-sach-san-pham`, `/san-pham-moi`, `/san-pham-giam-gia`: `catalog-service` tra lai dung shape FE user dang parse (`tenSanPham`, `hinhAnhDaiDien`, `thuongHieu`, `danhMuc`, `chatLieu`, `xuatXu`, `giaBan`, `giaSauGiam`, `mauSac[]`, `kichCo[]`, `dsAnh[]`, `dotGiamGia`) thay vi projection admin; neu `promotion-service` loi/down thi fallback khong co discount de tranh 500 trang san pham.
+- `GET /api/v1/permitall/san-pham-chi-tiet/get-all/san-pham-chi-tiet`: them response aggregate chi tiet san pham public gom thong tin san pham + `chiTietSanPham[]` theo mau/size/gia/anh/ton kho/discount, dung contract `ProductDetail.vue`.
+- Sua tiep loi `Id san pham khong duoc de trong`: FE user detail gui query `idSanPham`, backend public detail truoc do chi doc `idSP`; `ProductDetailSearchRequest` va controller nay chap nhan ca `idSP` lan `idSanPham`.
+- FE user product API them fallback page rong/detail null khi backend 500/404 de khong crash trang; `CartView.vue` map duoc ca response monolith nested va microservice flattened tu `cart-service`/`catalog-service`.
+- Sua ngay 2026-08-10 cho user-site VNPay/tra cuu don: `/api/orders/create` loi 500 do `order-service` thieu `vnpay.tmn-code/hash-secret`, da them config sandbox/env override va validate truoc khi tao don VNPay. `/api/v1/permitall/don-mua/all` chuyen sang `DonMuaService` online detail rieng, tra array chi tiet don va enrich san pham qua `CatalogClient`; FE `TraCuu.vue`/`OrderDetail.vue` parse duoc status so va ca response array/Page de xem chi tiet don online.
+- Doi chieu AGENTS.md muc 5: khong them bang/join DB cheo, chi sua public catalog/order route va user-site FE; `:catalog-service:compileJava -x :common-lib:jar --no-daemon --max-workers=1` PASS, `:order-service:compileJava -x :common-lib:jar --no-daemon --max-workers=1` PASS; FE build chua chay duoc vi local khong co `npm`/`node` tren PATH.
 
 ### API admin ban hang da migrate sang `order-service`
 

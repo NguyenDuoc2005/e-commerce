@@ -6,6 +6,7 @@ import com.ecommerce.common.base.PageableRequest;
 public class ProductDetailSearchRequest extends PageableRequest {
     private String q;
     private String idSP;
+    private String idSanPham;
     private String status;
     private String priceMin;
     private String priceMax;
@@ -17,6 +18,8 @@ public class ProductDetailSearchRequest extends PageableRequest {
     public void setQ(String q) { this.q = q; }
     public String getIdSP() { return idSP; }
     public void setIdSP(String idSP) { this.idSP = idSP; }
+    public String getIdSanPham() { return idSanPham; }
+    public void setIdSanPham(String idSanPham) { this.idSanPham = idSanPham; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getPriceMin() { return priceMin; }

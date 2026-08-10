@@ -87,6 +87,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Override
     @Transactional
     public Map<String, String> createVNPayPaymentUrl(CheckoutRequest request, String ipAddr) {
+        validateVNPayConfig();
         if (!hasStock(request)) {
             clearCartItemsWhenOutOfStock(request);
             return null;
@@ -170,7 +171,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             double remain = doubleValue(voucher.get("dieu_kien")) - value(request.getTongTien());
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Don hang chua du de ap dung phieu giam gia hay mua them " + remain + "d de ap phieu giam gia");
         }
-        return new ResponseObject<>(voucher, HttpStatus.NOT_FOUND, "Ap dung phieu giam gia thanh cong");
+        return new ResponseObject<>(voucherResponse(voucher, value(request.getTongTien())), HttpStatus.OK, "Ap dung phieu giam gia thanh cong");
     }
 
     @Override
@@ -178,9 +179,23 @@ public class CheckoutServiceImpl implements CheckoutService {
         List<Map<String, Object>> rows = new java.util.ArrayList<>(promotionClient.getApplicableVouchers(idKhachHang));
         rows.removeIf(row -> voucherUsedByCustomer(String.valueOf(row.get("id")), idKhachHang));
         rows.removeIf(row -> intValue(row.get("so_luong_phieu")) <= 0 || doubleValue(row.get("dieu_kien")) > value(tongTien));
-        rows.forEach(row -> row.put("giaTriGiamThucTe", discountValue(row, value(tongTien))));
+        rows = rows.stream()
+                .map(row -> voucherResponse(row, value(tongTien)))
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
         rows.sort((a, b) -> Double.compare(doubleValue(b.get("giaTriGiamThucTe")), doubleValue(a.get("giaTriGiamThucTe"))));
         return new ResponseObject<>(rows, HttpStatus.OK, "Danh sach phieu giam gia hop le");
+    }
+
+    private Map<String, Object> voucherResponse(Map<String, Object> voucher, double total) {
+        Map<String, Object> row = new java.util.LinkedHashMap<>(voucher);
+        row.put("ma", voucher.get("ma_phieu_giam_gia"));
+        row.put("ten", voucher.get("ten_phieu_giam_gia"));
+        row.put("phanTramGiam", voucher.get("phan_tram"));
+        row.put("giaGiam", voucher.get("gia_giam_toi_da"));
+        row.put("kieuGiam", voucher.get("kieu_giam"));
+        row.put("loaiGiam", voucher.get("loai_giam"));
+        row.put("giaTriGiamThucTe", discountValue(voucher, total));
+        return row;
     }
 
     @Override
@@ -324,6 +339,12 @@ public class CheckoutServiceImpl implements CheckoutService {
             hashData.deleteCharAt(hashData.length() - 1);
         }
         return hashData.toString();
+    }
+
+    private void validateVNPayConfig() {
+        if (vnpTmnCode == null || vnpTmnCode.isBlank() || vnpHashSecret == null || vnpHashSecret.isBlank()) {
+            throw new IllegalStateException("VNPay config is missing vnpay.tmn-code or vnpay.hash-secret");
+        }
     }
 
     private static String hmacSHA512(String key, String data) {

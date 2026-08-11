@@ -2,6 +2,7 @@ package com.ecommerce.catalog.service.impl;
 
 import com.ecommerce.catalog.client.PromotionClient;
 import com.ecommerce.catalog.constant.EntityStatus;
+import com.ecommerce.catalog.document.ProductDocument;
 import com.ecommerce.catalog.entity.SanPham;
 import com.ecommerce.catalog.entity.SanPhamChiTiet;
 import com.ecommerce.catalog.model.request.ProductRequest;
@@ -13,13 +14,19 @@ import com.ecommerce.catalog.repository.SanPhamChiTietRepository;
 import com.ecommerce.catalog.repository.SanPhamRepository;
 import com.ecommerce.catalog.repository.ThuongHieuRepository;
 import com.ecommerce.catalog.repository.XuatSuRepository;
+import com.ecommerce.catalog.service.ProductOutboxService;
 import com.ecommerce.catalog.service.ProductService;
 import com.ecommerce.common.base.PageableObject;
 import com.ecommerce.common.base.ResponseObject;
 import com.ecommerce.common.util.PageUtils;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
@@ -39,6 +46,8 @@ public class ProductServiceImpl implements ProductService {
     private final XuatSuRepository xuatSuRepository;
     private final ChatLieuRepository chatLieuRepository;
     private final PromotionClient promotionClient;
+    private final ProductOutboxService productOutboxService;
+    private final ElasticsearchOperations elasticsearchOperations;
 
     public ProductServiceImpl(
             SanPhamRepository sanPhamRepository,
@@ -48,7 +57,9 @@ public class ProductServiceImpl implements ProductService {
             LoaiDeRepository loaiDeRepository,
             XuatSuRepository xuatSuRepository,
             ChatLieuRepository chatLieuRepository,
-            PromotionClient promotionClient
+            PromotionClient promotionClient,
+            ProductOutboxService productOutboxService,
+            ElasticsearchOperations elasticsearchOperations
     ) {
         this.sanPhamRepository = sanPhamRepository;
         this.sanPhamChiTietRepository = sanPhamChiTietRepository;
@@ -58,6 +69,21 @@ public class ProductServiceImpl implements ProductService {
         this.xuatSuRepository = xuatSuRepository;
         this.chatLieuRepository = chatLieuRepository;
         this.promotionClient = promotionClient;
+        this.productOutboxService = productOutboxService;
+        this.elasticsearchOperations = elasticsearchOperations;
+    }
+
+    @Override
+    public ResponseObject<?> getAdminAll(ProductSearchRequest request) {
+        Pageable pageable = PageUtils.createPageable(request, "createdDate");
+        if (request.getStatus() != null && !request.getStatus().isEmpty()) {
+            request.setEntityStatus("0".equals(request.getStatus()) ? EntityStatus.INACTIVE : EntityStatus.ACTIVE);
+        }
+        return new ResponseObject<>(
+                PageableObject.of(sanPhamRepository.getAllSanPhamByFilter(pageable, request)),
+                HttpStatus.OK,
+                "Lay danh sach san pham thanh cong"
+        );
     }
 
     @Override
@@ -79,6 +105,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public ResponseObject<?> modifySanPham(ProductRequest request) {
         if (StringUtils.hasLength(request.getId())) {
             Optional<SanPham> existing = sanPhamRepository.findById(request.getId());
@@ -86,6 +113,7 @@ public class ProductServiceImpl implements ProductService {
                 SanPham sanPham = existing.get();
                 applyRequest(sanPham, request);
                 sanPhamRepository.save(sanPham);
+                productOutboxService.publishChanged(sanPham.getId(), ProductOutboxServiceImpl.UPDATED);
                 return new ResponseObject<>(sanPham, HttpStatus.OK, "Cap nhat size thanh cong");
             }
         }
@@ -94,10 +122,12 @@ public class ProductServiceImpl implements ProductService {
         applyRequest(sanPham, request);
         sanPham.setStatus(EntityStatus.ACTIVE);
         sanPhamRepository.save(sanPham);
+        productOutboxService.publishChanged(sanPham.getId(), ProductOutboxServiceImpl.CREATED);
         return new ResponseObject<>(sanPham, HttpStatus.CREATED, "Tao san pham thanh cong");
     }
 
     @Override
+    @Transactional
     public ResponseObject<?> changeSanPhamStatus(String id) {
         Optional<SanPham> optional = sanPhamRepository.findById(id);
         if (optional.isEmpty()) {
@@ -117,6 +147,11 @@ public class ProductServiceImpl implements ProductService {
             });
         }
 
+        if (newStatus == EntityStatus.ACTIVE) {
+            productOutboxService.publishChanged(sanPham.getId(), ProductOutboxServiceImpl.UPDATED);
+        } else {
+            productOutboxService.publishDeleted(sanPham.getId());
+        }
         return new ResponseObject<>(null, HttpStatus.OK, "Thay doi trang thai thanh cong");
     }
 
@@ -207,15 +242,18 @@ public class ProductServiceImpl implements ProductService {
 
     private List<Map<String, Object>> filteredPublicProductRows(ProductSearchRequest request) {
         String q = request.getQ() == null ? "" : request.getQ().trim().toLowerCase();
+        List<String> elasticProductIds = searchProductIds(q);
         List<String> brandIds = splitIds(request.getThuongHieuIds());
         List<String> materialIds = splitIds(request.getChatLieuIds());
         List<String> soleIds = splitIds(request.getLoaiDeIds());
         List<String> categoryIds = splitIds(request.getDanhMucIds());
 
         List<Map<String, Object>> all = sanPhamRepository.findByStatusOrderByCreatedDateDesc(EntityStatus.ACTIVE).stream()
-                .filter(product -> q.isEmpty()
+                .filter(product -> elasticProductIds == null
+                        ? (q.isEmpty()
                         || safe(product.getTen()).toLowerCase().contains(q)
                         || safe(product.getMa()).toLowerCase().contains(q))
+                        : elasticProductIds.contains(product.getId()))
                 .filter(product -> brandIds.isEmpty() || (product.getThuongHieu() != null && brandIds.contains(product.getThuongHieu().getId())))
                 .filter(product -> materialIds.isEmpty() || (product.getChatLieu() != null && materialIds.contains(product.getChatLieu().getId())))
                 .filter(product -> soleIds.isEmpty() || (product.getLoaiDe() != null && soleIds.contains(product.getLoaiDe().getId())))
@@ -246,6 +284,59 @@ public class ProductServiceImpl implements ProductService {
                 .filter(java.util.Objects::nonNull)
                 .toList();
         return sortProducts(all, request.getSortBy());
+    }
+
+    private List<String> searchProductIds(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return null;
+        }
+        try {
+            var indexOps = elasticsearchOperations.indexOps(ProductDocument.class);
+            if (!indexOps.exists()) {
+                indexOps.createWithMapping();
+                return null;
+            }
+            NativeQuery query = NativeQuery.builder()
+                    .withQuery(q -> q.queryString(queryString -> queryString
+                            .query("*" + escapeQueryString(keyword) + "*")
+                            .fields("name", "description", "brand", "category")
+                            .analyzeWildcard(true)
+                            .defaultOperator(co.elastic.clients.elasticsearch._types.query_dsl.Operator.Or)))
+                    .build();
+            SearchHits<ProductDocument> hits = elasticsearchOperations.search(query, ProductDocument.class);
+            List<String> ids = hits.stream()
+                    .map(SearchHit::getContent)
+                    .map(ProductDocument::getId)
+                    .filter(StringUtils::hasText)
+                    .toList();
+            return ids.isEmpty() ? null : ids;
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private String escapeQueryString(String keyword) {
+        return keyword.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("+", "\\+")
+                .replace("-", "\\-")
+                .replace("=", "\\=")
+                .replace("&&", "\\&&")
+                .replace("||", "\\||")
+                .replace(">", "\\>")
+                .replace("<", "\\<")
+                .replace("!", "\\!")
+                .replace("(", "\\(")
+                .replace(")", "\\)")
+                .replace("{", "\\{")
+                .replace("}", "\\}")
+                .replace("[", "\\[")
+                .replace("]", "\\]")
+                .replace("^", "\\^")
+                .replace("~", "\\~")
+                .replace("?", "\\?")
+                .replace(":", "\\:")
+                .replace("/", "\\/");
     }
 
     private void enrichPublicProducts(List<Map<String, Object>> rows) {

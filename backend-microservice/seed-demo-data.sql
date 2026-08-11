@@ -102,6 +102,18 @@ CREATE TABLE IF NOT EXISTS `san_pham_chi_tiet` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `outbox` (
+  `id` varchar(36) NOT NULL,
+  `aggregate_type` varchar(100) NOT NULL,
+  `aggregate_id` varchar(100) NOT NULL,
+  `event_type` varchar(100) NOT NULL,
+  `payload` json DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  KEY `idx_outbox_aggregate_id` (`aggregate_id`),
+  KEY `idx_outbox_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT INTO `thuong_hieu` VALUES
 ('30000000-0000-0000-0000-000000000001',0,1720000000000,1720000000000,'TH001','Nike'),
 ('30000000-0000-0000-0000-000000000002',0,1720000000000,1720000000000,'TH002','Adidas');
@@ -120,6 +132,12 @@ INSERT INTO `san_pham_chi_tiet` VALUES
 ('38000000-0000-0000-0000-000000000001',0,1720000000000,1720000000000,'SPCT0001',1200000,'https://placehold.co/600x600?text=Nike+White+39',50,'37000000-0000-0000-0000-000000000001','35000000-0000-0000-0000-000000000001','36000000-0000-0000-0000-000000000001'),
 ('38000000-0000-0000-0000-000000000002',0,1720000001000,1720000001000,'SPCT0002',1250000,'https://placehold.co/600x600?text=Nike+Black+40',35,'37000000-0000-0000-0000-000000000001','35000000-0000-0000-0000-000000000002','36000000-0000-0000-0000-000000000002'),
 ('38000000-0000-0000-0000-000000000003',0,1720000002000,1720000002000,'SPCT0003',990000,'https://placehold.co/600x600?text=Adidas+Red+41',42,'37000000-0000-0000-0000-000000000002','35000000-0000-0000-0000-000000000003','36000000-0000-0000-0000-000000000003');
+
+INSERT INTO `outbox` (`id`, `aggregate_type`, `aggregate_id`, `event_type`, `payload`, `created_at`) VALUES
+('39000000-0000-0000-0000-000000000001','Product','37000000-0000-0000-0000-000000000001','ProductCreated',
+ JSON_OBJECT('id','37000000-0000-0000-0000-000000000001','name','Nike Air Demo','description','Giay sneaker demo cho local test','categoryId','32000000-0000-0000-0000-000000000001','category','Sneaker','price',1200000,'brandId','30000000-0000-0000-0000-000000000001','brand','Nike','imageUrl','https://placehold.co/600x600?text=Nike+White+39'), CURRENT_TIMESTAMP(6)),
+('39000000-0000-0000-0000-000000000002','Product','37000000-0000-0000-0000-000000000002','ProductCreated',
+ JSON_OBJECT('id','37000000-0000-0000-0000-000000000002','name','Adidas Run Demo','description','Giay running demo cho local test','categoryId','32000000-0000-0000-0000-000000000002','category','Running','price',990000,'brandId','30000000-0000-0000-0000-000000000002','brand','Adidas','imageUrl','https://placehold.co/600x600?text=Adidas+Red+41'), CURRENT_TIMESTAMP(6));
 
 USE `ecommerce_promotion`;
 

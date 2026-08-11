@@ -5,6 +5,7 @@ import com.ecommerce.catalog.model.request.ProductRequest;
 import com.ecommerce.catalog.model.request.ProductSearchRequest;
 
 public interface ProductService {
+    ResponseObject<?> getAdminAll(ProductSearchRequest request);
     ResponseObject<?> getAll(ProductSearchRequest request);
     ResponseObject<?> getSanPhamById(String id);
     ResponseObject<?> modifySanPham(ProductRequest request);

@@ -12,6 +12,7 @@ import com.ecommerce.catalog.repository.MauSacRepository;
 import com.ecommerce.catalog.repository.SanPhamChiTietRepository;
 import com.ecommerce.catalog.repository.SanPhamRepository;
 import com.ecommerce.catalog.service.ProductDetailService;
+import com.ecommerce.catalog.service.ProductOutboxService;
 import com.ecommerce.catalog.service.ProductService;
 import com.ecommerce.common.base.PageableObject;
 import com.ecommerce.common.base.ResponseObject;
@@ -19,6 +20,7 @@ import com.ecommerce.common.util.PageUtils;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
@@ -37,6 +39,7 @@ public class ProductDetailServiceImpl implements ProductDetailService {
     private final MauSacRepository mauSacRepository;
     private final ProductService productService;
     private final PromotionClient promotionClient;
+    private final ProductOutboxService productOutboxService;
 
     public ProductDetailServiceImpl(
             SanPhamChiTietRepository repository,
@@ -44,7 +47,8 @@ public class ProductDetailServiceImpl implements ProductDetailService {
             KichCoRepository kichCoRepository,
             MauSacRepository mauSacRepository,
             ProductService productService,
-            PromotionClient promotionClient
+            PromotionClient promotionClient,
+            ProductOutboxService productOutboxService
     ) {
         this.repository = repository;
         this.sanPhamRepository = sanPhamRepository;
@@ -52,6 +56,7 @@ public class ProductDetailServiceImpl implements ProductDetailService {
         this.mauSacRepository = mauSacRepository;
         this.productService = productService;
         this.promotionClient = promotionClient;
+        this.productOutboxService = productOutboxService;
     }
 
     @Override
@@ -131,6 +136,7 @@ public class ProductDetailServiceImpl implements ProductDetailService {
     }
 
     @Override
+    @Transactional
     public ResponseObject<?> changeSanPhamStatus(String id) {
         Optional<SanPhamChiTiet> optional = repository.findById(id);
         if (optional.isEmpty()) {
@@ -139,6 +145,9 @@ public class ProductDetailServiceImpl implements ProductDetailService {
         SanPhamChiTiet detail = optional.get();
         detail.setStatus(detail.getStatus() == EntityStatus.ACTIVE ? EntityStatus.INACTIVE : EntityStatus.ACTIVE);
         repository.save(detail);
+        if (detail.getSanPham() != null) {
+            productOutboxService.publishChanged(detail.getSanPham().getId(), ProductOutboxServiceImpl.UPDATED);
+        }
         return ResponseObject.successForward(HttpStatus.OK, "Doi trang thai thanh cong");
     }
 
@@ -172,6 +181,7 @@ public class ProductDetailServiceImpl implements ProductDetailService {
     }
 
     @Override
+    @Transactional
     public ResponseObject<?> modifySanPham(ProductDetailRequest request) {
         String productId = firstProductId(request.getIdSP());
         if (productId != null) {
@@ -197,10 +207,14 @@ public class ProductDetailServiceImpl implements ProductDetailService {
         detail.setStatus(EntityStatus.ACTIVE);
         saveImageIfPresent(detail, request);
         repository.save(detail);
+        if (detail.getSanPham() != null) {
+            productOutboxService.publishChanged(detail.getSanPham().getId(), ProductOutboxServiceImpl.UPDATED);
+        }
         return new ResponseObject<>(detail, HttpStatus.CREATED, "Tao san pham thanh cong");
     }
 
     @Override
+    @Transactional
     public ResponseObject<?> updateSanPham(ProductDetailRequest request) {
         SanPhamChiTiet detail = repository.findById(request.getId()).orElse(null);
         if (detail == null) {
@@ -214,6 +228,9 @@ public class ProductDetailServiceImpl implements ProductDetailService {
         applyDetail(detail, request);
         saveImageIfPresent(detail, request);
         repository.save(detail);
+        if (detail.getSanPham() != null) {
+            productOutboxService.publishChanged(detail.getSanPham().getId(), ProductOutboxServiceImpl.UPDATED);
+        }
         return new ResponseObject<>(detail, HttpStatus.CREATED, "cap nhat san pham chi tiet thanh cong");
     }
 

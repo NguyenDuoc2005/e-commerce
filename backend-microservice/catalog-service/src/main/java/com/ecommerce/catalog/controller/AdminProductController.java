@@ -27,7 +27,7 @@ public class AdminProductController {
 
     @GetMapping
     public ResponseEntity<?> getAll(ProductSearchRequest request) {
-        return ResponseUtils.createResponseEntity(productService.getAll(request));
+        return ResponseUtils.createResponseEntity(productService.getAdminAll(request));
     }
 
     @GetMapping("/list-thuong-hieu")

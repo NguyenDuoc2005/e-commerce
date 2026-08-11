@@ -21,7 +21,7 @@ spring:
         - id: catalog-service
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/admin/mau-sac/**,/api/v1/admin/size/**,/api/v1/admin/thuong-hieu/**,/api/v1/admin/xuat-xu/**,/api/v1/admin/san-pham/**,/api/v1/admin/san-pham-chi-tiet/**,/api/v1/admin/chat-lieu/**,/api/v1/admin/danh-muc/**,/api/v1/admin/loai-de/**,/api/v1/permitall/san-pham/**,/api/v1/permitall/san-pham-chi-tiet/**,/api/v1/permitall/thuong-hieu/**
+            - Path=/api/v1/admin/mau-sac/**,/api/v1/admin/size/**,/api/v1/admin/thuong-hieu/**,/api/v1/admin/xuat-xu/**,/api/v1/admin/san-pham/**,/api/v1/admin/san-pham-chi-tiet/**,/api/v1/admin/chat-lieu/**,/api/v1/admin/danh-muc/**,/api/v1/admin/loai-de/**,/api/v1/permitall/san-pham/**,/api/v1/permitall/san-pham-chi-tiet/**,/api/v1/permitall/thuong-hieu/**,/api/catalog/user/products/**
         - id: promotion-service
           uri: lb://promotion-service
           predicates:

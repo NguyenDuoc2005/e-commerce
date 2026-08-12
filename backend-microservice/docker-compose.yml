@@ -93,6 +93,17 @@ services:
       CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
       CONNECT_LOG4J_ROOT_LOGLEVEL: INFO
 
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.3
+    user: root
+    depends_on:
+      - elasticsearch
+    command: [ "filebeat", "-e", "--strict.perms=false" ]
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+
   discovery-server:
     build: ./discovery-server
     ports:

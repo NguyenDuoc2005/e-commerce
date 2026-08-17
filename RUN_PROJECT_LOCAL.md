@@ -2,7 +2,7 @@
 
 Tai lieu nay danh cho nguoi moi pull code ve va muon chay full du an tren may local.
 
-Backend can chay bang source microservice trong `backend-microservice`. Thu muc `BE` chi la monolith tham chieu, khong dung de chay flow hien tai.
+Backend can chay bang source microservice trong `backend-microservice`.
 
 ## 1. Yeu cau cai san
 

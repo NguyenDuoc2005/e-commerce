@@ -45,7 +45,15 @@ subprojects {
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
+    plugins.withId('org.springframework.boot') {
+        dependencies {
+            implementation 'org.springframework.boot:spring-boot-starter-actuator'
+            implementation 'io.micrometer:micrometer-registry-prometheus'
+        }
+    }
+
     tasks.named('test') {
         useJUnitPlatform()
     }
 }
+

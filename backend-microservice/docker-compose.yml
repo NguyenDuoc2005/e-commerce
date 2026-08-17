@@ -97,12 +97,24 @@ services:
     image: docker.elastic.co/beats/filebeat:8.15.3
     user: root
     depends_on:
-      - elasticsearch
+      - logstash
     command: [ "filebeat", "-e", "--strict.perms=false" ]
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.15.3
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5044:5044"
+    environment:
+      LS_JAVA_OPTS: -Xms256m -Xmx256m
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
 
   discovery-server:
     build: ./discovery-server

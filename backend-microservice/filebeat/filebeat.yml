@@ -6,9 +6,5 @@ filebeat.inputs:
 processors:
   - add_docker_metadata: ~
 
-output.elasticsearch:
-  hosts: ["elasticsearch:9200"]
-  index: "filebeat-%{+yyyy.MM.dd}"
-
-setup.template.name: "filebeat"
-setup.template.pattern: "filebeat-*"
+output.logstash:
+  hosts: ["logstash:5044"]

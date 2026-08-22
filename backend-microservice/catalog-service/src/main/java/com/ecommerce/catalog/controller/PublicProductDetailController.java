@@ -20,9 +20,16 @@ public class PublicProductDetailController {
 
     @GetMapping("/get-all/san-pham-chi-tiet")
     public ResponseEntity<?> getAll(ProductDetailSearchRequest request) {
-        String productId = request.getIdSP() == null || request.getIdSP().isBlank()
-                ? request.getIdSanPham()
-                : request.getIdSP();
+        String productId = firstNonBlank(request.getIdSP(), request.getIdProduct(), request.getIdSanPham());
         return ResponseUtils.createResponseEntity(service.getPublicDetail(productId));
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 }

@@ -4,13 +4,13 @@ public interface CatalogAttribute {
 
     String getId();
 
-    String getMa();
+    String getCode();
 
-    void setMa(String ma);
+    void setCode(String code);
 
-    String getTen();
+    String getName();
 
-    void setTen(String ten);
+    void setName(String name);
 
     com.ecommerce.catalog.constant.EntityStatus getStatus();
 

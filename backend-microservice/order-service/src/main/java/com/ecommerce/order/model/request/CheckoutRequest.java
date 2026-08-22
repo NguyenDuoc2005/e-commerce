@@ -1,5 +1,6 @@
 package com.ecommerce.order.model.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
@@ -7,7 +8,8 @@ import java.util.List;
 public class CheckoutRequest {
     private String hoTen;
     private String soDienThoai;
-    private String diaChi;
+    @JsonAlias("diaChi")
+    private String address;
     private String ghiChu;
     private String email;
     private String maGiamGia;
@@ -16,17 +18,19 @@ public class CheckoutRequest {
     private Double phiShip;
     private Double giamGia;
     private Double tongCong;
-    private List<CheckoutProductItem> sanPham;
+    @JsonAlias({"sanPham", "items"})
+    private List<CheckoutProductItem> product;
 
-    @JsonProperty("KhachHang")
+    @JsonProperty("Customer")
+    @JsonAlias("KhachHang")
     private String khachHang;
 
     public String getHoTen() { return hoTen; }
     public void setHoTen(String hoTen) { this.hoTen = hoTen; }
     public String getSoDienThoai() { return soDienThoai; }
     public void setSoDienThoai(String soDienThoai) { this.soDienThoai = soDienThoai; }
-    public String getDiaChi() { return diaChi; }
-    public void setDiaChi(String diaChi) { this.diaChi = diaChi; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
     public String getGhiChu() { return ghiChu; }
     public void setGhiChu(String ghiChu) { this.ghiChu = ghiChu; }
     public String getEmail() { return email; }
@@ -43,8 +47,8 @@ public class CheckoutRequest {
     public void setGiamGia(Double giamGia) { this.giamGia = giamGia; }
     public Double getTongCong() { return tongCong; }
     public void setTongCong(Double tongCong) { this.tongCong = tongCong; }
-    public List<CheckoutProductItem> getSanPham() { return sanPham; }
-    public void setSanPham(List<CheckoutProductItem> sanPham) { this.sanPham = sanPham; }
-    public String getKhachHang() { return khachHang; }
-    public void setKhachHang(String khachHang) { this.khachHang = khachHang; }
+    public List<CheckoutProductItem> getProduct() { return product; }
+    public void setProduct(List<CheckoutProductItem> product) { this.product = product; }
+    public String getCustomer() { return khachHang; }
+    public void setCustomer(String khachHang) { this.khachHang = khachHang; }
 }

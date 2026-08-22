@@ -1,16 +1,16 @@
 package com.ecommerce.order.model.request;
 
-import com.ecommerce.order.constant.EntityTrangThaiHoaDon;
+import com.ecommerce.order.constant.OrderStatusConstant;
 
 public class ChangeStatusRequest {
-    private String maHoaDon;
-    private EntityTrangThaiHoaDon status;
+    private String maOrder;
+    private OrderStatusConstant status;
     private String note;
 
-    public String getMaHoaDon() { return maHoaDon; }
-    public void setMaHoaDon(String maHoaDon) { this.maHoaDon = maHoaDon; }
-    public EntityTrangThaiHoaDon getStatus() { return status; }
-    public void setStatus(EntityTrangThaiHoaDon status) { this.status = status; }
+    public String getMaOrder() { return maOrder; }
+    public void setMaOrder(String maOrder) { this.maOrder = maOrder; }
+    public OrderStatusConstant getStatus() { return status; }
+    public void setStatus(OrderStatusConstant status) { this.status = status; }
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
 }

@@ -1,7 +1,7 @@
 package com.ecommerce.promotion.controller;
 
 import com.ecommerce.common.util.ResponseUtils;
-import com.ecommerce.promotion.entity.DotGiamGia;
+import com.ecommerce.promotion.entity.PromotionCampaign;
 import com.ecommerce.promotion.model.request.CreatePromotionRequest;
 import com.ecommerce.promotion.model.request.FindPromotionRequest;
 import com.ecommerce.promotion.model.request.UpdatePromotionRequest;
@@ -38,42 +38,42 @@ public class PromotionController {
     }
 
     @GetMapping("/san-pham")
-    public ResponseEntity<List<Map<String, Object>>> getSanPham() {
-        return ResponseEntity.ok(promotionService.getSanPham());
+    public ResponseEntity<List<Map<String, Object>>> getProduct() {
+        return ResponseEntity.ok(promotionService.getProduct());
     }
 
     @GetMapping("/san-pham-chi-tiet/{id}")
-    public ResponseEntity<List<Map<String, Object>>> getSanPhamCT(@PathVariable String id) {
-        return ResponseEntity.ok(promotionService.getSanPhamCT(id));
+    public ResponseEntity<List<Map<String, Object>>> getProductCT(@PathVariable String id) {
+        return ResponseEntity.ok(promotionService.getProductCT(id));
     }
 
     @GetMapping("/san-pham-chi-tiet-by-dot/{id}")
-    public ResponseEntity<List<Map<String, Object>>> getSanPhamCTByDot(@PathVariable String id) {
-        return ResponseEntity.ok(promotionService.getSanPhamByDot(id));
+    public ResponseEntity<List<Map<String, Object>>> getProductCTByDot(@PathVariable String id) {
+        return ResponseEntity.ok(promotionService.getProductByDot(id));
     }
 
     @GetMapping("/mau-sac")
-    public ResponseEntity<?> getMauSac() {
-        return ResponseEntity.ok(promotionService.getMauSac());
+    public ResponseEntity<?> getColor() {
+        return ResponseEntity.ok(promotionService.getColor());
     }
 
     @GetMapping("/size")
     public ResponseEntity<?> getSize() {
-        return ResponseEntity.ok(promotionService.getKichCo());
+        return ResponseEntity.ok(promotionService.getSize());
     }
 
     @PostMapping
-    public ResponseEntity<DotGiamGia> add(@RequestBody CreatePromotionRequest request) {
+    public ResponseEntity<PromotionCampaign> add(@RequestBody CreatePromotionRequest request) {
         return ResponseEntity.ok(promotionService.add(request));
     }
 
     @PostMapping("/expired/{id}")
-    public ResponseEntity<DotGiamGia> markExpired(@PathVariable String id) {
+    public ResponseEntity<PromotionCampaign> markExpired(@PathVariable String id) {
         return ResponseEntity.ok(promotionService.updateStatus(id));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DotGiamGia> update(@PathVariable String id, @RequestBody UpdatePromotionRequest request) {
+    public ResponseEntity<PromotionCampaign> update(@PathVariable String id, @RequestBody UpdatePromotionRequest request) {
         request.setId(id);
         return ResponseEntity.ok(promotionService.update(request));
     }

@@ -88,6 +88,7 @@
                 </div>
                 <a href="/thong-tin-ca-nhan" class="jp-dropdown-link">Trang cá nhân</a>
                 <a href="/don-mua" class="jp-dropdown-link">Đơn mua</a>
+                <a :href="sellerEntryPath" class="jp-dropdown-link">{{ sellerEntryLabel }}</a>
                 <a href="/tra-cuu" class="jp-dropdown-link">Tra cứu đơn hàng</a>
                 <button class="jp-dropdown-link logout" @click="logout">Đăng xuất</button>
               </template>
@@ -144,6 +145,9 @@
         <li class="jp-menu-item" key="menu-trang-chu">
           <a href="/tra-cuu" class="jp-menu-link">TRA CỨU ĐƠN HÀNG</a>
         </li>
+        <li class="jp-menu-item" key="menu-seller-entry">
+          <a :href="sellerEntryPath" class="jp-menu-link">{{ sellerEntryLabel }}</a>
+        </li>
       </ul>
     </nav>
 
@@ -183,6 +187,9 @@
           </li>
           <li class="jp-menu-item" key="menu-trang-chu">
             <a href="/lien-he" class="jp-menu-link">LIÊN HỆ</a>
+          </li>
+          <li class="jp-side-menu-item" key="side-menu-seller-entry">
+            <a :href="sellerEntryPath" class="jp-side-menu-link">{{ sellerEntryLabel }}</a>
           </li>
         </ul>
       </aside>
@@ -251,12 +258,15 @@ const showDropdown = ref(false)
 const authStore = useAuthStore()
 const userLogin = computed(() => authStore.user || {})
 
-const user = localStorageAction.get(USER_INFO_STORAGE_KEY)
-const isLogin = computed(() =>
-  !!userLogin.value &&
-  !!userLogin.value.fullName &&
-  user?.role === 'USERS'
-)
+const currentRoles = computed(() => {
+  const currentUser = authStore.user
+  if (currentUser?.roles?.length) return currentUser.roles
+  return currentUser?.role ? [currentUser.role] : []
+})
+const isLogin = computed(() => authStore.isAuthenticated && !!authStore.user)
+const isSeller = computed(() => currentRoles.value.includes('SELLER'))
+const sellerEntryPath = computed(() => isSeller.value ? '/seller/dashboard' : '/dang-ky-ban-hang')
+const sellerEntryLabel = computed(() => isSeller.value ? 'KÊNH NGƯỜI BÁN' : 'ĐĂNG KÝ BÁN HÀNG')
 
 const menuItems = ref([])
 const idUser = localStorageAction.get(USER_INFO_STORAGE_KEY)

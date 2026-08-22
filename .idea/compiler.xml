@@ -7,12 +7,14 @@
         <processorPath useClasspath="false">
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.36/5a30490a6e14977d97d9c73c924c1f1b5311ea95/lombok-1.18.36.jar" />
         </processorPath>
+        <module name="backend-microservice.seller-service.main" />
         <module name="backend-microservice.auth-service.main" />
         <module name="backend-microservice.catalog-service.main" />
         <module name="backend-microservice.user-service.main" />
         <module name="backend-microservice.discovery-server.main" />
         <module name="backend-microservice.order-service.main" />
         <module name="backend-microservice.notification-service.main" />
+        <module name="backend-microservice.payout-service.main" />
         <module name="backend-microservice.common-lib.main" />
         <module name="backend-microservice.promotion-service.main" />
         <module name="backend-microservice.api-gateway.main" />
@@ -43,9 +45,15 @@
       <module name="backend-microservice.order-service" options="-parameters" />
       <module name="backend-microservice.order-service.main" options="-parameters" />
       <module name="backend-microservice.order-service.test" options="-parameters" />
+      <module name="backend-microservice.payout-service" options="-parameters" />
+      <module name="backend-microservice.payout-service.main" options="-parameters" />
+      <module name="backend-microservice.payout-service.test" options="-parameters" />
       <module name="backend-microservice.promotion-service" options="-parameters" />
       <module name="backend-microservice.promotion-service.main" options="-parameters" />
       <module name="backend-microservice.promotion-service.test" options="-parameters" />
+      <module name="backend-microservice.seller-service" options="-parameters" />
+      <module name="backend-microservice.seller-service.main" options="-parameters" />
+      <module name="backend-microservice.seller-service.test" options="-parameters" />
       <module name="backend-microservice.user-service" options="-parameters" />
       <module name="backend-microservice.user-service.main" options="-parameters" />
       <module name="backend-microservice.user-service.test" options="-parameters" />

@@ -4,14 +4,18 @@ export interface PaginationParams {
     orderBy?: string;
     sortBy?: string;
    q?: string;
-  thuongHieuIds?: string[];
-  mauSacIds?: string[];
-  kichCoIds?: string[];
-  chatLieuIds?: string[];
-  loaiDeIds?: string[];
-  danhMucIds?: string[];
+  thuongHieuIds?: string;
+  mauSacIds?: string;
+  kichCoIds?: string;
+  chatLieuIds?: string;
+  loaiDeIds?: string;
+  danhMucIds?: string;
+  sellerId?: string;
+  sellerSlug?: string;
+  ratingMin?: number;
   giaMin?: number;
   giaMax?: number;
+  attributeFilters?: string;
 }
 
 export interface DefaultResponse<T> {

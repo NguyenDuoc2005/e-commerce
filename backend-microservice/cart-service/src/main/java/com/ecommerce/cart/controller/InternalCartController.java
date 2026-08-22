@@ -28,7 +28,7 @@ public class InternalCartController {
         if (productDetailIds == null || productDetailIds.isEmpty()) {
             return;
         }
-        cartRepository.findByKhachHangId(customerId).ifPresent(cart ->
+        cartRepository.findByCustomerId(customerId).ifPresent(cart ->
                 productDetailIds.forEach(productDetailId ->
                         cartDetailRepository.deleteByCartIdAndProductDetailId(cart.getId(), productDetailId)));
     }

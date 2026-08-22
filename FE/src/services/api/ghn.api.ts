@@ -136,7 +136,7 @@ export const getGHNWards = async (districtId: number, token: string) => {
     throw error;
   }
 };
-interface GHNAvailableServiceRequest {
+export interface GHNAvailableServiceRequest {
   shop_id: number;
   from_district: number;
   to_district: number;

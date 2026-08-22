@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build && postcss src/styles.css -o dist/styles.css",
+        "build": "vite build",
         "build:localbuild": "vite build --mode localbuild",
         "build:dev": "vite build --mode development",
         "build:stage": "tsc -b && vite build --mode stage",

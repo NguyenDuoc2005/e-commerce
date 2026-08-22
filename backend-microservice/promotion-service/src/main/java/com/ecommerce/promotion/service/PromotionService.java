@@ -1,7 +1,7 @@
 package com.ecommerce.promotion.service;
 
 import com.ecommerce.common.base.ResponseObject;
-import com.ecommerce.promotion.entity.DotGiamGia;
+import com.ecommerce.promotion.entity.PromotionCampaign;
 import com.ecommerce.promotion.model.request.CreatePromotionRequest;
 import com.ecommerce.promotion.model.request.FindPromotionRequest;
 import com.ecommerce.promotion.model.request.UpdatePromotionRequest;
@@ -12,14 +12,18 @@ import java.util.Map;
 
 public interface PromotionService {
     ResponseObject<?> getAll(FindPromotionRequest request);
-    List<Map<String, Object>> getSanPham();
-    List<Map<String, Object>> getSanPhamCT(String id);
-    List<Map<String, Object>> getSanPhamByDot(String id);
-    List<Map<String, Object>> getMauSac();
-    List<Map<String, Object>> getKichCo();
-    DotGiamGia add(CreatePromotionRequest request);
-    DotGiamGia update(UpdatePromotionRequest request);
-    DotGiamGia updateStatus(String id);
+    List<Map<String, Object>> getProduct();
+    List<Map<String, Object>> getProductCT(String id);
+    List<Map<String, Object>> getProductByDot(String id);
+    List<Map<String, Object>> getColor();
+    List<Map<String, Object>> getSize();
+    PromotionCampaign add(CreatePromotionRequest request);
+    PromotionCampaign update(UpdatePromotionRequest request);
+    PromotionCampaign updateStatus(String id);
+    ResponseObject<?> getSellerAll(String sellerId, FindPromotionRequest request);
+    PromotionCampaign addSeller(String sellerId, CreatePromotionRequest request);
+    PromotionCampaign updateSeller(String sellerId, UpdatePromotionRequest request);
+    PromotionCampaign updateSellerStatus(String sellerId, String id);
     PromotionByIdResponse getByIdPromotion(String id);
     List<Map<String, Object>> getByIdProductDetail(String id);
 }

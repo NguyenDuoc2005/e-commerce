@@ -1,7 +1,7 @@
 package com.ecommerce.user.controller;
 
 import com.ecommerce.common.util.ResponseUtils;
-import com.ecommerce.user.model.request.ADKhachHangSearchRequest;
+import com.ecommerce.user.model.request.ADCustomerSearchRequest;
 import com.ecommerce.user.model.request.UserUpsertRequest;
 import com.ecommerce.user.service.CustomerService;
 import org.springframework.http.ResponseEntity;
@@ -26,27 +26,27 @@ public class AdminCustomerController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getAll(ADKhachHangSearchRequest request) {
-        return ResponseUtils.createResponseEntity(service.getAllKhachHang(request));
+    public ResponseEntity<?> getAll(ADCustomerSearchRequest request) {
+        return ResponseUtils.createResponseEntity(service.getAllCustomer(request));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable String id) {
-        return ResponseUtils.createResponseEntity(service.getKhachHangById(id));
+        return ResponseUtils.createResponseEntity(service.getCustomerById(id));
     }
 
     @PostMapping
     public ResponseEntity<?> modify(@ModelAttribute UserUpsertRequest request) {
-        return ResponseUtils.createResponseEntity(service.modifyKhachHang(request));
+        return ResponseUtils.createResponseEntity(service.modifyCustomer(request));
     }
 
     @PutMapping
     public ResponseEntity<?> update(@ModelAttribute UserUpsertRequest request) {
-        return ResponseUtils.createResponseEntity(service.updateKhachHang(request));
+        return ResponseUtils.createResponseEntity(service.updateCustomer(request));
     }
 
     @PutMapping("/{id}/change-status")
     public ResponseEntity<?> changeStatus(@PathVariable String id) {
-        return ResponseUtils.createResponseEntity(service.changeKhachHangStatus(id));
+        return ResponseUtils.createResponseEntity(service.changeCustomerStatus(id));
     }
 }

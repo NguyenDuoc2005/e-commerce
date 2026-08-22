@@ -4,7 +4,8 @@ import { PREFIX_API_CART_PERMITALL, PREFIX_API_SANPHAM_PERMITALL } from "@/const
 import type { DefaultResponse, PaginationParams, PaginationResponse } from "@/types/api.common";
 
 export interface requestCartDetail {
-  idKhachHang: string;
+  idCustomer?: string;
+  idKhachHang?: string;
 
   idSPCT: string;
 

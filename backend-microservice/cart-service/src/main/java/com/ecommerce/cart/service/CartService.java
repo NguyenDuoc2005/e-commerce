@@ -7,5 +7,5 @@ import com.ecommerce.common.base.ResponseObject;
 public interface CartService {
     ResponseObject<?> getAllProductCart(CartGetAllRequest req);
     ResponseObject<?> createCartDetail(CartDetailRequest req);
-    ResponseObject<?> deleteCartDetail(String id);
+    ResponseObject<?> deleteCartDetail(String id, String customerId);
 }

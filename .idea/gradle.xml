@@ -16,7 +16,9 @@
             <option value="$PROJECT_DIR$/backend-microservice/discovery-server" />
             <option value="$PROJECT_DIR$/backend-microservice/notification-service" />
             <option value="$PROJECT_DIR$/backend-microservice/order-service" />
+            <option value="$PROJECT_DIR$/backend-microservice/payout-service" />
             <option value="$PROJECT_DIR$/backend-microservice/promotion-service" />
+            <option value="$PROJECT_DIR$/backend-microservice/seller-service" />
             <option value="$PROJECT_DIR$/backend-microservice/user-service" />
           </set>
         </option>

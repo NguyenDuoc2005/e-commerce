@@ -9,6 +9,7 @@ public class UpdatePromotionRequest {
     private Long startDate;
     private Long endDate;
     private List<IdProductDetail> idProductDetails;
+    private String sellerId;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -22,4 +23,6 @@ public class UpdatePromotionRequest {
     public void setEndDate(Long endDate) { this.endDate = endDate; }
     public List<IdProductDetail> getIdProductDetails() { return idProductDetails; }
     public void setIdProductDetails(List<IdProductDetail> idProductDetails) { this.idProductDetails = idProductDetails; }
+    public String getSellerId() { return sellerId; }
+    public void setSellerId(String sellerId) { this.sellerId = sellerId; }
 }

@@ -28,10 +28,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public ResponseObject<?> register(RegisterRequest request) {
         if (request.getUserName() == null || request.getUserName().trim().isEmpty()) {
-            return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Ho ten khong duoc de trong");
+            return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Ho name khong duoc de trong");
         }
         if (request.getUserName().length() < 2 || request.getUserName().length() > 50) {
-            return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Ho ten phai tu 2 den 50 ky tu");
+            return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Ho name phai tu 2 den 50 ky tu");
         }
 
         if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
@@ -79,7 +79,7 @@ public class AuthServiceImpl implements AuthService {
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Khong tim thay nguoi dung");
         }
 
-        if (!passwordEncoder.matches(request.getCurrentPassword(), String.valueOf(user.get("matKhau")))) {
+        if (!passwordEncoder.matches(request.getCurrentPassword(), String.valueOf(user.get("password")))) {
             return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Mat khau hien tai khong dung");
         }
 

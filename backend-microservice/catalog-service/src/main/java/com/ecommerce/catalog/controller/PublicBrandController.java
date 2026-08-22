@@ -19,7 +19,7 @@ public class PublicBrandController {
     }
 
     @GetMapping("/get-all/thuong-hieu-trang-chu")
-    public ResponseEntity<?> getAllThuongHieu(ProductSearchRequest request) {
-        return ResponseUtils.createResponseEntity(productService.getThuongHieuTrangChu(request));
+    public ResponseEntity<?> getAllBrand(ProductSearchRequest request) {
+        return ResponseUtils.createResponseEntity(productService.getBrandTrangChu(request));
     }
 }

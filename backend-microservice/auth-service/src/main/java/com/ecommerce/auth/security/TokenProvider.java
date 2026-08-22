@@ -1,6 +1,7 @@
 package com.ecommerce.auth.security;
 
 import com.ecommerce.auth.client.UserClient;
+import com.ecommerce.auth.client.SellerClient;
 import com.ecommerce.auth.constant.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -11,8 +12,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -25,21 +28,23 @@ public class TokenProvider {
     private String tokenSecret;
 
     private final UserClient userClient;
+    private final SellerClient sellerClient;
 
-    public TokenProvider(UserClient userClient) {
+    public TokenProvider(UserClient userClient, SellerClient sellerClient) {
         this.userClient = userClient;
+        this.sellerClient = sellerClient;
     }
 
-    public String createTokenForKhachHang(Authentication authentication) {
+    public String createTokenForCustomer(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         Map<String, Object> user = userClient.getCustomerByEmail(userPrincipal.getEmail(), false);
-        return user.isEmpty() ? null : buildToken(user, ACCESS_TOKEN_EXPIRATION, Role.USERS.name());
+        return user.isEmpty() ? null : buildCustomerToken(user, ACCESS_TOKEN_EXPIRATION);
     }
 
-    public String createRefreshTokenForKhachHang(Authentication authentication) {
+    public String createRefreshTokenForCustomer(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         Map<String, Object> user = userClient.getCustomerByEmail(userPrincipal.getEmail(), false);
-        return user.isEmpty() ? null : buildToken(user, REFRESH_TOKEN_EXPIRATION, Role.USERS.name());
+        return user.isEmpty() ? null : buildCustomerToken(user, REFRESH_TOKEN_EXPIRATION);
     }
 
     public String createTokenForAdmin(Authentication authentication) {
@@ -86,10 +91,39 @@ public class TokenProvider {
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", user.get("email"));
         claims.put("userId", user.get("id"));
-        claims.put("fullName", user.get("ten"));
+        claims.put("fullName", user.get("name"));
         claims.put("pictureUrl", user.get("avatar"));
         claims.put("role", role);
+        claims.put("roles", List.of(role));
 
+        return buildToken(String.valueOf(user.get("email")), claims, expirationMillis);
+    }
+
+    private String buildCustomerToken(Map<String, Object> user, long expirationMillis) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", user.get("email"));
+        claims.put("userId", user.get("id"));
+        claims.put("fullName", user.get("name"));
+        claims.put("pictureUrl", user.get("avatar"));
+
+        List<String> roles = new ArrayList<>();
+        roles.add(Role.USERS.name());
+        claims.put("role", Role.USERS.name());
+
+        try {
+            Map<String, Object> seller = sellerClient.getApprovedSellerByOwner(String.valueOf(user.get("id")));
+            if (seller != null && !seller.isEmpty()) {
+                roles.add("SELLER");
+                claims.put("sellerId", seller.get("id"));
+                claims.put("sellerStatus", seller.get("status"));
+                claims.put("sellerSlug", seller.get("sellerSlug"));
+                claims.put("shopName", seller.get("shopName"));
+            }
+        } catch (Exception ignored) {
+            // Seller role enrichment must not break buyer login when seller-service is temporarily unavailable.
+        }
+
+        claims.put("roles", roles);
         return buildToken(String.valueOf(user.get("email")), claims, expirationMillis);
     }
 

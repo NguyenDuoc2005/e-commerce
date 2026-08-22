@@ -15,20 +15,31 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 import java.security.Key;
+import java.util.List;
 
 @Component
 public class AdminAuthorizationFilter implements WebFilter {
 
     private static final String ADMIN_PREFIX = "/api/v1/admin/";
+    private static final String SELLER_PREFIX = "/api/v1/seller/";
+    private static final List<String> BUYER_AUTH_PATHS = List.of(
+            "/api/v1/permitall/reviews",
+            "/api/v1/permitall/don-mua",
+            "/api/v1/permitall/cart"
+    );
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String ADMIN_ROLE = "ADMIN";
+    private static final String SELLER_ROLE = "SELLER";
 
     @Value("${jwt.secret}")
     private String tokenSecret;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        if (!requiresAdmin(exchange)) {
+        boolean adminRoute = requiresAdmin(exchange);
+        boolean sellerRoute = requiresSeller(exchange);
+        boolean buyerRoute = requiresBuyer(exchange);
+        if (!adminRoute && !sellerRoute && !buyerRoute) {
             return chain.filter(exchange);
         }
 
@@ -44,11 +55,16 @@ public class AdminAuthorizationFilter implements WebFilter {
                     .build()
                     .parseClaimsJws(authorization.substring(BEARER_PREFIX.length()))
                     .getBody();
-            if (!ADMIN_ROLE.equals(claims.get("role", String.class))) {
+            if (adminRoute && !hasRole(claims, ADMIN_ROLE)) {
                 exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
                 return exchange.getResponse().setComplete();
             }
-            return chain.filter(exchange);
+            if (sellerRoute && (!hasRole(claims, SELLER_ROLE) || claims.get("sellerId", String.class) == null)) {
+                exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                return exchange.getResponse().setComplete();
+            }
+            ServerWebExchange mutatedExchange = mutateWithMarketplaceHeaders(exchange, claims);
+            return chain.filter(mutatedExchange);
         } catch (JwtException | IllegalArgumentException ex) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
@@ -61,6 +77,60 @@ public class AdminAuthorizationFilter implements WebFilter {
         }
         String path = exchange.getRequest().getURI().getPath();
         return path.equals("/api/v1/admin") || path.startsWith(ADMIN_PREFIX);
+    }
+
+    private boolean requiresSeller(ServerWebExchange exchange) {
+        if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
+            return false;
+        }
+        String path = exchange.getRequest().getURI().getPath();
+        return path.equals("/api/v1/seller") || path.startsWith(SELLER_PREFIX);
+    }
+
+    private boolean requiresBuyer(ServerWebExchange exchange) {
+        if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
+            return false;
+        }
+        String path = exchange.getRequest().getURI().getPath();
+        if (path.matches("/api/v1/permitall/shops/[^/]+/follow")) {
+            return true;
+        }
+        if (path.equals("/api/v1/permitall/reviews")) {
+            return HttpMethod.POST.equals(exchange.getRequest().getMethod());
+        }
+        if (path.equals("/api/v1/permitall/reviews/mine")) {
+            return HttpMethod.GET.equals(exchange.getRequest().getMethod());
+        }
+        return BUYER_AUTH_PATHS.stream()
+                .filter(candidate -> !candidate.equals("/api/v1/permitall/reviews"))
+                .anyMatch(candidate -> path.equals(candidate) || path.startsWith(candidate + "/"));
+    }
+
+    private boolean hasRole(Claims claims, String requiredRole) {
+        String role = claims.get("role", String.class);
+        if (requiredRole.equals(role)) {
+            return true;
+        }
+        Object roles = claims.get("roles");
+        if (roles instanceof List<?> list) {
+            return list.stream().anyMatch(requiredRole::equals);
+        }
+        return false;
+    }
+
+    private ServerWebExchange mutateWithMarketplaceHeaders(ServerWebExchange exchange, Claims claims) {
+        String userId = claims.get("userId", String.class);
+        String sellerId = claims.get("sellerId", String.class);
+        return exchange.mutate()
+                .request(builder -> {
+                    if (userId != null) {
+                        builder.header("X-User-Id", userId);
+                    }
+                    if (sellerId != null) {
+                        builder.header("X-Seller-Id", sellerId);
+                    }
+                })
+                .build();
     }
 
     private Key getSigningKey() {

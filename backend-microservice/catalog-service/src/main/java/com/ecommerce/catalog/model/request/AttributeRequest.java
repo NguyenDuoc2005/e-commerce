@@ -6,7 +6,7 @@ public class AttributeRequest {
 
     private String code;
 
-    private String ten;
+    private String name;
 
     private String color;
 
@@ -14,8 +14,8 @@ public class AttributeRequest {
     public void setId(String id) { this.id = id; }
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
-    public String getTen() { return ten; }
-    public void setTen(String ten) { this.ten = ten; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
     public String getColor() { return color; }
     public void setColor(String color) { this.color = color; }
 }

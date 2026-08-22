@@ -1,10 +1,10 @@
 package com.ecommerce.user.controller;
 
-import com.ecommerce.user.repository.KhachHangRepository;
-import com.ecommerce.user.entity.KhachHang;
-import com.ecommerce.user.entity.NhanVien;
+import com.ecommerce.user.repository.CustomerRepository;
+import com.ecommerce.user.entity.Customer;
+import com.ecommerce.user.entity.Staff;
 import com.ecommerce.user.constant.EntityStatus;
-import com.ecommerce.user.repository.NhanVienRepository;
+import com.ecommerce.user.repository.StaffRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,10 +19,10 @@ import java.util.Map;
 @RequestMapping("/internal/users")
 public class InternalUserController {
 
-    private final KhachHangRepository khachHangRepository;
-    private final NhanVienRepository nhanVienRepository;
+    private final CustomerRepository khachHangRepository;
+    private final StaffRepository nhanVienRepository;
 
-    public InternalUserController(KhachHangRepository khachHangRepository, NhanVienRepository nhanVienRepository) {
+    public InternalUserController(CustomerRepository khachHangRepository, StaffRepository nhanVienRepository) {
         this.khachHangRepository = khachHangRepository;
         this.nhanVienRepository = nhanVienRepository;
     }
@@ -33,11 +33,11 @@ public class InternalUserController {
                 .map(kh -> {
                     Map<String, Object> row = new java.util.LinkedHashMap<>();
                     row.put("id", kh.getId());
-                    row.put("ma", kh.getMa());
-                    row.put("ten", kh.getTen());
+                    row.put("code", kh.getCode());
+                    row.put("name", kh.getName());
                     row.put("email", kh.getEmail());
-                    row.put("sdt", kh.getSdt());
-                    row.put("diaChi", kh.getDiaChi());
+                    row.put("phoneNumber", kh.getPhoneNumber());
+                    row.put("address", kh.getAddress());
                     row.put("status", kh.getStatus() == null ? null : kh.getStatus().name());
                     return row;
                 })
@@ -50,18 +50,18 @@ public class InternalUserController {
         return khachHangRepository.findAll().stream()
                 .filter(kh -> kh.getStatus() == EntityStatus.ACTIVE)
                 .filter(kh -> normalizedQ.isBlank()
-                        || contains(kh.getTen(), normalizedQ)
-                        || contains(kh.getMa(), normalizedQ)
-                        || contains(kh.getSdt(), normalizedQ))
+                        || contains(kh.getName(), normalizedQ)
+                        || contains(kh.getCode(), normalizedQ)
+                        || contains(kh.getPhoneNumber(), normalizedQ))
                 .map(this::customerMap)
                 .toList();
     }
 
     @PostMapping("/customers")
-    public Map<String, Object> createCustomer(@RequestParam String ten, @RequestParam String sdt) {
-        KhachHang khachHang = new KhachHang();
-        khachHang.setTen(ten);
-        khachHang.setSdt(sdt);
+    public Map<String, Object> createCustomer(@RequestParam String name, @RequestParam String phoneNumber) {
+        Customer khachHang = new Customer();
+        khachHang.setName(name);
+        khachHang.setPhoneNumber(phoneNumber);
         khachHang.setStatus(EntityStatus.ACTIVE);
         return customerMap(khachHangRepository.save(khachHang));
     }
@@ -75,24 +75,24 @@ public class InternalUserController {
 
     @GetMapping("/auth/customers/by-phone")
     public Map<String, Object> getAuthCustomerByPhone(@RequestParam String phone) {
-        return khachHangRepository.findBySdt(phone).map(this::authCustomerMap).orElseGet(Map::of);
+        return khachHangRepository.findByPhoneNumber(phone).map(this::authCustomerMap).orElseGet(Map::of);
     }
 
     @PostMapping("/auth/customers")
-    public Map<String, Object> createAuthCustomer(@RequestParam String ten, @RequestParam String email, @RequestParam String sdt, @RequestParam String matKhau) {
-        KhachHang khachHang = new KhachHang();
-        khachHang.setTen(ten);
+    public Map<String, Object> createAuthCustomer(@RequestParam String name, @RequestParam String email, @RequestParam String phoneNumber, @RequestParam String password) {
+        Customer khachHang = new Customer();
+        khachHang.setName(name);
         khachHang.setEmail(email);
-        khachHang.setSdt(sdt);
-        khachHang.setMatKhau(matKhau);
+        khachHang.setPhoneNumber(phoneNumber);
+        khachHang.setPassword(password);
         khachHang.setStatus(EntityStatus.ACTIVE);
         return authCustomerMap(khachHangRepository.save(khachHang));
     }
 
     @PostMapping("/auth/customers/password")
-    public void updateCustomerPassword(@RequestParam String email, @RequestParam String matKhau) {
+    public void updateCustomerPassword(@RequestParam String email, @RequestParam String password) {
         khachHangRepository.findByEmail(email).ifPresent(kh -> {
-            kh.setMatKhau(matKhau);
+            kh.setPassword(password);
             khachHangRepository.save(kh);
         });
     }
@@ -104,37 +104,37 @@ public class InternalUserController {
                 .orElseGet(Map::of);
     }
 
-    private Map<String, Object> customerMap(KhachHang kh) {
+    private Map<String, Object> customerMap(Customer kh) {
         Map<String, Object> row = new java.util.LinkedHashMap<>();
         row.put("id", kh.getId());
-        row.put("ma", kh.getMa());
-        row.put("ten", kh.getTen());
+        row.put("code", kh.getCode());
+        row.put("name", kh.getName());
         row.put("email", kh.getEmail());
-        row.put("sdt", kh.getSdt());
+        row.put("phoneNumber", kh.getPhoneNumber());
         row.put("avatar", kh.getAvatar());
-        row.put("diaChi", kh.getDiaChi());
-        row.put("tinh", kh.getTinh());
-        row.put("huyen", kh.getHuyen());
-        row.put("xa", kh.getXa());
+        row.put("address", kh.getAddress());
+        row.put("province", kh.getProvince());
+        row.put("district", kh.getDistrict());
+        row.put("ward", kh.getWard());
         row.put("status", kh.getStatus() == null ? null : kh.getStatus().name());
         return row;
     }
 
-    private Map<String, Object> authCustomerMap(KhachHang kh) {
+    private Map<String, Object> authCustomerMap(Customer kh) {
         Map<String, Object> row = customerMap(kh);
-        row.put("matKhau", kh.getMatKhau());
+        row.put("password", kh.getPassword());
         return row;
     }
 
-    private Map<String, Object> authStaffMap(NhanVien nv) {
+    private Map<String, Object> authStaffMap(Staff nv) {
         Map<String, Object> row = new java.util.LinkedHashMap<>();
         row.put("id", nv.getId());
-        row.put("ma", nv.getMa());
-        row.put("ten", nv.getTen());
+        row.put("code", nv.getCode());
+        row.put("name", nv.getName());
         row.put("email", nv.getEmail());
         row.put("avatar", nv.getAvatar());
-        row.put("matKhau", nv.getMatKhau());
-        row.put("role", nv.getChucVu() == null ? null : nv.getChucVu().name());
+        row.put("password", nv.getPassword());
+        row.put("role", nv.getRole() == null ? null : nv.getRole().name());
         row.put("status", nv.getStatus() == null ? null : nv.getStatus().name());
         return row;
     }

@@ -1,12 +1,26 @@
 import type { AxiosResponse } from "axios";
-import type { ParamsPhieuGiamGia, PhieuGiamGiaResponse } from "../../admin/banhang.api";
 import request from "@/services/request";
-import type { DefaultResponse, PaginationResponse } from "@/types/api.common";
+import type { DefaultResponse, PaginationParams, PaginationResponse, ResponseList } from "@/types/api.common";
 import { API_URL_1 } from "@/constants/url";
+
+export interface ParamsPhieuGiamGia extends PaginationParams {
+  idKH?: string;
+  idHD?: string | number | null;
+  tongTien?: number | string | null;
+}
+
+export type PhieuGiamGiaResponse = ResponseList & {
+  id: string;
+  ma: string;
+  giaTriGiam: number;
+  laPhanTram: boolean;
+  giaTriGiamThucTe: number;
+};
 
 interface ParamsThanhToan {
   hoTen: string;
   soDienThoai: string;
+  address?: string;
   diaChi: string;
   ghiChu: string;
   maGiamGia: string;
@@ -16,7 +30,9 @@ interface ParamsThanhToan {
   giamGia: number;
   tongCong: number;
   items?: Array<{ id: string; quantity: number }>;
+  product?: Array<{ id: string; quantity: number }>;
   sanPham?: Array<{ id: string; quantity: number }>;
+  Customer?: string;
   KhachHang: string;
 }
 

@@ -272,6 +272,32 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
 
+  seller-service:
+    build:
+      context: .
+      dockerfile: seller-service/Dockerfile
+    depends_on:
+      - mysql
+      - discovery-server
+    environment:
+      SELLER_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_seller?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SELLER_DATASOURCE_USERNAME: root
+      SELLER_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
+      EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
+
+  payout-service:
+    build:
+      context: .
+      dockerfile: payout-service/Dockerfile
+    depends_on:
+      - mysql
+      - discovery-server
+    environment:
+      PAYOUT_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_payout?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      PAYOUT_DATASOURCE_USERNAME: root
+      PAYOUT_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
+      EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
+
 volumes:
   mysql-data:
   kafka-data:

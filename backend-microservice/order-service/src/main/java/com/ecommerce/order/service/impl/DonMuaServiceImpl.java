@@ -1,13 +1,15 @@
 package com.ecommerce.order.service.impl;
 
 import com.ecommerce.common.base.ResponseObject;
-import com.ecommerce.order.constant.EntityLoaiHoaDon;
-import com.ecommerce.order.constant.EntityTrangThaiHoaDon;
+import com.ecommerce.order.constant.OrderTypeConstant;
+import com.ecommerce.order.constant.OrderStatusConstant;
 import com.ecommerce.order.client.CatalogClient;
-import com.ecommerce.order.model.request.HoaDonDetailRequest;
-import com.ecommerce.order.model.request.HoaDonSearchRequest;
-import com.ecommerce.order.model.request.SanPhamChiTietSearchRequest;
-import com.ecommerce.order.model.request.ThemSanPhamRequest;
+import com.ecommerce.order.client.PromotionClient;
+import com.ecommerce.order.model.request.ChangeStatusRequest;
+import com.ecommerce.order.model.request.OrderDetailRequest;
+import com.ecommerce.order.model.request.OrderSearchRequest;
+import com.ecommerce.order.model.request.ProductVariantSearchRequest;
+import com.ecommerce.order.model.request.ThemProductRequest;
 import com.ecommerce.order.model.request.UpdateDeliveryRequest;
 import com.ecommerce.order.service.DonMuaService;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,7 @@ import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,47 +28,50 @@ import java.util.concurrent.ThreadLocalRandom;
 @Service
 public class DonMuaServiceImpl implements DonMuaService {
 
-    private static final int ONLINE = EntityLoaiHoaDon.ONLINE.ordinal();
-    private static final int CHO_XAC_NHAN = EntityTrangThaiHoaDon.CHO_XAC_NHAN.ordinal();
-    private static final int LUU_TAM = EntityTrangThaiHoaDon.LUU_TAM.ordinal();
+    private static final int ONLINE = OrderTypeConstant.ONLINE.ordinal();
+    private static final int CHO_XAC_NHAN = OrderStatusConstant.CHO_XAC_NHAN.ordinal();
+    private static final int DA_HUY = OrderStatusConstant.DA_HUY.ordinal();
+    private static final int LUU_TAM = OrderStatusConstant.LUU_TAM.ordinal();
 
     private final JdbcTemplate jdbcTemplate;
     private final CatalogClient catalogClient;
+    private final PromotionClient promotionClient;
 
-    public DonMuaServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient) {
+    public DonMuaServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient, PromotionClient promotionClient) {
         this.jdbcTemplate = jdbcTemplate;
         this.catalogClient = catalogClient;
+        this.promotionClient = promotionClient;
     }
 
     @Override
-    public ResponseObject<?> getAllHoaDon(HoaDonSearchRequest request) {
+    public ResponseObject<?> getAllOrder(OrderSearchRequest request) {
         try {
             String q = like(request.getQ());
             Integer status = request.getStatus() == null ? null : request.getStatus().ordinal();
             List<Map<String, Object>> page = jdbcTemplate.queryForList("""
                     SELECT hd.id AS id,
-                           hd.ma_hoa_don AS maHoaDon,
-                           hdct.id_spct AS idSPCT,
-                           hdct.so_luong AS soLuong,
-                           hdct.gia_ban AS giaBan,
-                           hd.trang_thai_hoa_don AS status,
-                           hd.tong_tien_sau_giam AS tongTien
-                    FROM hoa_don hd
-                    JOIN hoa_don_chi_tiet hdct ON hdct.id_hoa_don = hd.id
-                    WHERE (? IS NULL OR ? = '' OR LOWER(hd.id_khach_hang) LIKE LOWER(?))
-                      AND (? IS NULL OR hd.trang_thai_hoa_don = ?)
-                      AND hd.loai_hoa_don = ?
-                      AND hd.trang_thai_hoa_don != ?
-                    ORDER BY hd.created_date, hd.ma_hoa_don ASC
+                           hd.code AS maOrder,
+                           hdct.product_variant_id AS idSPCT,
+                           hdct.quantity AS quantity,
+                           hdct.sale_price AS salePrice,
+                           hd.order_status AS status,
+                           hd.total_after_discount AS tongTien
+                    FROM orders hd
+                    JOIN order_item hdct ON hdct.order_id = hd.id
+                    WHERE (? IS NULL OR ? = '' OR LOWER(hd.customer_id) LIKE LOWER(?))
+                      AND (? IS NULL OR hd.order_status = ?)
+                      AND hd.order_type = ?
+                      AND hd.order_status != ?
+                    ORDER BY hd.created_date, hd.code ASC
                     """, q, q, q, status, status, ONLINE, LUU_TAM);
             Long total = jdbcTemplate.queryForObject("""
                     SELECT COUNT(hd.id)
-                    FROM hoa_don hd
-                    JOIN hoa_don_chi_tiet hdct ON hdct.id_hoa_don = hd.id
-                    WHERE (? IS NULL OR ? = '' OR LOWER(hd.id_khach_hang) LIKE LOWER(?))
-                      AND (? IS NULL OR hd.trang_thai_hoa_don = ?)
-                      AND hd.loai_hoa_don = ?
-                      AND hd.trang_thai_hoa_don != ?
+                    FROM orders hd
+                    JOIN order_item hdct ON hdct.order_id = hd.id
+                    WHERE (? IS NULL OR ? = '' OR LOWER(hd.customer_id) LIKE LOWER(?))
+                      AND (? IS NULL OR hd.order_status = ?)
+                      AND hd.order_type = ?
+                      AND hd.order_status != ?
                     """, Long.class, q, q, q, status, status, ONLINE, LUU_TAM);
             return new ResponseObject<>(Map.of("page", enrichOrderRows(page), "totalRecords", total == null ? 0 : total, "countByStatus", countOnlineByStatus(q)), HttpStatus.OK, "Lay danh sach lich su don hang thanh cong");
         } catch (Exception e) {
@@ -74,62 +80,62 @@ public class DonMuaServiceImpl implements DonMuaService {
     }
 
     @Override
-    public ResponseObject<?> getAllHoaDonByCode(String code) {
+    public ResponseObject<?> getAllOrderByCode(String code) {
         List<Map<String, Object>> page = jdbcTemplate.queryForList("""
                 SELECT hd.id AS id,
-                       hd.ma_hoa_don AS maHoaDon,
-                       hdct.id_spct AS idSPCT,
-                       hdct.so_luong AS soLuong,
-                       hdct.gia_ban AS giaBan,
-                       hd.trang_thai_hoa_don AS status,
-                       hd.tong_tien_sau_giam AS tongTien
-                FROM hoa_don hd
-                JOIN hoa_don_chi_tiet hdct ON hdct.id_hoa_don = hd.id
-                WHERE hd.ma_hoa_don = ?
-                  AND hd.trang_thai_hoa_don != ?
-                ORDER BY hd.created_date, hd.ma_hoa_don ASC
+                       hd.code AS maOrder,
+                       hdct.product_variant_id AS idSPCT,
+                       hdct.quantity AS quantity,
+                       hdct.sale_price AS salePrice,
+                       hd.order_status AS status,
+                       hd.total_after_discount AS tongTien
+                FROM orders hd
+                JOIN order_item hdct ON hdct.order_id = hd.id
+                WHERE hd.code = ?
+                  AND hd.order_status != ?
+                ORDER BY hd.created_date, hd.code ASC
                 """, code, LUU_TAM);
         return new ResponseObject<>(Map.of("page", enrichOrderRows(page), "totalRecords", page.size(), "countByStatus", countByCode(code)), HttpStatus.OK, "Lay danh sach lich su don hang thanh cong");
     }
 
     @Override
-    public ResponseObject<?> getHoaDonChiTiet(HoaDonDetailRequest request) {
-        if (request.getMaHoaDon() == null || request.getMaHoaDon().isBlank()) {
+    public ResponseObject<?> getOrderItem(OrderDetailRequest request) {
+        if (request.getMaOrder() == null || request.getMaOrder().isBlank()) {
             return new ResponseObject<>(List.of(), HttpStatus.BAD_REQUEST, "Ma hoa don khong duoc de trong");
         }
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                SELECT hd.id AS idHoaDon,
-                       hd.ma_hoa_don AS maHoaDon,
-                       hd.ma_hoa_don AS tenHoaDon,
-                       hdct.ma_hoa_don_chi_tiet AS maHoaDonChiTiet,
-                       hdct.id_spct AS idSPCT,
-                       hdct.so_luong AS soLuong,
-                       hdct.gia_ban AS giaBan,
-                       (hdct.gia_ban * hdct.so_luong) AS thanhTienSP,
-                       (SELECT SUM(hdsub.so_luong * hdsub.gia_ban) FROM hoa_don_chi_tiet hdsub WHERE hdsub.id_hoa_don = hd.id) AS thanhTien,
-                       hd.ten_khach_hang AS tenKhachHang,
-                       hd.so_dien_thoai_khach_hang AS sdtKH,
+                SELECT hd.id AS idOrder,
+                       hd.code AS maOrder,
+                       hd.code AS tenOrder,
+                       hdct.code AS maOrderItem,
+                       hdct.product_variant_id AS idSPCT,
+                       hdct.quantity AS quantity,
+                       hdct.sale_price AS salePrice,
+                       (hdct.sale_price * hdct.quantity) AS thanhTienSP,
+                       (SELECT SUM(hdsub.quantity * hdsub.sale_price) FROM order_item hdsub WHERE hdsub.order_id = hd.id) AS thanhTien,
+                       hd.customer_name AS tenCustomer,
+                       hd.customer_phone AS sdtKH,
                        hd.email AS email,
-                       hd.dia_chi_giao_hang AS diaChi,
-                       hd.loai_hoa_don AS loaiHoaDon,
-                       hd.trang_thai_hoa_don AS trangThaiHoaDon,
+                       hd.shipping_address AS address,
+                       hd.order_type AS loaiOrder,
+                       hd.order_status AS trangThaiOrder,
                        hd.created_date AS ngayTao,
-                       hd.phi_van_chuyen AS phiVanChuyen,
-                       hd.id_voucher AS maVoucher,
-                       hd.id_voucher AS tenVoucher,
-                       hd.giam_gia AS giaTriVoucher,
-                       hd.tong_tien_sau_giam AS tongTienSauGiam,
-                       hd.tong_tien_sau_giam AS tongTien,
-                       hd.phuong_thuc_thanh_toan AS phuongThucThanhToan,
-                       hd.du_no AS duNo,
-                       hd.hoan_phi AS hoanPhi
-                FROM hoa_don_chi_tiet hdct
-                JOIN hoa_don hd ON hdct.id_hoa_don = hd.id
-                WHERE hd.ma_hoa_don = ?
-                  AND hd.loai_hoa_don = ?
-                  AND hd.trang_thai_hoa_don != ?
+                       hd.shipping_fee AS phiVanCdistrict,
+                       hd.voucher_id AS maVoucher,
+                       hd.voucher_id AS tenVoucher,
+                       hd.discount_amount AS giaTriVoucher,
+                       hd.total_after_discount AS tongTienSauGiam,
+                       hd.total_after_discount AS tongTien,
+                       hd.payment_method AS phuongThucThanhToan,
+                       hd.debt_amount AS duNo,
+                       hd.refund_amount AS hoanPhi
+                FROM order_item hdct
+                JOIN orders hd ON hdct.order_id = hd.id
+                WHERE hd.code = ?
+                  AND hd.order_type = ?
+                  AND hd.order_status != ?
                 ORDER BY hdct.created_date ASC
-                """, request.getMaHoaDon(), ONLINE, LUU_TAM);
+                """, request.getMaOrder(), ONLINE, LUU_TAM);
         return new ResponseObject<>(enrichOrderDetailRows(rows), HttpStatus.OK, "Lay danh sach chi tiet hoa don thanh cong");
     }
 
@@ -137,28 +143,107 @@ public class DonMuaServiceImpl implements DonMuaService {
     public List<Map<String, Object>> getCustomerOrderHistory(String customerId) {
         return jdbcTemplate.queryForList("""
                 SELECT hd.id AS id,
-                       hd.ma_hoa_don AS ma,
-                       hd.ten_hoa_don AS ten,
-                       hd.so_dien_thoai_khach_hang AS sdt,
-                       hd.ten_khach_hang AS tenKH,
-                       hd.phi_van_chuyen AS phiVanChuyen,
-                       hd.dia_chi_giao_hang AS diaChi,
-                       hd.tong_tien_sau_giam AS tongTienSauGiam,
-                       hd.tong_tien AS tongTien,
-                       hd.ghi_chu AS ghiChu,
-                       hd.phuong_thuc_thanh_toan AS phuongThucThanhToan,
-                       hd.loai_hoa_don AS loaiHoaDon,
-                       hd.trang_thai_hoa_don AS trangThaiHoaDon,
+                       hd.code AS code,
+                       hd.name AS name,
+                       hd.customer_phone AS phoneNumber,
+                       hd.customer_name AS tenKH,
+                       hd.shipping_fee AS phiVanCdistrict,
+                       hd.shipping_address AS address,
+                       hd.total_after_discount AS tongTienSauGiam,
+                       hd.total_amount AS tongTien,
+                       hd.note AS ghiChu,
+                       hd.payment_method AS phuongThucThanhToan,
+                       hd.order_type AS loaiOrder,
+                       hd.order_status AS trangThaiOrder,
                        hd.created_date AS ngayTao
-                FROM hoa_don hd
-                WHERE hd.id_khach_hang = ?
-                  AND hd.loai_hoa_don = ?
+                FROM orders hd
+                WHERE hd.customer_id = ?
+                  AND hd.order_type = ?
                 ORDER BY hd.created_date DESC
                 """, customerId, ONLINE);
     }
 
     @Override
-    public ResponseObject<?> getAllSanPhamChiTiet(SanPhamChiTietSearchRequest request) {
+    public List<Map<String, Object>> getGroupedCustomerOrderHistory(String customerId) {
+        List<Map<String, Object>> orders = jdbcTemplate.queryForList("""
+                SELECT o.id, o.code, o.customer_name, o.customer_phone, o.shipping_address,
+                       o.total_amount, o.total_after_discount, o.shipping_fee, o.payment_method,
+                       o.order_status, o.created_date
+                FROM orders o
+                WHERE o.customer_id = ? AND o.order_type = ? AND o.order_status != ?
+                ORDER BY o.created_date DESC
+                """, customerId, ONLINE, LUU_TAM);
+        return orders.stream().map(order -> {
+            Map<String, Object> parent = new LinkedHashMap<>(order);
+            List<Map<String, Object>> subOrders = jdbcTemplate.queryForList("""
+                    SELECT os.id, os.seller_id, os.shop_name, os.seller_slug, os.total_amount,
+                           os.shipping_fee, os.discount_amount, os.total_after_discount,
+                           os.order_status, os.created_date
+                    FROM order_seller os
+                    WHERE os.order_id = ?
+                    ORDER BY os.created_date ASC
+                    """, order.get("id"));
+            parent.put("subOrders", subOrders.stream().map(subOrder -> {
+                Map<String, Object> shopOrder = new LinkedHashMap<>(subOrder);
+                List<Map<String, Object>> items = jdbcTemplate.queryForList("""
+                        SELECT oi.id, oi.product_variant_id, oi.quantity, oi.sale_price,
+                               oi.order_seller_id, oi.seller_id
+                        FROM order_item oi
+                        WHERE oi.order_seller_id = ?
+                        ORDER BY oi.created_date ASC
+                        """, subOrder.get("id"));
+                shopOrder.put("items", items.stream().map(item -> {
+                    Map<String, Object> enriched = new LinkedHashMap<>(item);
+                    Object variantId = item.get("product_variant_id");
+                    Map<String, Object> product = variantId == null ? Map.of() : safeProductDetail(String.valueOf(variantId));
+                    enriched.put("productId", product.get("productId"));
+                    enriched.put("productName", firstNonNull(product.get("name"), product.get("tenProduct"), variantId));
+                    enriched.put("imageUrl", product.get("imageUrl"));
+                    enriched.put("color", firstNonNull(product.get("tenColor"), product.get("tenMau")));
+                    enriched.put("size", firstNonNull(product.get("tenSize"), product.get("kichThuoc")));
+                    return enriched;
+                }).toList());
+                return shopOrder;
+            }).toList());
+            return parent;
+        }).toList();
+    }
+
+    @Override
+    public Map<String, Object> reviewEligibility(String customerId, String orderSellerId, String productDetailId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT os.id AS order_seller_id, os.seller_id, oi.product_variant_id
+                FROM order_seller os
+                JOIN orders o ON o.id = os.order_id
+                JOIN order_item oi ON oi.order_seller_id = os.id
+                WHERE o.customer_id = ? AND os.id = ? AND oi.product_variant_id = ?
+                  AND os.order_status = ?
+                LIMIT 1
+                """, customerId, orderSellerId, productDetailId, OrderStatusConstant.HOAN_THANH.ordinal());
+        if (rows.isEmpty()) {
+            return Map.of("eligible", false);
+        }
+        Map<String, Object> result = new LinkedHashMap<>(rows.get(0));
+        result.put("eligible", true);
+        return result;
+    }
+
+    @Override
+    public boolean customerOwnsOrder(String customerId, String orderReference) {
+        if (customerId == null || customerId.isBlank() || orderReference == null || orderReference.isBlank()) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM orders
+                WHERE customer_id = ?
+                  AND (id = ? OR code = ?)
+                """, Integer.class, customerId, orderReference, orderReference);
+        return count != null && count > 0;
+    }
+
+    @Override
+    public ResponseObject<?> getAllProductVariant(ProductVariantSearchRequest request) {
         List<Map<String, Object>> rows = catalogClient.searchProductDetails(like(request.getQ()), stringValue(request.getEntityStatus()),
                 request.getIdMS(), request.getIdKT(), null, null, null, null, request.getIdSP(), request.getPriceMin(), request.getPriceMax());
         int offset = Math.max(request.getPage() - 1, 0) * pageSize(request);
@@ -172,18 +257,18 @@ public class DonMuaServiceImpl implements DonMuaService {
     @Override
     @Transactional
     public ResponseObject<?> suaThongTin(UpdateDeliveryRequest request) {
-        Map<String, Object> hoaDon = jdbcTemplate.queryForMap("SELECT id, trang_thai_hoa_don, tong_tien_sau_giam, du_no, hoan_phi FROM hoa_don WHERE ma_hoa_don = ?", request.getMaHoaDon());
-        if (((Number) hoaDon.get("trang_thai_hoa_don")).intValue() != CHO_XAC_NHAN) {
-            return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Chi co the cap nhat thong tin giao hang khi don hang dang cho xac nhan");
+        Map<String, Object> hoaDon = jdbcTemplate.queryForMap("SELECT id, order_status, total_after_discount, debt_amount, refund_amount FROM orders WHERE code = ?", request.getMaOrder());
+        if (((Number) hoaDon.get("order_status")).intValue() != CHO_XAC_NHAN) {
+            return new ResponseObject<>(null, HttpStatus.BAD_REQUEST, "Chi co the cap nhat thong tin giao hang khi don hang dang cho wardc nhan");
         }
-        double oldTotal = doubleValue(hoaDon.get("tong_tien_sau_giam"));
+        double oldTotal = doubleValue(hoaDon.get("total_after_discount"));
         double newTotal = doubleValue(request.getTongTienSauGiam());
-        double duNo = doubleValue(hoaDon.get("du_no"));
-        double hoanPhi = doubleValue(hoaDon.get("hoan_phi"));
+        double duNo = doubleValue(hoaDon.get("debt_amount"));
+        double hoanPhi = doubleValue(hoaDon.get("refund_amount"));
         if (oldTotal > newTotal) {
-            if (hoaDon.get("du_no") != null) {
+            if (hoaDon.get("debt_amount") != null) {
                 duNo = duNo + oldTotal - newTotal;
-                if (hoaDon.get("hoan_phi") != null && hoanPhi > 0) {
+                if (hoaDon.get("refund_amount") != null && hoanPhi > 0) {
                     if (hoanPhi - (newTotal - oldTotal) <= 0) {
                         duNo = 0D;
                     } else {
@@ -195,9 +280,9 @@ public class DonMuaServiceImpl implements DonMuaService {
                 hoanPhi = newTotal - oldTotal;
             }
         } else if (oldTotal < newTotal) {
-            if (hoaDon.get("hoan_phi") != null) {
+            if (hoaDon.get("refund_amount") != null) {
                 hoanPhi = hoanPhi + newTotal - oldTotal;
-                if (hoaDon.get("du_no") != null && duNo > 0) {
+                if (hoaDon.get("debt_amount") != null && duNo > 0) {
                     if (duNo - (oldTotal - newTotal) <= 0) {
                         duNo = 0D;
                     } else {
@@ -209,84 +294,156 @@ public class DonMuaServiceImpl implements DonMuaService {
             }
         }
         jdbcTemplate.update("""
-                UPDATE hoa_don
-                SET ten_khach_hang = ?, so_dien_thoai_khach_hang = ?, email = ?, dia_chi_giao_hang = ?,
-                    phi_van_chuyen = ?, tong_tien_sau_giam = ?, du_no = ?, hoan_phi = ?
-                WHERE ma_hoa_don = ?
-                """, request.getTenKhachHang(), request.getSdtKhachHang(), request.getEmail(), request.getDiaChi(),
-                request.getPhiVanChuyen(), newTotal, duNo, hoanPhi, request.getMaHoaDon());
-        return new ResponseObject<>(Map.of("maHoaDon", request.getMaHoaDon()), HttpStatus.OK, "Lay danh sach lich su don hang thanh cong");
+                UPDATE orders
+                SET customer_name = ?, customer_phone = ?, email = ?, shipping_address = ?,
+                    shipping_fee = ?, total_after_discount = ?, debt_amount = ?, refund_amount = ?
+                WHERE code = ?
+                """, request.getTenCustomer(), request.getSdtCustomer(), request.getEmail(), request.getAddress(),
+                request.getPhiVanCdistrict(), newTotal, duNo, hoanPhi, request.getMaOrder());
+        return new ResponseObject<>(Map.of("maOrder", request.getMaOrder()), HttpStatus.OK, "Lay danh sach lich su don hang thanh cong");
     }
 
     @Override
     @Transactional
-    public ResponseObject<?> themSanPham(ThemSanPhamRequest request) {
-        Map<String, Object> sanPham = catalogClient.getProductDetail(request.getIdSP());
+    public ResponseObject<?> cancelOrder(ChangeStatusRequest request) {
+        Map<String, Object> order = jdbcTemplate.queryForMap(
+                "SELECT id, order_status, voucher_id FROM orders WHERE code = ? FOR UPDATE", request.getMaOrder());
+        String orderId = String.valueOf(order.get("id"));
+        if (intValue(order.get("order_status")) != CHO_XAC_NHAN) {
+            return new ResponseObject<>(null, HttpStatus.BAD_REQUEST,
+                    "Chi co the huy don hang dang cho xac nhan");
+        }
+
+        Integer progressedSubOrders = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM order_seller
+                WHERE order_id = ? AND order_status <> ?
+                """, Integer.class, orderId, CHO_XAC_NHAN);
+        if (progressedSubOrders != null && progressedSubOrders > 0) {
+            return new ResponseObject<>(null, HttpStatus.BAD_REQUEST,
+                    "Khong the huy don vi mot shop da xu ly don hang");
+        }
+
+        List<Map<String, Object>> items = jdbcTemplate.queryForList("""
+                SELECT product_variant_id, quantity
+                FROM order_item
+                WHERE order_id = ?
+                """, orderId);
+        for (Map<String, Object> item : items) {
+            catalogClient.adjustStock(String.valueOf(item.get("product_variant_id")), intValue(item.get("quantity")));
+        }
+        if (order.get("voucher_id") != null) {
+            promotionClient.incrementVoucher(String.valueOf(order.get("voucher_id")));
+        }
+
+        jdbcTemplate.update("UPDATE orders SET order_status = ? WHERE id = ?", DA_HUY, orderId);
+        jdbcTemplate.update("UPDATE order_seller SET order_status = ? WHERE order_id = ?", DA_HUY, orderId);
+        jdbcTemplate.update("""
+                INSERT INTO order_status_history (order_id, status, payment_time, note)
+                VALUES (?, ?, ?, ?)
+                """, orderId, DA_HUY, LocalDateTime.now(), request.getNote());
+        return new ResponseObject<>(Map.of("maOrder", request.getMaOrder()), HttpStatus.OK,
+                "Huy don hang thanh cong");
+    }
+
+    @Override
+    public ResponseObject<?> getOrderStatusHistory(String orderId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT status AS trangThai, payment_time AS thoiGian, note AS note
+                FROM order_status_history
+                WHERE order_id = ?
+                ORDER BY payment_time DESC
+                """, orderId);
+        return new ResponseObject<>(rows, HttpStatus.OK, "Lay lich su trang thai don hang thanh cong");
+    }
+
+    @Override
+    public ResponseObject<?> getPaymentHistory(String orderId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT ROW_NUMBER() OVER (ORDER BY payment_time DESC) AS stt,
+                       amount AS soTien,
+                       payment_time AS thoiGian,
+                       transaction_code AS maGiaoDich,
+                       transaction_type AS loaiGiaoDich,
+                       note AS ghiChu,
+                       staff_id AS tenStaff,
+                       order_id AS hoaDonId
+                FROM payment_history
+                WHERE order_id = ?
+                ORDER BY payment_time DESC
+                """, orderId);
+        return new ResponseObject<>(rows, HttpStatus.OK, "Lay lich su thanh toan don hang thanh cong");
+    }
+
+    @Override
+    @Transactional
+    public ResponseObject<?> themProduct(ThemProductRequest request) {
+        Map<String, Object> product = catalogClient.getProductDetail(request.getIdSP());
         List<Map<String, Object>> existing = jdbcTemplate.queryForList("""
-                SELECT id, so_luong, gia_ban
-                FROM hoa_don_chi_tiet
-                WHERE id_hoa_don = ? AND id_spct = ?
+                SELECT id, quantity, sale_price
+                FROM order_item
+                WHERE order_id = ? AND product_variant_id = ?
                 ORDER BY created_date DESC
                 """, request.getIdHD(), request.getIdSP());
-        int stock = intValue(sanPham.get("soLuong"));
-        double currentPrice = doubleValue(sanPham.get("giaBan"));
+        int stock = intValue(product.get("quantity"));
+        double currentPrice = doubleValue(product.get("salePrice"));
         if (existing.isEmpty()) {
             if (stock < 1) {
                 return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
             }
-            insertHoaDonChiTiet(request.getIdHD(), request.getIdSP(), currentPrice, 1);
+            insertOrderItem(request.getIdHD(), request.getIdSP(), currentPrice, 1);
             return new ResponseObject<>(null, HttpStatus.OK, "them san pham thanh cong");
         }
 
         Map<String, Object> detail = existing.get(0);
-        double oldPrice = doubleValue(detail.get("gia_ban"));
+        double oldPrice = doubleValue(detail.get("sale_price"));
         if (Math.abs(oldPrice - currentPrice) > 0.0001D) {
             if (stock < 1) {
                 return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
             }
-            insertHoaDonChiTiet(request.getIdHD(), request.getIdSP(), currentPrice, 1);
+            insertOrderItem(request.getIdHD(), request.getIdSP(), currentPrice, 1);
             return new ResponseObject<>(null, HttpStatus.OK, "San pham nay dang duoc thay doi gia tu " + oldPrice + "d thanh " + currentPrice);
         }
-        int nextQuantity = intValue(detail.get("so_luong")) + 1;
+        int nextQuantity = intValue(detail.get("quantity")) + 1;
         if (stock < nextQuantity) {
             return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
         }
-        jdbcTemplate.update("UPDATE hoa_don_chi_tiet SET so_luong = ? WHERE id = ?", nextQuantity, detail.get("id"));
+        jdbcTemplate.update("UPDATE order_item SET quantity = ? WHERE id = ?", nextQuantity, detail.get("id"));
         return new ResponseObject<>(null, HttpStatus.OK, "them san pham");
     }
 
-    private Map<EntityTrangThaiHoaDon, Long> countOnlineByStatus(String q) {
-        Map<EntityTrangThaiHoaDon, Long> result = new LinkedHashMap<>();
+    private Map<OrderStatusConstant, Long> countOnlineByStatus(String q) {
+        Map<OrderStatusConstant, Long> result = new LinkedHashMap<>();
         jdbcTemplate.query("""
-                SELECT hd.trang_thai_hoa_don, COUNT(hd.id) AS total
-                FROM hoa_don hd
-                WHERE (? IS NULL OR ? = '' OR LOWER(hd.id_khach_hang) LIKE LOWER(?))
-                  AND hd.loai_hoa_don = ?
-                  AND hd.trang_thai_hoa_don != ?
-                GROUP BY hd.trang_thai_hoa_don
+                SELECT hd.order_status, COUNT(hd.id) AS total
+                FROM orders hd
+                WHERE (? IS NULL OR ? = '' OR LOWER(hd.customer_id) LIKE LOWER(?))
+                  AND hd.order_type = ?
+                  AND hd.order_status != ?
+                GROUP BY hd.order_status
                 """, (RowCallbackHandler) rs ->
-                result.put(EntityTrangThaiHoaDon.values()[rs.getInt("trang_thai_hoa_don")], rs.getLong("total")), q, q, q, ONLINE, LUU_TAM);
+                result.put(OrderStatusConstant.values()[rs.getInt("order_status")], rs.getLong("total")), q, q, q, ONLINE, LUU_TAM);
         return result;
     }
 
-    private Map<EntityTrangThaiHoaDon, Long> countByCode(String code) {
-        Map<EntityTrangThaiHoaDon, Long> result = new LinkedHashMap<>();
+    private Map<OrderStatusConstant, Long> countByCode(String code) {
+        Map<OrderStatusConstant, Long> result = new LinkedHashMap<>();
         jdbcTemplate.query("""
-                SELECT hd.trang_thai_hoa_don, COUNT(hd.id) AS total
-                FROM hoa_don hd
-                WHERE hd.ma_hoa_don = ?
-                  AND hd.trang_thai_hoa_don != ?
-                GROUP BY hd.trang_thai_hoa_don
+                SELECT hd.order_status, COUNT(hd.id) AS total
+                FROM orders hd
+                WHERE hd.code = ?
+                  AND hd.order_status != ?
+                GROUP BY hd.order_status
                 """, (RowCallbackHandler) rs ->
-                result.put(EntityTrangThaiHoaDon.values()[rs.getInt("trang_thai_hoa_don")], rs.getLong("total")), code, LUU_TAM);
+                result.put(OrderStatusConstant.values()[rs.getInt("order_status")], rs.getLong("total")), code, LUU_TAM);
         return result;
     }
 
-    private void insertHoaDonChiTiet(String hoaDonId, String sanPhamChiTietId, double price, int quantity) {
+    private void insertOrderItem(String hoaDonId, String productVariantId, double price, int quantity) {
         jdbcTemplate.update("""
-                INSERT INTO hoa_don_chi_tiet (id, status, created_date, ma_hoa_don_chi_tiet, so_luong, gia_ban, id_spct, id_hoa_don)
+                INSERT INTO order_item (id, status, created_date, code, quantity, sale_price, product_variant_id, order_id)
                 VALUES (?, 0, ?, ?, ?, ?, ?, ?)
-                """, UUID.randomUUID().toString(), System.currentTimeMillis(), generateCodeHoaDonChiTiet(), quantity, price, sanPhamChiTietId, hoaDonId);
+                """, UUID.randomUUID().toString(), System.currentTimeMillis(), generateCodeOrderItem(), quantity, price, productVariantId, hoaDonId);
     }
 
     private List<Map<String, Object>> enrichOrderRows(List<Map<String, Object>> rows) {
@@ -298,11 +455,11 @@ public class DonMuaServiceImpl implements DonMuaService {
             }
             if (productDetailId != null) {
                 Map<String, Object> product = catalogClient.getProductDetail(String.valueOf(productDetailId));
-                enriched.put("anh", product.get("anh"));
-                enriched.put("tenSanPham", product.get("ten"));
-                enriched.put("tenThuongHieu", product.get("tenThuongHieu"));
-                enriched.put("mauSac", product.get("tenMau"));
-                enriched.put("kichCo", product.get("kichThuoc"));
+                enriched.put("imageUrl", product.get("imageUrl"));
+                enriched.put("tenProduct", product.get("name"));
+                enriched.put("tenBrand", product.get("tenBrand"));
+                enriched.put("color", product.get("tenMau"));
+                enriched.put("size", product.get("kichThuoc"));
             }
             return enriched;
         }).toList();
@@ -316,12 +473,12 @@ public class DonMuaServiceImpl implements DonMuaService {
                 productDetailId = row.get("idspct");
             }
             Map<String, Object> product = productDetailId == null ? Map.of() : safeProductDetail(String.valueOf(productDetailId));
-            enriched.put("tenSanPham", firstNonNull(product.get("tenSanPham"), product.get("ten"), productDetailId));
-            enriched.put("anhSanPham", firstNonNull(product.get("anh"), product.get("hinhAnh")));
-            enriched.put("thuongHieu", firstNonNull(product.get("tenThuongHieu"), product.get("thuongHieu")));
-            enriched.put("mauSac", firstNonNull(product.get("tenMauSac"), product.get("tenMau"), product.get("mau")));
-            enriched.put("size", firstNonNull(product.get("tenKichCo"), product.get("kichThuoc"), product.get("size")));
-            enriched.put("xuatSu", firstNonNull(product.get("tenXuatXu"), product.get("xuatXu")));
+            enriched.put("tenProduct", firstNonNull(product.get("tenProduct"), product.get("name"), productDetailId));
+            enriched.put("anhProduct", firstNonNull(product.get("imageUrl"), product.get("hinhAnh")));
+            enriched.put("brand", firstNonNull(product.get("tenBrand"), product.get("brand")));
+            enriched.put("color", firstNonNull(product.get("tenColor"), product.get("tenMau"), product.get("mau")));
+            enriched.put("size", firstNonNull(product.get("tenSize"), product.get("kichThuoc"), product.get("size")));
+            enriched.put("origin", firstNonNull(product.get("tenXuatXu"), product.get("xuatXu")));
             return enriched;
         }).toList();
     }
@@ -366,7 +523,7 @@ public class DonMuaServiceImpl implements DonMuaService {
         return value == null ? 0D : Double.parseDouble(String.valueOf(value));
     }
 
-    private static int pageSize(SanPhamChiTietSearchRequest request) {
+    private static int pageSize(ProductVariantSearchRequest request) {
         return request.getSize() <= 0 ? 10 : request.getSize();
     }
 
@@ -380,7 +537,7 @@ public class DonMuaServiceImpl implements DonMuaService {
         return String.valueOf(value);
     }
 
-    private static String generateCodeHoaDonChiTiet() {
+    private static String generateCodeOrderItem() {
         return "HDCT" + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
     }
 }

@@ -1,9 +1,9 @@
 package com.ecommerce.promotion.controller;
 
 import com.ecommerce.promotion.constant.EntityStatus;
-import com.ecommerce.promotion.entity.DotGiamGiaChiTietSanPham;
-import com.ecommerce.promotion.entity.PhieuGiamGia;
-import com.ecommerce.promotion.repository.PhieuGiamGiaChiTietRepository;
+import com.ecommerce.promotion.entity.PromotionCampaignProduct;
+import com.ecommerce.promotion.entity.Voucher;
+import com.ecommerce.promotion.repository.VoucherCustomerRepository;
 import com.ecommerce.promotion.repository.PromotionDetailRepository;
 import com.ecommerce.promotion.repository.VoucherRepository;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,10 +20,10 @@ import java.util.Map;
 public class InternalPromotionController {
 
     private final VoucherRepository voucherRepository;
-    private final PhieuGiamGiaChiTietRepository chiTietRepository;
+    private final VoucherCustomerRepository chiTietRepository;
     private final PromotionDetailRepository promotionDetailRepository;
 
-    public InternalPromotionController(VoucherRepository voucherRepository, PhieuGiamGiaChiTietRepository chiTietRepository, PromotionDetailRepository promotionDetailRepository) {
+    public InternalPromotionController(VoucherRepository voucherRepository, VoucherCustomerRepository chiTietRepository, PromotionDetailRepository promotionDetailRepository) {
         this.voucherRepository = voucherRepository;
         this.chiTietRepository = chiTietRepository;
         this.promotionDetailRepository = promotionDetailRepository;
@@ -31,7 +31,7 @@ public class InternalPromotionController {
 
     @GetMapping("/vouchers/by-code")
     public Map<String, Object> getVoucherByCode(@RequestParam String code) {
-        return voucherRepository.findByMa(code).map(this::voucherMap).orElseGet(Map::of);
+        return voucherRepository.findByCode(code).map(this::voucherMap).orElseGet(Map::of);
     }
 
     @GetMapping("/vouchers/assigned")
@@ -42,16 +42,24 @@ public class InternalPromotionController {
     @PostMapping("/vouchers/decrement")
     public void decrementVoucher(@RequestParam String voucherId) {
         voucherRepository.findById(voucherId).ifPresent(voucher -> {
-            voucher.setSoLuongPhieu((voucher.getSoLuongPhieu() == null ? 0 : voucher.getSoLuongPhieu()) - 1);
+            voucher.setQuantity((voucher.getQuantity() == null ? 0 : voucher.getQuantity()) - 1);
+            voucherRepository.save(voucher);
+        });
+    }
+
+    @PostMapping("/vouchers/increment")
+    public void incrementVoucher(@RequestParam String voucherId) {
+        voucherRepository.findById(voucherId).ifPresent(voucher -> {
+            voucher.setQuantity((voucher.getQuantity() == null ? 0 : voucher.getQuantity()) + 1);
             voucherRepository.save(voucher);
         });
     }
 
     @GetMapping("/vouchers/applicable")
     public List<Map<String, Object>> getApplicableVouchers(@RequestParam String customerId) {
-        return voucherRepository.findByStatusAndSoLuongPhieuGreaterThan(EntityStatus.ACTIVE, 0)
+        return voucherRepository.findByStatusAndQuantityGreaterThan(EntityStatus.ACTIVE, 0)
                 .stream()
-                .filter(voucher -> !Boolean.TRUE.equals(voucher.getLoaiGiam()) || chiTietRepository.findCustomerIdsByVoucherId(voucher.getId()).contains(customerId))
+                .filter(voucher -> !Boolean.TRUE.equals(voucher.getDiscountType()) || chiTietRepository.findCustomerIdsByVoucherId(voucher.getId()).contains(customerId))
                 .map(this::voucherMap)
                 .toList();
     }
@@ -67,32 +75,32 @@ public class InternalPromotionController {
                 .toList();
     }
 
-    private Map<String, Object> voucherMap(PhieuGiamGia voucher) {
+    private Map<String, Object> voucherMap(Voucher voucher) {
         Map<String, Object> row = new java.util.LinkedHashMap<>();
         row.put("id", voucher.getId());
-        row.put("ma_phieu_giam_gia", voucher.getMa());
-        row.put("ten_phieu_giam_gia", voucher.getTen());
-        row.put("phan_tram", voucher.getPhanTramGiam());
-        row.put("so_luong_phieu", voucher.getSoLuongPhieu());
-        row.put("ngay_bat_dau", voucher.getNgayBatDau());
-        row.put("ngay_ket_thuc", voucher.getNgayKetThuc());
-        row.put("dieu_kien", voucher.getDieuKien());
-        row.put("gia_giam_toi_da", voucher.getGiaGiam());
-        row.put("loai_giam", voucher.getLoaiGiam());
-        row.put("kieu_giam", voucher.getKieuGiam());
+        row.put("code", voucher.getCode());
+        row.put("name", voucher.getName());
+        row.put("discount_value", voucher.getDiscountValue());
+        row.put("quantity", voucher.getQuantity());
+        row.put("start_date", voucher.getStartDate());
+        row.put("end_date", voucher.getEndDate());
+        row.put("condition_amount", voucher.getConditionAmount());
+        row.put("max_discount_amount", voucher.getMaxDiscountAmount());
+        row.put("discount_type", voucher.getDiscountType());
+        row.put("discount_method", voucher.getDiscountMethod());
         row.put("status", voucher.getStatus() == null ? null : voucher.getStatus().ordinal());
         return row;
     }
 
-    private Map<String, Object> discountMap(DotGiamGiaChiTietSanPham detail) {
+    private Map<String, Object> discountMap(PromotionCampaignProduct detail) {
         Map<String, Object> row = new java.util.LinkedHashMap<>();
-        row.put("productDetailId", detail.getSanPhamChiTietId());
-        row.put("ten", detail.getDotGiamGia() == null ? null : detail.getDotGiamGia().getTen());
-        row.put("phanTramGiam", detail.getDotGiamGia() == null ? null : detail.getDotGiamGia().getPhanTramGiam());
-        row.put("giaTruoc", detail.getGiaTruoc());
-        row.put("giaSau", detail.getGiaSau());
-        row.put("ngayBatDau", detail.getDotGiamGia() == null ? null : detail.getDotGiamGia().getNgayBatDau());
-        row.put("ngayKetThuc", detail.getDotGiamGia() == null ? null : detail.getDotGiamGia().getNgayKetThuc());
+        row.put("productDetailId", detail.getProductVariantId());
+        row.put("name", detail.getPromotionCampaign() == null ? null : detail.getPromotionCampaign().getName());
+        row.put("discountValue", detail.getPromotionCampaign() == null ? null : detail.getPromotionCampaign().getDiscountValue());
+        row.put("priceBeforeDiscount", detail.getPriceBeforeDiscount());
+        row.put("priceAfterDiscount", detail.getPriceAfterDiscount());
+        row.put("startDate", detail.getPromotionCampaign() == null ? null : detail.getPromotionCampaign().getStartDate());
+        row.put("endDate", detail.getPromotionCampaign() == null ? null : detail.getPromotionCampaign().getEndDate());
         return row;
     }
 }

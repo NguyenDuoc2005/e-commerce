@@ -143,7 +143,11 @@ const onLogin = async () => {
         accessToken,
         refreshToken
       })
-      router.push({ name: ROUTES_CONSTANTS.USERS.children.TRANGCHU.name }).then(() => {
+      const roles = userInfo.roles?.length ? userInfo.roles : [userInfo.role]
+      const targetRoute = roles.includes('SELLER')
+        ? ROUTES_CONSTANTS.SELLER.children.DASHBOARD.name
+        : ROUTES_CONSTANTS.USERS.children.TRANGCHU.name
+      router.push({ name: targetRoute }).then(() => {
         window.location.reload();
       })
     } catch (err: any) {

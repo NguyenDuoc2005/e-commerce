@@ -23,7 +23,7 @@ public class UserPrincipal implements UserDetails {
     }
 
     public static UserPrincipal create(Map<String, Object> user, String role) {
-        return new UserPrincipal(String.valueOf(user.get("id")), String.valueOf(user.get("email")), String.valueOf(user.get("matKhau")), role);
+        return new UserPrincipal(String.valueOf(user.get("id")), String.valueOf(user.get("email")), String.valueOf(user.get("password")), role);
     }
 
     public String getId() {

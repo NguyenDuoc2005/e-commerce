@@ -1,6 +1,6 @@
 package com.ecommerce.promotion.repository;
 
-import com.ecommerce.promotion.entity.DotGiamGia;
+import com.ecommerce.promotion.entity.PromotionCampaign;
 import com.ecommerce.promotion.model.request.FindPromotionRequest;
 import com.ecommerce.promotion.model.response.PromotionByIdResponse;
 import com.ecommerce.promotion.model.response.PromotionByProductDetail;
@@ -14,50 +14,53 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-public interface PromotionRepository extends JpaRepository<DotGiamGia, String> {
+public interface PromotionRepository extends JpaRepository<PromotionCampaign, String> {
 
     @Query(value = """
             SELECT
                 dgg.id AS id,
-                dgg.ma_dot_giam_gia AS ma,
-                dgg.ten_dot_giam_gia AS ten,
-                dgg.phan_tram AS phanTramGiam,
-                dgg.mo_ta AS moTa,
-                dgg.ngay_bat_dau AS ngayBatDau,
-                dgg.ngay_ket_thuc AS ngayKetThuc,
-                dgg.trang_thai_dot AS trangThai
-            FROM dot_giam_gia dgg
-            WHERE (:#{#req.ma} IS NULL OR :#{#req.ma} = '' OR dgg.ma_dot_giam_gia LIKE %:#{#req.ma}% OR dgg.ten_dot_giam_gia LIKE %:#{#req.ma}%)
-              AND (:#{#req.phanTramGiam} IS NULL OR dgg.phan_tram = :#{#req.phanTramGiam})
-              AND (:#{#req.trangThai} IS NULL OR dgg.trang_thai_dot = :#{#req.trangThai})
-              AND ((:#{#req.ngayBatDau} IS NULL OR :#{#req.ngayKetThuc} IS NULL) OR (dgg.ngay_bat_dau >= :#{#req.ngayBatDau} AND dgg.ngay_ket_thuc <= :#{#req.ngayKetThuc}))
+                dgg.code AS code,
+                dgg.name AS name,
+                dgg.discount_value AS discountValue,
+                dgg.description AS description,
+                dgg.start_date AS startDate,
+                dgg.end_date AS endDate,
+                dgg.campaign_status AS trangThai,
+                dgg.seller_id AS sellerId
+            FROM promotion_campaign dgg
+            WHERE (:#{#req.code} IS NULL OR :#{#req.code} = '' OR dgg.code LIKE %:#{#req.code}% OR dgg.name LIKE %:#{#req.code}%)
+              AND (:#{#req.discountValue} IS NULL OR dgg.discount_value = :#{#req.discountValue})
+              AND (:#{#req.trangThai} IS NULL OR dgg.campaign_status = :#{#req.trangThai})
+              AND ((:#{#req.startDate} IS NULL OR :#{#req.endDate} IS NULL) OR (dgg.start_date >= :#{#req.startDate} AND dgg.end_date <= :#{#req.endDate}))
+              AND (:#{#req.platformOnly != true} = TRUE OR dgg.seller_id IS NULL)
+              AND (:#{#req.sellerId == null || #req.sellerId.isEmpty()} = TRUE OR dgg.seller_id = :#{#req.sellerId})
             GROUP BY dgg.id
             ORDER BY dgg.last_modified_date DESC
             """, nativeQuery = true)
-    Page<PromotionResponse> getAllDotGiamGia(@Param("req") FindPromotionRequest req, Pageable pageable);
+    Page<PromotionResponse> getAllPromotionCampaign(@Param("req") FindPromotionRequest req, Pageable pageable);
 
     @Query(value = """
             SELECT
                 po.id AS id,
-                po.ma_dot_giam_gia AS code,
-                po.ten_dot_giam_gia AS name,
-                po.phan_tram AS value,
-                po.ngay_bat_dau AS startDate,
-                po.ngay_ket_thuc AS endDate,
-                po.trang_thai_dot AS status,
-                (SELECT GROUP_CONCAT(DISTINCT ppd2.id_chi_tiet_san_pham) FROM dot_giam_gia_chi_tiet_san_pham ppd2 WHERE ppd2.trang_thai = 'DANG_SU_DUNG' AND ppd2.id_dot_giam_gia = po.id) AS productDetail,
-                GROUP_CONCAT(DISTINCT ppd.id_chi_tiet_san_pham) AS productDetailUpdate,
+                po.code AS code,
+                po.name AS name,
+                po.discount_value AS value,
+                po.start_date AS startDate,
+                po.end_date AS endDate,
+                po.campaign_status AS status,
+                (SELECT GROUP_CONCAT(DISTINCT ppd2.product_variant_id) FROM promotion_campaign_product ppd2 WHERE ppd2.detail_status = 'DANG_SU_DUNG' AND ppd2.promotion_campaign_id = po.id) AS productDetail,
+                GROUP_CONCAT(DISTINCT ppd.product_variant_id) AS productDetailUpdate,
                 NULL AS product,
                 GROUP_CONCAT(DISTINCT ppd.id) AS promotionProductDetail
-            FROM dot_giam_gia po
-                LEFT JOIN dot_giam_gia_chi_tiet_san_pham ppd ON po.id = ppd.id_dot_giam_gia
+            FROM promotion_campaign po
+                LEFT JOIN promotion_campaign_product ppd ON po.id = ppd.promotion_campaign_id
             WHERE po.id = :id
             GROUP BY po.id
             """, nativeQuery = true)
     PromotionByIdResponse getByIdPromotion(@Param("id") String id);
 
-    Optional<DotGiamGia> findByTen(String name);
+    Optional<PromotionCampaign> findByName(String name);
 
-    @Query("SELECT d FROM DotGiamGia d JOIN DotGiamGiaChiTietSanPham dc ON d.id = dc.dotGiamGia.id WHERE dc.sanPhamChiTietId IN :productDetailIds")
-    List<DotGiamGia> findAllByProductDetails(List<String> productDetailIds);
+    @Query("SELECT d FROM PromotionCampaign d JOIN PromotionCampaignProduct dc ON d.id = dc.promotionCampaign.id WHERE dc.productVariantId IN :productDetailIds")
+    List<PromotionCampaign> findAllByProductDetails(List<String> productDetailIds);
 }

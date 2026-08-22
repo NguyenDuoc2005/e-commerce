@@ -18,14 +18,14 @@ public interface UserClient {
 
     @PostMapping("/auth/customers")
     Map<String, Object> createCustomer(
-            @RequestParam("ten") String ten,
+            @RequestParam("name") String name,
             @RequestParam("email") String email,
-            @RequestParam("sdt") String sdt,
-            @RequestParam("matKhau") String matKhau
+            @RequestParam("phoneNumber") String phoneNumber,
+            @RequestParam("password") String password
     );
 
     @PostMapping("/auth/customers/password")
-    void updateCustomerPassword(@RequestParam("email") String email, @RequestParam("matKhau") String matKhau);
+    void updateCustomerPassword(@RequestParam("email") String email, @RequestParam("password") String password);
 
     @GetMapping("/auth/staff/by-email")
     Map<String, Object> getStaffByEmail(@RequestParam("email") String email, @RequestParam("activeOnly") boolean activeOnly);

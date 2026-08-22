@@ -6,18 +6,22 @@ import com.ecommerce.catalog.model.request.ProductSearchRequest;
 
 public interface ProductService {
     ResponseObject<?> getAdminAll(ProductSearchRequest request);
+    ResponseObject<?> getSellerAll(ProductSearchRequest request, String sellerId);
     ResponseObject<?> getAll(ProductSearchRequest request);
-    ResponseObject<?> getSanPhamById(String id);
-    ResponseObject<?> modifySanPham(ProductRequest request);
-    ResponseObject<?> changeSanPhamStatus(String id);
-    ResponseObject<?> getListThuongHieu();
+    ResponseObject<?> getProductById(String id);
+    ResponseObject<?> getSellerProductById(String id, String sellerId);
+    ResponseObject<?> modifyProduct(ProductRequest request);
+    ResponseObject<?> modifySellerProduct(ProductRequest request, String sellerId);
+    ResponseObject<?> changeProductStatus(String id);
+    ResponseObject<?> changeSellerProductStatus(String id, String sellerId);
+    ResponseObject<?> getListBrand();
     ResponseObject<?> getXuatXu();
-    ResponseObject<?> getListLoaiDe();
-    ResponseObject<?> getListDanhMuc();
+    ResponseObject<?> getListSoleType();
+    ResponseObject<?> getListCategory();
     ResponseObject<?> getListSize();
     ResponseObject<?> getListMau();
-    ResponseObject<?> getListChatLieu();
-    ResponseObject<?> getSanPhamMoi(ProductSearchRequest request);
-    ResponseObject<?> getSanPhamGiamGia(ProductSearchRequest request);
-    ResponseObject<?> getThuongHieuTrangChu(ProductSearchRequest request);
+    ResponseObject<?> getListMaterial();
+    ResponseObject<?> getProductMoi(ProductSearchRequest request);
+    ResponseObject<?> getProductGiamGia(ProductSearchRequest request);
+    ResponseObject<?> getBrandTrangChu(ProductSearchRequest request);
 }

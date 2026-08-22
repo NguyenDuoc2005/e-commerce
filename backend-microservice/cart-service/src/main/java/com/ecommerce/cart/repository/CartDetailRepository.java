@@ -12,10 +12,10 @@ public interface CartDetailRepository extends JpaRepository<CartDetail, String> 
     @Query("select cd from CartDetail cd where cd.cart.id = :idCart and cd.quantity > 0")
     List<CartDetail> getAllCart(@Param("idCart") String idCart);
 
-    @Query("select cd.id from CartDetail cd join Cart c on cd.cart.id = c.id where cd.cart.id = :idCart and cd.sanPhamChiTietId = :idSanPhamChiTiet")
-    String getCart(@Param("idCart") String idCart, @Param("idSanPhamChiTiet") String idSanPhamChiTiet);
+    @Query("select cd.id from CartDetail cd join Cart c on cd.cart.id = c.id where cd.cart.id = :idCart and cd.productVariantId = :idProductVariant")
+    String getCart(@Param("idCart") String idCart, @Param("idProductVariant") String idProductVariant);
 
     @Modifying
-    @Query("delete from CartDetail cd where cd.cart.id = :cartId and cd.sanPhamChiTietId = :productDetailId")
+    @Query("delete from CartDetail cd where cd.cart.id = :cartId and cd.productVariantId = :productDetailId")
     void deleteByCartIdAndProductDetailId(@Param("cartId") String cartId, @Param("productDetailId") String productDetailId);
 }

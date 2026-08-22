@@ -24,11 +24,17 @@
             </p>
           </div>
           <div class="d-flex gap-3">
+            <select class="form-select form-select-sm text-red border-red" v-model="selectedSellerId">
+              <option value="">Tất cả shop</option>
+              <option v-for="shop in shops" :key="shop.id" :value="shop.id">{{ shop.shopName }}</option>
+            </select>
             <select class="form-select form-select-sm text-red border-red" v-model="sortBy">
               <option value="createdAt_desc">Hàng mới nhất</option>
               <option value="createdAt_asc">Hàng cũ nhất</option>
               <option value="giaBan_asc">Giá tăng dần</option>
               <option value="giaBan_desc">Giá giảm dần</option>
+              <option value="sold_desc">Bán chạy nhất</option>
+              <option value="rating_desc">Shop đánh giá cao</option>
               <option value="ten_asc">Tên A-Z</option>
               <option value="ten_desc">Tên Z-A</option>
             </select>
@@ -71,18 +77,19 @@
                     -{{ item.dotGiamGia.phanTramGiam }}%
                   </span>
                 </div>
-                <div class="brand-row mb-1 text-muted">
-                  <span class="brand-label">Thương hiệu:</span>
-                  <span class="fw-medium text-dark ms-1">{{ item.thuongHieu }}</span>
-                </div>
-                <div class="d-flex flex-wrap align-items-center small text-muted mb-1">
-                  <span class="me-1">Màu:</span>
-                  <span v-for="(color, i) in item.mauSac" :key="i" class="color-dot me-1"
-                        :style="{ backgroundColor: color.maMau }" :title="color.ten"></span>
-                </div>
-                <div class="d-flex flex-wrap align-items-center small">
-                  <span class="me-1">Kích cỡ:</span>
-                  <span v-for="(size, i) in item.kichCo" :key="i" class="size-box me-1 mb-1">{{ size.ten }}</span>
+                <div class="brand-row mb-1 text-muted">{{ item.danhMuc || '' }}</div>
+                <router-link
+                  v-if="item.sellerSlug"
+                  class="shop-link mb-1"
+                  :to="{ name: 'shop-detail', params: { sellerSlug: item.sellerSlug } }"
+                  @click.stop
+                >
+                  {{ item.shopName || item.sellerName }}
+                </router-link>
+                <div v-if="item.attributes?.length" class="product-attribute-preview">
+                  <span v-for="attribute in item.attributes.slice(0, 2)" :key="attribute.attributeId">
+                    {{ attribute.name }}: {{ attributePreview(attribute) }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -116,6 +123,7 @@ import FilterBox from './FilterBox.vue';
 import BreadCrumbUser from '@/components/ui/Breadcrumbs/BreadCrumbUser.vue';
 import { useRouter } from 'vue-router';
 import { GetDanhSachSanPhamTrangSanPham, type ParamsGetSanPhamMoi, type SanPhamMoiResponse } from '@/services/api/permitall/sanpham/pmsanpham.api';
+import { getPublicShops, type SellerResponse } from '@/services/api/seller/seller.api';
 
 // Format price to VND
 const formatVND = (price: number | undefined): string => {
@@ -137,26 +145,30 @@ const totalElements = ref(0);
 const hoverProductId = ref<string | null>(null);
 const sortBy = ref<string>('createdAt_desc');
 const error = ref<string | null>(null);
+const selectedSellerId = ref<string>('');
+const shops = ref<SellerResponse[]>([]);
 
 const filters = ref({
-  thuongHieu: [] as string[],
-  mauSac: [] as string[],
-  kichCo: [] as string[],
-  chatLieu: [] as string[],
-  loaiDe: [] as string[],
-  danhMuc: [] as string[],
-  giaTu: undefined,
-  giaDen: undefined
+  categoryId: undefined as string | undefined,
+  attributeFilters: {} as Record<string, { values: string[]; min?: number; max?: number }>,
+  giaTu: undefined as number | undefined,
+  giaDen: undefined as number | undefined
 });
 
 const filtersApplied = computed(() => {
   const applied: string[] = [];
-  if (filters.value.thuongHieu.length) applied.push(`Thương hiệu: ${filters.value.thuongHieu.length}`);
-  if (filters.value.chatLieu.length) applied.push(`Chất liệu: ${filters.value.chatLieu.length}`);
-  if (filters.value.loaiDe.length) applied.push(`Loại đế: ${filters.value.loaiDe.length}`);
-  if (filters.value.danhMuc.length) applied.push(`Danh mục: ${filters.value.danhMuc.length}`);
+  if (filters.value.categoryId) applied.push('1 danh mục');
+  const dynamicCount = Object.keys(filters.value.attributeFilters).length;
+  if (dynamicCount) applied.push(`${dynamicCount} thuộc tính`);
   return applied.join(', ');
 });
+
+const attributePreview = (attribute: any) => {
+  if (attribute.dataType === 'TEXT') return attribute.textValue || '-';
+  if (attribute.dataType === 'NUMBER') return `${attribute.numberValue ?? '-'}${attribute.unit ? ` ${attribute.unit}` : ''}`;
+  const options = new Map((attribute.options || []).map((option: any) => [option.id, option.value]));
+  return (attribute.selectedOptionIds || []).map((id: string) => options.get(id)).filter(Boolean).join(', ') || '-';
+};
 
 const totalPages = computed(() => {
   return Math.ceil(totalElements.value / pageSize);
@@ -198,10 +210,11 @@ const fetchProducts = async () => {
       size: pageSize,
       sortBy: sortBy.value,
       q: keyword.value !== 'Tất cả sản phẩm' ? keyword.value.trim() : undefined,
-      thuongHieuIds: filters.value.thuongHieu.length > 0 ? filters.value.thuongHieu.join(',') : undefined,
-      chatLieuIds: filters.value.chatLieu.length > 0 ? filters.value.chatLieu.join(',') : undefined,
-      loaiDeIds: filters.value.loaiDe.length > 0 ? filters.value.loaiDe.join(',') : undefined,
-      danhMucIds: filters.value.danhMuc.length > 0 ? filters.value.danhMuc.join(',') : undefined,
+      danhMucIds: filters.value.categoryId,
+      attributeFilters: Object.keys(filters.value.attributeFilters).length
+        ? JSON.stringify(filters.value.attributeFilters)
+        : undefined,
+      sellerId: selectedSellerId.value || undefined,
       giaMin: filters.value.giaTu || undefined,
       giaMax: filters.value.giaDen || undefined
     };
@@ -234,12 +247,18 @@ const fetchProducts = async () => {
   }
 };
 
-// Theo dõi thay đổi của keyword, currentPage, và sortBy
-watch([keyword, currentPage, sortBy], () => {
+// Theo dõi thay đổi của keyword, currentPage, sortBy va shop
+watch([keyword, currentPage, sortBy, selectedSellerId], () => {
   fetchProducts();
 });
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const res = await getPublicShops();
+    shops.value = res.data ?? [];
+  } catch (err) {
+    console.error('Khong the tai danh sach shop:', err);
+  }
   fetchProducts();
 });
 
@@ -438,6 +457,25 @@ const nextPage = () => {
 
 .brand-label {
   color: #a2a2a2;
+}
+
+.product-attribute-preview { display: grid; gap: 2px; color: #64748b; font-size: 12px; }
+.product-attribute-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.shop-link {
+  display: block;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.shop-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
 }
 
 .gift-big {

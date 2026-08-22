@@ -14,7 +14,9 @@ $databases = @(
     "ecommerce_catalog",
     "ecommerce_promotion",
     "ecommerce_cart",
-    "ecommerce_order"
+    "ecommerce_order",
+    "ecommerce_seller",
+    "ecommerce_payout"
 )
 
 if (-not $Force) {
@@ -49,4 +51,6 @@ Write-Host "Reset and seeded demo databases: $($databases -join ', ')"
 Write-Host "Demo accounts:"
 Write-Host "  Admin:    admin@ecommerce.local / Admin@123"
 Write-Host "  Staff:    staff@ecommerce.local / Admin@123"
-Write-Host "  Customer: customer1@ecommerce.local / Admin@123"
+Write-Host "  Seller 1 (approved): customer1@ecommerce.local / Admin@123"
+Write-Host "  Seller 2 (approved): customer2@ecommerce.local / Admin@123"
+Write-Host "  Seller 3 (pending):  customer3@ecommerce.local / Admin@123"

@@ -19,12 +19,12 @@ public interface CatalogClient {
     List<Map<String, Object>> searchProductDetails(
             @RequestParam(value = "q", required = false) String q,
             @RequestParam(value = "status", required = false) String status,
-            @RequestParam(value = "idMauSac", required = false) String idMauSac,
+            @RequestParam(value = "idColor", required = false) String idColor,
             @RequestParam(value = "idKichThuoc", required = false) String idKichThuoc,
-            @RequestParam(value = "idDanhMuc", required = false) String idDanhMuc,
-            @RequestParam(value = "idChatLieu", required = false) String idChatLieu,
-            @RequestParam(value = "idThuongHieu", required = false) String idThuongHieu,
-            @RequestParam(value = "idLoaiDe", required = false) String idLoaiDe,
+            @RequestParam(value = "idCategory", required = false) String idCategory,
+            @RequestParam(value = "idMaterial", required = false) String idMaterial,
+            @RequestParam(value = "idBrand", required = false) String idBrand,
+            @RequestParam(value = "idSoleType", required = false) String idSoleType,
             @RequestParam(value = "idSP", required = false) String idSP,
             @RequestParam(value = "priceMin", required = false) Double priceMin,
             @RequestParam(value = "priceMax", required = false) Double priceMax

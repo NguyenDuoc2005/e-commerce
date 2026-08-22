@@ -66,6 +66,15 @@ export interface ChiTietSanPham {
 }
 
 export interface SanPhamChiTietResponse {
+  id: string
+  sellerId?: string
+  shopName?: string
+  sellerSlug?: string
+  logoUrl?: string
+  rating?: number
+  followerCount?: number
+  ratingAverage?: number
+  ratingCount?: number
   tenSanPham: string
   moTa: string
   thuongHieu: ThuongHieuDTO

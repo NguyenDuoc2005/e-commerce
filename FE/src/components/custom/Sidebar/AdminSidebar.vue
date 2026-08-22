@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { useSidebarStore } from "@/stores/sidebar";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import SidebarItem from "./SidebarItem.vue";
 import { ROUTES_CONSTANTS } from "@/constants/path";
+import { useAuthStore } from '@/stores/auth'
+import { ROLES } from '@/constants/roles'
 
 const sidebarStore = useSidebarStore();
+const authStore = useAuthStore();
+const currentRoles = computed<string[]>(() => {
+  if (authStore.user?.roles?.length) return authStore.user.roles
+  return authStore.user?.role ? [authStore.user.role] : []
+})
 
 const menuGroups = ref([
   {
@@ -17,29 +24,11 @@ const menuGroups = ref([
         routeName: ROUTES_CONSTANTS.ADMIN.children.THONG_KE.name,
       },
       {
-        label: "Bán hàng",
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-        </svg>`,
-        routeName: ROUTES_CONSTANTS.ADMIN.children.BAN_HANG.name,
-      },
-      {
-        label: "Quản lý hóa đơn",
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>`,
-        routeName: ROUTES_CONSTANTS.ADMIN.children.HOA_DON.name,
-      },
-      {
-        label: "Quản lý sản phẩm",
+        label: "Danh mục chung",
         icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>`,
         children: [
-          {
-            label: "Sản phẩm",
-            routeName: ROUTES_CONSTANTS.ADMIN.children.SAN_PHAM.name,
-          },
           {
             label: "Màu sắc",
             routeName: ROUTES_CONSTANTS.ADMIN.children.MAUSAC.name,
@@ -72,6 +61,69 @@ const menuGroups = ref([
           <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>`,
         routeName: ROUTES_CONSTANTS.ADMIN.children.KHACH_HANG.name,
+      },
+      {
+        label: "Duyệt Seller",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M6 7V5a2 2 0 012-2h8a2 2 0 012 2v2m-1 4l-5 5-3-3m-4-2v8a2 2 0 002 2h10a2 2 0 002-2v-8" />
+        </svg>`,
+        routeName: ROUTES_CONSTANTS.ADMIN.children.SELLER_APPROVAL.name,
+      },
+      {
+        label: "Quản lý thuộc tính",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h10M4 12h16M4 17h7M17 5v4m-2-2h4" /></svg>`,
+        routeName: ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.name,
+      },
+      {
+        label: "Banner trang chu",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4zM4 15l4-4 3 3 2-2 7 7M15 9h.01" /></svg>`,
+        routeName: ROUTES_CONSTANTS.ADMIN.children.BANNERS.name,
+      },
+      {
+        label: "Đối soát seller",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18v10H3zM7 12h4m6 0h.01" /></svg>`,
+        routeName: ROUTES_CONSTANTS.ADMIN.children.PAYOUT.name,
+      },
+      {
+        label: "Tong quan shop",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4v8H3zM10 8h4v12h-4zM17 4h4v16h-4z" /></svg>`,
+        routeName: ROUTES_CONSTANTS.SELLER.children.DASHBOARD.name,
+      },
+      {
+        label: "Đơn seller",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M5 5h14v14H5z" />
+        </svg>`,
+        routeName: ROUTES_CONSTANTS.SELLER.children.ORDERS.name,
+      },
+      {
+        label: "Sản phẩm shop",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>`,
+        routeName: ROUTES_CONSTANTS.SELLER.children.PRODUCTS.name,
+      },
+      {
+        label: "Voucher shop",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 5v14M5 7a2 2 0 012-2h10a2 2 0 012 2v3a2 2 0 010 4v3a2 2 0 01-2 2H7a2 2 0 01-2-2v-3a2 2 0 010-4V7z" />
+        </svg>`,
+        routeName: ROUTES_CONSTANTS.SELLER.children.VOUCHERS.name,
+      },
+      {
+        label: "Ví đối soát",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18v10H3zM16 12h2" />
+        </svg>`,
+        routeName: ROUTES_CONSTANTS.SELLER.children.PAYOUT.name,
+      },
+      {
+        label: "Danh gia shop",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z" /></svg>`,
+        routeName: ROUTES_CONSTANTS.SELLER.children.REVIEWS.name,
+      },
+      {
+        label: "Mua hàng",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1V10z" /></svg>`,
+        routeName: ROUTES_CONSTANTS.USERS.children.TRANGCHU.name,
       },
       {
         label: "Quản lý nhân viên",
@@ -109,6 +161,25 @@ const isCollapsed = ref(false);
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value;
 };
+
+const visibleMenuItems = (items: any[]) => {
+  const sellerRoutes = new Set([
+    ROUTES_CONSTANTS.SELLER.children.DASHBOARD.name,
+    ROUTES_CONSTANTS.SELLER.children.ORDERS.name,
+    ROUTES_CONSTANTS.SELLER.children.PRODUCTS.name,
+    ROUTES_CONSTANTS.SELLER.children.VOUCHERS.name,
+    ROUTES_CONSTANTS.SELLER.children.PAYOUT.name,
+    ROUTES_CONSTANTS.SELLER.children.REVIEWS.name,
+    ROUTES_CONSTANTS.USERS.children.TRANGCHU.name,
+  ])
+  if (currentRoles.value.includes(ROLES.ADMIN)) {
+    return items.filter((item) => !sellerRoutes.has(item.routeName))
+  }
+  if (currentRoles.value.includes(ROLES.SELLER)) {
+    return items.filter((item) => sellerRoutes.has(item.routeName))
+  }
+  return []
+};
 </script>
 
 <template>
@@ -145,7 +216,7 @@ const toggleCollapse = () => {
       <template v-for="(menuGroup, groupIndex) in menuGroups" :key="groupIndex">
         <div>
           <ul class="list-unstyled" role="menu">
-            <SidebarItem v-for="(menuItem, index) in menuGroup.menuItems" :item="menuItem" :key="index" :index="index"
+            <SidebarItem v-for="(menuItem, index) in visibleMenuItems(menuGroup.menuItems)" :item="menuItem" :key="index" :index="index"
               :isCollapsed="isCollapsed" class="nav-link" role="menuitem" />
           </ul>
         </div>

@@ -9,6 +9,11 @@ export const getUserInformation = (token: string): UserInformation => {
     fullName: decoded.fullName,
     email: decoded.email,
     role: decoded.role,
+    roles: decoded.roles?.length ? decoded.roles : [decoded.role].filter(Boolean),
+    sellerId: decoded.sellerId,
+    sellerStatus: decoded.sellerStatus,
+    sellerSlug: decoded.sellerSlug,
+    shopName: decoded.shopName,
     pictureUrl:decoded.pictureUrl
   }
 }

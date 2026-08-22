@@ -1,7 +1,7 @@
 package com.ecommerce.user.controller;
 
 import com.ecommerce.common.util.ResponseUtils;
-import com.ecommerce.user.model.request.ADNhanVienSearchRequest;
+import com.ecommerce.user.model.request.ADStaffSearchRequest;
 import com.ecommerce.user.model.request.CheckDuplicateRequest;
 import com.ecommerce.user.model.request.UserUpsertRequest;
 import com.ecommerce.user.model.response.CheckDuplicateResponse;
@@ -29,28 +29,28 @@ public class AdminEmployeeController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getAll(ADNhanVienSearchRequest request) {
-        return ResponseUtils.createResponseEntity(service.getAllNhanVien(request));
+    public ResponseEntity<?> getAll(ADStaffSearchRequest request) {
+        return ResponseUtils.createResponseEntity(service.getAllStaff(request));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable String id) {
-        return ResponseUtils.createResponseEntity(service.getNhanVienById(id));
+        return ResponseUtils.createResponseEntity(service.getStaffById(id));
     }
 
     @PostMapping
     public ResponseEntity<?> modify(@ModelAttribute UserUpsertRequest request) {
-        return ResponseUtils.createResponseEntity(service.modifyNhanVien(request));
+        return ResponseUtils.createResponseEntity(service.modifyStaff(request));
     }
 
     @PutMapping("/{id}/change-status")
     public ResponseEntity<?> changeStatus(@PathVariable String id) {
-        return ResponseUtils.createResponseEntity(service.changeNhanVienStatus(id));
+        return ResponseUtils.createResponseEntity(service.changeStaffStatus(id));
     }
 
     @PutMapping("/{id}/change-role")
     public ResponseEntity<?> changeRole(@PathVariable String id) {
-        return ResponseUtils.createResponseEntity(service.changeNhanVienRole(id));
+        return ResponseUtils.createResponseEntity(service.changeStaffRole(id));
     }
 
     @PostMapping("/check-duplicate")

@@ -49,7 +49,7 @@ public class CheckoutController {
 
     @PostMapping("/pgg")
     public ResponseEntity<?> getPGG(@ModelAttribute VoucherPaymentRequest request) {
-        return ResponseEntity.ok(checkoutService.getPhieuGiamGia(request));
+        return ResponseEntity.ok(checkoutService.getVoucher(request));
     }
 
     @PostMapping("/pgg/list")
@@ -58,7 +58,7 @@ public class CheckoutController {
     }
 
     @PostMapping("/khach-hang/{id}")
-    public ResponseEntity<?> getKhachHang(@PathVariable String id) {
-        return ResponseEntity.ok(checkoutService.getKhachHang(id));
+    public ResponseEntity<?> getCustomer(@PathVariable String id) {
+        return ResponseEntity.ok(checkoutService.getCustomer(id));
     }
 }

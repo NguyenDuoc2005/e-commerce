@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 @RestController
 @RequestMapping("/api/v1/permitall/cart")
@@ -24,17 +25,25 @@ public class CartController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getAllCart(CartGetAllRequest req) {
+    public ResponseEntity<?> getAllCart(CartGetAllRequest req, @RequestHeader("X-User-Id") String customerId) {
+        req.setIdUser(customerId);
         return ResponseUtils.createResponseEntity(cartService.getAllProductCart(req));
     }
 
     @PostMapping
-    public ResponseEntity<?> createCartDetail(@RequestBody CartDetailRequest request) {
+    public ResponseEntity<?> createCartDetail(
+            @RequestBody CartDetailRequest request,
+            @RequestHeader("X-User-Id") String customerId
+    ) {
+        request.setIdCustomer(customerId);
         return ResponseUtils.createResponseEntity(cartService.createCartDetail(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> deleteCartDetail(@PathVariable String id) {
-        return ResponseUtils.createResponseEntity(cartService.deleteCartDetail(id));
+    public ResponseEntity<?> deleteCartDetail(
+            @PathVariable String id,
+            @RequestHeader("X-User-Id") String customerId
+    ) {
+        return ResponseUtils.createResponseEntity(cartService.deleteCartDetail(id, customerId));
     }
 }

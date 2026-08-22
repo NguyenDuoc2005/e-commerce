@@ -2,30 +2,30 @@ package com.ecommerce.order.model.response;
 
 public class ThongKeDoanhThuResponse {
     private Double doanhSoThangNay;
-    private Integer soHoaDonThangNay;
+    private Integer soOrderThangNay;
     private Double doanhSoHomNay;
-    private Integer soHoaDonHomNay;
+    private Integer soOrderHomNay;
     private Integer hangBanDuocThangNay;
 
     public ThongKeDoanhThuResponse() {
     }
 
-    public ThongKeDoanhThuResponse(Double doanhSoThangNay, Integer soHoaDonThangNay, Double doanhSoHomNay, Integer soHoaDonHomNay, Integer hangBanDuocThangNay) {
+    public ThongKeDoanhThuResponse(Double doanhSoThangNay, Integer soOrderThangNay, Double doanhSoHomNay, Integer soOrderHomNay, Integer hangBanDuocThangNay) {
         this.doanhSoThangNay = doanhSoThangNay;
-        this.soHoaDonThangNay = soHoaDonThangNay;
+        this.soOrderThangNay = soOrderThangNay;
         this.doanhSoHomNay = doanhSoHomNay;
-        this.soHoaDonHomNay = soHoaDonHomNay;
+        this.soOrderHomNay = soOrderHomNay;
         this.hangBanDuocThangNay = hangBanDuocThangNay;
     }
 
     public Double getDoanhSoThangNay() { return doanhSoThangNay; }
     public void setDoanhSoThangNay(Double doanhSoThangNay) { this.doanhSoThangNay = doanhSoThangNay; }
-    public Integer getSoHoaDonThangNay() { return soHoaDonThangNay; }
-    public void setSoHoaDonThangNay(Integer soHoaDonThangNay) { this.soHoaDonThangNay = soHoaDonThangNay; }
+    public Integer getSoOrderThangNay() { return soOrderThangNay; }
+    public void setSoOrderThangNay(Integer soOrderThangNay) { this.soOrderThangNay = soOrderThangNay; }
     public Double getDoanhSoHomNay() { return doanhSoHomNay; }
     public void setDoanhSoHomNay(Double doanhSoHomNay) { this.doanhSoHomNay = doanhSoHomNay; }
-    public Integer getSoHoaDonHomNay() { return soHoaDonHomNay; }
-    public void setSoHoaDonHomNay(Integer soHoaDonHomNay) { this.soHoaDonHomNay = soHoaDonHomNay; }
+    public Integer getSoOrderHomNay() { return soOrderHomNay; }
+    public void setSoOrderHomNay(Integer soOrderHomNay) { this.soOrderHomNay = soOrderHomNay; }
     public Integer getHangBanDuocThangNay() { return hangBanDuocThangNay; }
     public void setHangBanDuocThangNay(Integer hangBanDuocThangNay) { this.hangBanDuocThangNay = hangBanDuocThangNay; }
 }

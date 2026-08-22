@@ -42,6 +42,48 @@ export interface ParamsGetSanPham extends PaginationParams {
 
 export interface DonMuaRequest {
   q?: string
+  status?: string
+  search?: string
+}
+
+export interface GroupedOrderItem {
+  id: string
+  product_variant_id: string
+  productId?: string
+  productName: string
+  imageUrl?: string
+  color?: string
+  size?: string
+  quantity: number
+  sale_price: number
+}
+
+export interface GroupedSubOrder {
+  id: string
+  seller_id: string
+  shop_name: string
+  seller_slug: string
+  total_after_discount: number
+  order_status: number
+  created_date: number
+  items: GroupedOrderItem[]
+}
+
+export interface GroupedOrder {
+  id: string
+  code: string
+  total_after_discount: number
+  order_status: number
+  created_date: number
+  subOrders: GroupedSubOrder[]
+}
+
+export const getGroupedOrders = async () => {
+  const res = (await request({
+    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/grouped`,
+    method: 'GET'
+  })) as AxiosResponse<{ data: GroupedOrder[] }>
+  return res.data
 }
 
 export const getDonMua = async (params: DonMuaRequest) => {

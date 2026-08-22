@@ -74,6 +74,14 @@ export const ROUTES_CONSTANTS = {
         path: 'register',
         name: 'register'
       },
+      DANG_KY_BAN_HANG: {
+        path: 'dang-ky-ban-hang',
+        name: 'dang-ky-ban-hang'
+      },
+      SHOP_DETAIL: {
+        path: 'shop/:sellerSlug',
+        name: 'shop-detail'
+      },
     }
   },
 
@@ -109,10 +117,6 @@ export const ROUTES_CONSTANTS = {
         path: 'khach-hang',
         name: 'khach-hang-admin'
       },
-      SAN_PHAM: {
-        path: 'san-pham',
-        name: 'san-pham-admin'
-      },
       LOAI_DE: {
         path: 'loai-de',
         name: 'loai-de-admin'
@@ -124,14 +128,6 @@ export const ROUTES_CONSTANTS = {
       CHAT_LIEU: {
         path: 'chat-lieu',
         name: 'chat-lieu-admin'
-      },
-      SAN_PHAM_CHI_TIET: {
-        path: 'san-pham-chi-tiet',
-        name: 'san-pham-chi-tiet-admin'
-      },
-      THEM_SAN_PHAM_CHI_TIET: {
-        path: 'them-san-pham-chi-tiet',
-        name: 'them-san-pham-chi-tiet-admin'
       },
       THEM_NHAN_VIEN: {
         path: 'them-nhan-vien',
@@ -145,21 +141,25 @@ export const ROUTES_CONSTANTS = {
         path: 'them-phieu-giam-gia',
         name: 'them-phieu-giam-gia-admin'
       },
-      BAN_HANG: {
-        path: 'ban-hang',
-        name: 'ban-hang-admin'
-      },
       VOUCHER: {
         path: 'voucher',
         name: 'voucher-admin'
       },
-      HOA_DON: {
-        path: 'hoa-don',
-        name: 'hoa-don-admin'
+      SELLER_APPROVAL: {
+        path: 'seller-approval',
+        name: 'seller-approval-admin'
       },
-      HOA_DON_DETAIL: {
-        path: 'hoa-don-detail/:maHoaDon/:id',
-        name: 'hoa-don-detail-admin'
+      BANNERS: {
+        path: 'banners',
+        name: 'platform-banners-admin'
+      },
+      PAYOUT: {
+        path: 'payout',
+        name: 'payout-admin'
+      },
+      PRODUCT_ATTRIBUTES: {
+        path: 'product-attributes',
+        name: 'product-attributes-admin'
       },
       DOT_GIAM_GIA: {
         path: 'dot-giam-gia',
@@ -176,9 +176,35 @@ export const ROUTES_CONSTANTS = {
     }
   },
 
-  ROLE_SWITCH: {
-    path: '/role-switch',
-    name: 'role-switch'
+  SELLER: {
+    path: '/seller',
+    name: 'seller',
+    children: {
+      DASHBOARD: {
+        path: 'dashboard',
+        name: 'seller-dashboard'
+      },
+      ORDERS: {
+        path: 'orders',
+        name: 'seller-orders'
+      },
+      PRODUCTS: {
+        path: 'products',
+        name: 'seller-products'
+      },
+      VOUCHERS: {
+        path: 'vouchers',
+        name: 'seller-vouchers'
+      },
+      PAYOUT: {
+        path: 'payout',
+        name: 'seller-payout'
+      },
+      REVIEWS: {
+        path: 'reviews',
+        name: 'seller-reviews'
+      },
+    }
   },
 
   REDIRECT: {

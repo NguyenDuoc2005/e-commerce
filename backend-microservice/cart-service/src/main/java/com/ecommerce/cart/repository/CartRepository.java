@@ -8,8 +8,8 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface CartRepository extends JpaRepository<Cart, String> {
-    Optional<Cart> findByKhachHangId(String khachHangId);
+    Optional<Cart> findByCustomerId(String customerId);
 
-    @Query("select cd.id from CartDetail cd where cd.cart.id = :idCart and cd.sanPhamChiTietId = :idSP")
+    @Query("select cd.id from CartDetail cd where cd.cart.id = :idCart and cd.productVariantId = :idSP")
     String checkChungSp(@Param("idCart") String idCart, @Param("idSP") String idSP);
 }

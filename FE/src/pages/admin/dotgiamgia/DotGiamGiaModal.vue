@@ -264,7 +264,7 @@ import {
   getColorsFromAPI,
   getSizesFromAPI,
   type DotGiamGiaResponse,
-  DotGiamGiaRequest,
+  type DotGiamGiaRequest,
   getSanPhamChiTietsByDot,
 } from "@/services/api/admin/dotgiamgia.api";
 import type { Dayjs } from "dayjs";
@@ -622,8 +622,8 @@ const fetchProducts = async () => {
       products = response.data.data;
       availableProducts.value = products.map((product) => ({
         id: product.id,
-        ma: product.ma,
-        ten: product.ten,
+        ma: product.code,
+        ten: product.name,
         status: product.status,
         trangThai:
           product.status === "ACTIVE" ? "Đang kinh doanh" : "Ngừng kinh doanh",

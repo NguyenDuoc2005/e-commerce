@@ -40,15 +40,23 @@
             <i :class="'ri-arrow-' + (showFullDescription ? 'up' : 'down') + '-s-line ms-1'"></i>
           </button>
         </div>
+
+        <div v-if="product.attributes?.length" class="border-top pt-4 product-attributes">
+          <h5 class="fw-bold mb-3">Thông tin sản phẩm</h5>
+          <dl>
+            <template v-for="attribute in product.attributes" :key="attribute.attributeId">
+              <dt>{{ attribute.name }}</dt>
+              <dd>{{ dynamicAttributeValue(attribute) }}</dd>
+            </template>
+          </dl>
+        </div>
       </div>
 
       <!-- Cột phải -->
       <div class="col-md-6">
         <div class="bg-white border rounded shadow-sm p-3 d-flex flex-column gap-2">
           <h5 class="fw-bold mb-1">{{ product.tenSanPham }}</h5>
-          <div class="text-muted small">
-            Thương hiệu: <strong>{{ product.thuongHieu?.tenThuongHieu || "-" }}</strong>
-          </div>
+          <div class="text-muted small">{{ product.danhMuc?.tenDanhMuc || product.category?.tenCategory || '' }}</div>
 
           <!-- Giá -->
           <div class="text-danger fw-bold fs-6 mb-2">
@@ -74,7 +82,7 @@
           </div>
 
           <!-- Màu sắc -->
-          <div>
+          <div v-if="uniqueColors.length">
             <label class="form-label small fw-semibold mb-1">Màu sắc</label>
             <div class="d-flex flex-wrap gap-2">
               <div
@@ -103,7 +111,7 @@
           </div>
 
           <!-- Kích thước -->
-          <div>
+          <div v-if="filteredSizes.length">
             <label class="form-label small fw-semibold mb-1">Kích cỡ</label>
             <div class="d-flex flex-wrap gap-2">
               <span
@@ -151,6 +159,46 @@
         </div>
       </div>
     </div>
+
+    <section v-if="product.sellerId" class="marketplace-section shop-summary">
+      <div class="shop-summary__identity">
+        <img v-if="product.logoUrl" :src="product.logoUrl" alt="Shop" />
+        <div v-else class="shop-summary__fallback">{{ product.shopName?.charAt(0) || 'S' }}</div>
+        <div>
+          <h2>{{ product.shopName || 'Shop marketplace' }}</h2>
+          <div class="text-muted small">
+            {{ product.rating ?? 0 }} sao · {{ product.followerCount ?? 0 }} lượt theo dõi
+          </div>
+        </div>
+      </div>
+      <button v-if="product.sellerSlug" class="btn btn-outline-primary btn-sm" @click="goToShop">
+        <i class="ri-store-2-line me-1"></i> Xem shop
+      </button>
+    </section>
+
+    <section class="marketplace-section product-reviews">
+      <div class="reviews-head">
+        <div>
+          <h2>Đánh giá sản phẩm</h2>
+          <span class="text-muted small">{{ product.ratingAverage ?? 0 }} / 5 · {{ product.ratingCount ?? reviews.length }} đánh giá</span>
+        </div>
+      </div>
+      <div v-if="reviewsLoading" class="text-muted py-3">Đang tải đánh giá...</div>
+      <div v-else-if="!reviews.length" class="text-muted py-3">Sản phẩm chưa có đánh giá.</div>
+      <div v-else class="review-list">
+        <article v-for="review in reviews" :key="review.id" class="review-item">
+          <a-rate :value="review.productRating" disabled />
+          <p>{{ review.comment || 'Khách hàng không để lại bình luận.' }}</p>
+          <div v-if="review.imageUrls?.length" class="review-images">
+            <img v-for="image in review.imageUrls" :key="image" :src="image" alt="Ảnh đánh giá" />
+          </div>
+          <div v-if="review.sellerReply" class="seller-reply">
+            <strong>Phản hồi của shop</strong>
+            <span>{{ review.sellerReply }}</span>
+          </div>
+        </article>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -163,6 +211,7 @@ import { createCartDetail } from "@/services/api/permitall/cart/cart";
 import { localStorageAction } from "@/utils/storage";
 import { USER_INFO_STORAGE_KEY, CHECKOUT_STORAGE_KEY,CART_STORAGE_KEY  } from "@/constants/storageKey";
 import { toast } from "vue3-toastify";
+import { getPublicReviews, type Review } from "@/services/api/seller/review.api";
 
 const router = useRouter();
 const route = useRoute();
@@ -175,6 +224,8 @@ const colorSelected = ref<any>(null);
 const sizeSelected = ref<any>(null);
 const cart = ref({ quantity: 1 });
 const showFullDescription = ref(false);
+const reviews = ref<Review[]>([]);
+const reviewsLoading = ref(false);
 
 const breadcrumbRoutes = [
   { name: "Trang chủ", path: "/" },
@@ -185,6 +236,7 @@ const breadcrumbRoutes = [
 onMounted(async () => {
   await loadSanPhamChiTiet();
   pickVariantFromParamOrDefault();
+  await loadReviews();
 });
 
 /** Hàm gọi API */
@@ -194,6 +246,24 @@ async function loadSanPhamChiTiet() {
   product.value = res.data;
 }
 
+async function loadReviews() {
+  if (!product.value?.id) return;
+  reviewsLoading.value = true;
+  try {
+    const response = await getPublicReviews({ productId: product.value.id });
+    reviews.value = response.data ?? [];
+  } catch {
+    reviews.value = [];
+  } finally {
+    reviewsLoading.value = false;
+  }
+}
+
+function goToShop() {
+  if (!product.value?.sellerSlug) return;
+  router.push({ name: 'shop-detail', params: { sellerSlug: product.value.sellerSlug } });
+}
+
 /** Hàm chọn variant theo param nếu có, không thì lấy mặc định */
 function pickVariantFromParamOrDefault() {
   const variants = product.value?.chiTietSanPham || [];
@@ -201,10 +271,10 @@ function pickVariantFromParamOrDefault() {
 
   if (colorIdParam && sizeIdParam) {
     chosenVariant = variants.find(
-      (ct) => ct.mauSac.id === colorIdParam && ct.kichCo.id === sizeIdParam
+      (ct) => ct.mauSac?.id === colorIdParam && ct.kichCo?.id === sizeIdParam
     );
   } else if (colorIdParam) {
-    chosenVariant = variants.find((ct) => ct.mauSac.id === colorIdParam);
+    chosenVariant = variants.find((ct) => ct.mauSac?.id === colorIdParam);
   }
 
   if (chosenVariant) {
@@ -230,6 +300,7 @@ const uniqueColors = computed(() => {
   return (product.value?.chiTietSanPham || [])
     .map((ct) => ct.mauSac)
     .filter((color) => {
+      if (!color) return false;
       if (seen.has(color.id)) return false;
       seen.add(color.id);
       return true;
@@ -238,16 +309,24 @@ const uniqueColors = computed(() => {
 
 /** Lấy danh sách size phù hợp với màu đang chọn */
 const filteredSizes = computed(() => {
+  const seen = new Set();
   return (product.value?.chiTietSanPham || [])
-    .filter((ct) => ct.mauSac.id === colorSelected.value?.id)
-    .map((ct) => ct.kichCo);
+    .filter((ct) => !colorSelected.value || ct.mauSac?.id === colorSelected.value.id)
+    .map((ct) => ct.kichCo)
+    .filter((size) => {
+      if (!size || seen.has(size.id)) return false;
+      seen.add(size.id);
+      return true;
+    });
 });
 
 /** Lấy variant hiện tại (đúng màu + size) */
 const currentVariant = computed(() => {
-  return (product.value?.chiTietSanPham || []).find(
-    (ct) => ct.mauSac.id === colorSelected.value?.id && ct.kichCo.id === sizeSelected.value?.id
-  );
+  const variants = product.value?.chiTietSanPham || [];
+  return variants.find((ct) =>
+    (ct.mauSac ? ct.mauSac.id === colorSelected.value?.id : !colorSelected.value)
+    && (ct.kichCo ? ct.kichCo.id === sizeSelected.value?.id : !sizeSelected.value)
+  ) || (uniqueColors.value.length === 0 && filteredSizes.value.length === 0 ? variants[0] : null);
 });
 
 /** Giá hiển thị */
@@ -265,8 +344,15 @@ const displayedDescription = computed(() =>
 
 const hasMoreDescription = computed(() => (product.value?.moTa || "").split("\n").length > 2);
 
+function dynamicAttributeValue(attribute: any) {
+  if (attribute.dataType === 'TEXT') return attribute.textValue || '-';
+  if (attribute.dataType === 'NUMBER') return `${attribute.numberValue ?? '-'}${attribute.unit ? ` ${attribute.unit}` : ''}`;
+  const options = new Map((attribute.options || []).map((option: any) => [option.id, option.value]));
+  return (attribute.selectedOptionIds || []).map((id: string) => options.get(id)).filter(Boolean).join(', ') || '-';
+}
+
 const errValidate = computed(() => {
-  if (!currentVariant.value) return { cart: "Vui lòng chọn đủ màu và kích cỡ" };
+  if (!currentVariant.value) return { cart: "Vui lòng chọn phân loại sản phẩm" };
   if (cart.value.quantity > currentVariant.value.soLuong) return { cart: "Vượt quá tồn kho" };
   if (cart.value.quantity < 1) return { cart: "Số lượng không hợp lệ" };
   return { cart: "" };
@@ -276,8 +362,9 @@ function handleChooseColor(color: any) {
   colorSelected.value = color;
   // Nếu size hiện tại không tồn tại với màu này, chọn size đầu tiên có thể chọn
   const sizesWithColor = (product.value?.chiTietSanPham || [])
-    .filter((ct) => ct.mauSac.id === color.id)
-    .map((ct) => ct.kichCo);
+    .filter((ct) => ct.mauSac?.id === color.id)
+    .map((ct) => ct.kichCo)
+    .filter(Boolean);
   if (!sizesWithColor.some((sz) => sz.id === sizeSelected.value?.id)) {
     sizeSelected.value = sizesWithColor[0] || null;
   }
@@ -456,6 +543,51 @@ function buyNow() {
   transition: box-shadow 0.18s;
 }
 
+.marketplace-section {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+.shop-summary,
+.shop-summary__identity,
+.reviews-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.shop-summary__identity { justify-content: flex-start; }
+.shop-summary__identity img,
+.shop-summary__fallback {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.shop-summary__fallback {
+  display: grid;
+  place-items: center;
+  background: #111827;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+}
+.shop-summary h2,
+.product-reviews h2 { margin: 0; font-size: 20px; font-weight: 700; }
+.product-attributes dl { display: grid; grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.5fr); margin: 0; }
+.product-attributes dt,
+.product-attributes dd { margin: 0; padding: 9px 0; border-bottom: 1px solid #e5e7eb; }
+.product-attributes dt { color: #64748b; font-weight: 600; }
+.product-attributes dd { color: #111827; overflow-wrap: anywhere; }
+.review-list { display: grid; gap: 14px; margin-top: 16px; }
+.review-item { padding-top: 14px; border-top: 1px solid #e5e7eb; }
+.review-item p { margin: 8px 0; }
+.review-images { display: flex; flex-wrap: wrap; gap: 8px; }
+.review-images img { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; }
+.seller-reply { display: grid; gap: 4px; margin-top: 10px; padding: 10px 12px; background: #f1f5f9; border-radius: 6px; }
+
 /* Ribbon sale góc trên trái */
 .sale-ribbon-main {
   position: absolute;
@@ -500,6 +632,7 @@ function buyNow() {
 }
 
 @media (max-width: 767px) {
+  .shop-summary { align-items: flex-start; flex-direction: column; }
   .product-img-box {
     min-height: 260px;
     height: 260px;

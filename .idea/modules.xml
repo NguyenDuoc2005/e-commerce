@@ -10,7 +10,9 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/discovery-server/backend-microservice.discovery-server.main.iml" filepath="$PROJECT_DIR$/.idea/modules/discovery-server/backend-microservice.discovery-server.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/notification-service/backend-microservice.notification-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/notification-service/backend-microservice.notification-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/order-service/backend-microservice.order-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/order-service/backend-microservice.order-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/payout-service/backend-microservice.payout-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/payout-service/backend-microservice.payout-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/promotion-service/backend-microservice.promotion-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/promotion-service/backend-microservice.promotion-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/seller-service/backend-microservice.seller-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/seller-service/backend-microservice.seller-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/user-service/backend-microservice.user-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/user-service/backend-microservice.user-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/e-commerce.iml" filepath="$PROJECT_DIR$/.idea/e-commerce.iml" />
     </modules>

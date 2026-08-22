@@ -1,97 +1,71 @@
-```vue
 <template>
-  <div id="bannerCarousel" class="carousel slide w-100" data-bs-ride="carousel"
-    style="max-width: 100vw; margin: 0 auto;">
-    <div class="carousel-inner overflow-hidden" style="width: 100%;">
+  <div v-if="loading" class="banner-skeleton" />
+  <div v-else-if="banners.length" id="bannerCarousel" class="carousel slide w-100" data-bs-ride="carousel">
+    <div class="carousel-inner overflow-hidden">
       <div v-for="(item, index) in banners" :key="item.id" class="carousel-item" :class="{ active: index === 0 }">
-        <img :src="item.image" class="d-block w-100 banner-img" alt="Banner" />
+        <router-link v-if="item.targetUrl?.startsWith('/')" :to="item.targetUrl">
+          <img :src="item.imageUrl" class="d-block w-100 banner-img" :alt="item.title" />
+        </router-link>
+        <a v-else :href="item.targetUrl || undefined" :target="item.targetUrl ? '_blank' : undefined" rel="noopener">
+          <img :src="item.imageUrl" class="d-block w-100 banner-img" :alt="item.title" />
+        </a>
       </div>
     </div>
-
-    <!-- Dots -->
-    <div class="carousel-indicators">
-      <button v-for="(item, index) in banners" :key="'dot-' + index" type="button" data-bs-target="#bannerCarousel"
-        :data-bs-slide-to="index" :class="{ active: index === 0 }" :aria-current="index === 0"
-        :aria-label="'Slide ' + (index + 1)"></button>
+    <div v-if="banners.length > 1" class="carousel-indicators">
+      <button v-for="(item, index) in banners" :key="`dot-${item.id}`" type="button"
+        data-bs-target="#bannerCarousel" :data-bs-slide-to="index" :class="{ active: index === 0 }"
+        :aria-current="index === 0" :aria-label="`Slide ${index + 1}`" />
     </div>
-
-    <!-- Controls -->
-    <button class="carousel-control-prev" type="button" data-bs-target="#bannerCarousel" data-bs-slide="prev">
-      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-      <span class="visually-hidden">Previous</span>
-    </button>
-    <button class="carousel-control-next" type="button" data-bs-target="#bannerCarousel" data-bs-slide="next">
-      <span class="carousel-control-next-icon" aria-hidden="true"></span>
-      <span class="visually-hidden">Next</span>
-    </button>
+    <template v-if="banners.length > 1">
+      <button class="carousel-control-prev" type="button" data-bs-target="#bannerCarousel" data-bs-slide="prev" aria-label="Banner truoc">
+        <span class="carousel-control-prev-icon" aria-hidden="true" />
+      </button>
+      <button class="carousel-control-next" type="button" data-bs-target="#bannerCarousel" data-bs-slide="next" aria-label="Banner tiep theo">
+        <span class="carousel-control-next-icon" aria-hidden="true" />
+      </button>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { nextTick, onMounted, ref } from 'vue'
+import { getPublicBanners, type PlatformBanner } from '@/services/api/admin/banner.api'
 
-const banners = [
-  {
-    id: 1,
-    image: 'https://bizweb.dktcdn.net/100/347/092/themes/708609/assets/slider_1.jpg?1753792346461',
-  },
-  {
-    id: 2,
-    image: 'https://mka.com.vn/wp-content/uploads/2019/09/a-1568x777.jpg',
-  },
-  {
-    id: 3,
-    image: 'http://introngoi.com/wp-content/uploads/2017/03/mau-in-poster-an-tuong-2.jpg',
-  },
-];
+const banners = ref<PlatformBanner[]>([])
+const loading = ref(true)
 
-// Initialize Bootstrap carousel on component mount
-onMounted(() => {
-  const carouselElement = document.getElementById('bannerCarousel');
-  if (carouselElement) {
-    // Ensure Bootstrap's Carousel is available
-    if (typeof window.bootstrap !== 'undefined') {
-      new window.bootstrap.Carousel(carouselElement, {
-        interval: 5000, // Auto-slide every 5 seconds
-        ride: 'carousel',
-      });
+onMounted(async () => {
+  try {
+    const response = await getPublicBanners()
+    banners.value = response.data ?? []
+    await nextTick()
+    const carouselElement = document.getElementById('bannerCarousel')
+    if (carouselElement && typeof (window as any).bootstrap !== 'undefined') {
+      new (window as any).bootstrap.Carousel(carouselElement, { interval: 5000, ride: 'carousel' })
     }
+  } catch {
+    banners.value = []
+  } finally {
+    loading.value = false
   }
-});
+})
 </script>
 
 <style scoped>
-.carousel-inner {
+#bannerCarousel,
+.carousel-inner,
+.banner-skeleton {
   width: 100%;
-  height: 520px;  
-  background: #fff; 
+  min-height: 180px;
+  aspect-ratio: 12 / 5;
+  background: #f1f3f5;
 }
-
 .banner-img {
   width: 100%;
-  height: 100%;
-  object-fit: contain;    
-  object-position: center;
+  aspect-ratio: 12 / 5;
+  object-fit: cover;
   display: block;
-  background: #fff;
 }
-
-@media (max-width: 991px) {
-  .carousel-inner {
-    height: 320px;
-  }
-  .banner-img {
-    height: 100%;
-  }
-}
-
-@media (max-width: 576px) {
-  .carousel-inner {
-    height: 180px;
-  }
-  .banner-img {
-    height: 100%;
-  }
-}
+.banner-skeleton { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.55; } }
 </style>
-```

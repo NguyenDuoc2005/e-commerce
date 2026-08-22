@@ -23,7 +23,7 @@ public class ProfileController {
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable String id) {
-        return ResponseUtils.createResponseEntity(customerService.getKhachHangById(id));
+        return ResponseUtils.createResponseEntity(customerService.getCustomerById(id));
     }
 
     @GetMapping("/hd/{id}")
@@ -33,6 +33,6 @@ public class ProfileController {
 
     @PostMapping
     public ResponseEntity<?> modify(@ModelAttribute UserUpsertRequest request) {
-        return ResponseUtils.createResponseEntity(customerService.modifyKhachHang(request));
+        return ResponseUtils.createResponseEntity(customerService.modifyCustomer(request));
     }
 }

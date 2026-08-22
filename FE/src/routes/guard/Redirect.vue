@@ -24,9 +24,11 @@ onMounted(() => {
       refreshToken
     })
 
-    // Điều hướng theo role duy nhất
-    if (user.role === ROLES.ADMIN) {
-      router.push({ name: ROUTES_CONSTANTS.ADMIN.children.BAN_HANG.name })
+    const roles = user.roles?.length ? user.roles : [user.role]
+    if (roles.includes(ROLES.ADMIN)) {
+      router.push({ name: ROUTES_CONSTANTS.ADMIN.children.THONG_KE.name })
+    } else if (roles.includes(ROLES.SELLER)) {
+      router.push({ name: ROUTES_CONSTANTS.SELLER.children.DASHBOARD.name })
     } else {
       router.push({ name: ROUTES_CONSTANTS.USERS.children.TRANGCHU.name })
     }

@@ -4,7 +4,7 @@
       <div class="w-100">
         <!-- Các thành phần chính -->
         <HomePage  />
-        <!-- <ShopList /> -->
+        <ShopList />
          <!-- <DiscountedProducts/> -->
         <NewProduct/>
         <PromotionList />

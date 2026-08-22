@@ -65,6 +65,8 @@ $catalogJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_catalog`?$jdbcOptions"
 $promotionJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_promotion`?$jdbcOptions"
 $cartJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_cart`?$jdbcOptions"
 $orderJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_order`?$jdbcOptions"
+$sellerJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_seller`?$jdbcOptions"
+$payoutJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_payout`?$jdbcOptions"
 $dbEnv = @{
     AUTH_DATASOURCE_URL = $authJdbc
     AUTH_DATASOURCE_USERNAME = $DbUser
@@ -84,6 +86,12 @@ $dbEnv = @{
     ORDER_DATASOURCE_URL = $orderJdbc
     ORDER_DATASOURCE_USERNAME = $DbUser
     ORDER_DATASOURCE_PASSWORD = $DbPassword
+    SELLER_DATASOURCE_URL = $sellerJdbc
+    SELLER_DATASOURCE_USERNAME = $DbUser
+    SELLER_DATASOURCE_PASSWORD = $DbPassword
+    PAYOUT_DATASOURCE_URL = $payoutJdbc
+    PAYOUT_DATASOURCE_USERNAME = $DbUser
+    PAYOUT_DATASOURCE_PASSWORD = $DbPassword
 }
 
 Start-ServiceProcess "discovery-server" ":discovery-server:bootRun"
@@ -95,6 +103,8 @@ Start-ServiceProcess "catalog-service" ":catalog-service:bootRun" $dbEnv
 Start-ServiceProcess "promotion-service" ":promotion-service:bootRun" $dbEnv
 Start-ServiceProcess "cart-service" ":cart-service:bootRun" $dbEnv
 Start-ServiceProcess "order-service" ":order-service:bootRun" $dbEnv
+Start-ServiceProcess "seller-service" ":seller-service:bootRun" $dbEnv
+Start-ServiceProcess "payout-service" ":payout-service:bootRun" $dbEnv
 
 if ($WithNotification) {
     Start-ServiceProcess "notification-service" ":notification-service:bootRun" @{

@@ -1,13 +1,14 @@
 package com.ecommerce.order.service;
 
-import com.ecommerce.order.constant.EntityTrangThaiHoaDon;
+import com.ecommerce.order.constant.OrderStatusConstant;
 import com.ecommerce.order.client.CatalogClient;
 import com.ecommerce.order.model.response.ThongKeDoanhThuResponse;
 import com.ecommerce.order.model.response.ThongKeDonHangResponse;
-import com.ecommerce.order.model.response.ThongKeTrangThaiHoaDonResponse;
-import com.ecommerce.order.model.response.TopSanPhamBanChayResponse;
-import com.ecommerce.order.repository.HoaDonRepository;
+import com.ecommerce.order.model.response.OrderStatusStatisticsResponse;
+import com.ecommerce.order.model.response.TopSellingProductResponse;
+import com.ecommerce.order.repository.OrderRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,12 +21,14 @@ import java.util.stream.Collectors;
 
 @Service
 public class ThongKeDoanhThuService {
-    private final HoaDonRepository hoaDonRepository;
+    private final OrderRepository hoaDonRepository;
     private final CatalogClient catalogClient;
+    private final JdbcTemplate jdbcTemplate;
 
-    public ThongKeDoanhThuService(HoaDonRepository hoaDonRepository, CatalogClient catalogClient) {
+    public ThongKeDoanhThuService(OrderRepository hoaDonRepository, CatalogClient catalogClient, JdbcTemplate jdbcTemplate) {
         this.hoaDonRepository = hoaDonRepository;
         this.catalogClient = catalogClient;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public ThongKeDoanhThuResponse getThongKeDoanhThu() {
@@ -41,9 +44,9 @@ public class ThongKeDoanhThuService {
         Long endOfDayTs = endOfDay.toEpochSecond(zone) * 1000;
         return new ThongKeDoanhThuResponse(
                 defaultDouble(hoaDonRepository.getDoanhSoThangNay(startOfMonthTs, endOfMonthTs)),
-                defaultInteger(hoaDonRepository.getSoHoaDonThangNay(startOfMonthTs, endOfMonthTs)),
+                defaultInteger(hoaDonRepository.getSoOrderThangNay(startOfMonthTs, endOfMonthTs)),
                 defaultDouble(hoaDonRepository.getDoanhSoHomNay(startOfDayTs, endOfDayTs)),
-                defaultInteger(hoaDonRepository.getSoHoaDonHomNay(startOfDayTs, endOfDayTs)),
+                defaultInteger(hoaDonRepository.getSoOrderHomNay(startOfDayTs, endOfDayTs)),
                 defaultInteger(hoaDonRepository.getHangBanDuocThangNay(startOfMonthTs, endOfMonthTs))
         );
     }
@@ -62,34 +65,66 @@ public class ThongKeDoanhThuService {
         return result;
     }
 
-    public List<TopSanPhamBanChayResponse> layTop3SanPhamBanChay(Long startDate, Long endDate) {
-        List<TopSanPhamBanChayResponse> result = new ArrayList<>();
-        for (Object[] row : hoaDonRepository.layTop3SanPhamBanChay(startDate, endDate)) {
+    public List<TopSellingProductResponse> layTop3ProductBanChay(Long startDate, Long endDate) {
+        List<TopSellingProductResponse> result = new ArrayList<>();
+        for (Object[] row : hoaDonRepository.layTop3ProductBanChay(startDate, endDate)) {
             Map<String, Object> product = catalogClient.getProductDetail((String) row[0]);
-            TopSanPhamBanChayResponse response = new TopSanPhamBanChayResponse();
+            TopSellingProductResponse response = new TopSellingProductResponse();
             response.setId((String) row[0]);
-            response.setMaSanPham((String) product.get("ma"));
-            response.setTenSanPham((String) product.get("ten"));
-            response.setAnhSanPham((String) product.get("anh"));
+            response.setMaProduct((String) product.get("code"));
+            response.setTenProduct((String) product.get("name"));
+            response.setAnhProduct((String) product.get("imageUrl"));
             response.setSoLuongBan(((Number) row[1]).longValue());
             response.setDoanhThu(row[2] == null ? 0.0 : ((Number) row[2]).doubleValue());
-            response.setThuongHieu((String) product.get("tenThuongHieu"));
-            response.setGiaBan(row[3] == null ? 0.0 : ((Number) row[3]).doubleValue());
+            response.setBrand((String) product.get("tenBrand"));
+            response.setSalePrice(row[3] == null ? 0.0 : ((Number) row[3]).doubleValue());
             result.add(response);
         }
         return result;
     }
 
-    public List<ThongKeTrangThaiHoaDonResponse> thongKeTiLeTrangThaiHoaDon(Long startDate, Long endDate) {
-        long total = hoaDonRepository.countTotalHoaDonInPeriod(startDate, endDate);
-        Map<Integer, Long> statusMap = hoaDonRepository.countHoaDonByTrangThaiInPeriod(startDate, endDate).stream()
+    public List<OrderStatusStatisticsResponse> thongKeTiLeTrangThaiOrder(Long startDate, Long endDate) {
+        long total = hoaDonRepository.countTotalOrderInPeriod(startDate, endDate);
+        Map<Integer, Long> statusMap = hoaDonRepository.countOrderByTrangThaiInPeriod(startDate, endDate).stream()
                 .collect(Collectors.toMap(row -> ((Number) row[0]).intValue(), row -> ((Number) row[1]).longValue()));
-        List<ThongKeTrangThaiHoaDonResponse> result = new ArrayList<>();
-        for (EntityTrangThaiHoaDon status : EntityTrangThaiHoaDon.values()) {
+        List<OrderStatusStatisticsResponse> result = new ArrayList<>();
+        for (OrderStatusConstant status : OrderStatusConstant.values()) {
             long count = statusMap.getOrDefault(status.ordinal(), 0L);
-            result.add(new ThongKeTrangThaiHoaDonResponse(status.name(), count, total > 0 ? (count * 100.0 / total) : 0));
+            result.add(new OrderStatusStatisticsResponse(status.name(), count, total > 0 ? (count * 100.0 / total) : 0));
         }
         return result;
+    }
+
+    public Map<String, Object> marketplaceDashboard() {
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("gmv", scalarDouble("SELECT COALESCE(SUM(total_after_discount), 0) FROM order_seller WHERE order_status = 4"));
+        result.put("totalSubOrders", scalarLong("SELECT COUNT(*) FROM order_seller"));
+        result.put("completedSubOrders", scalarLong("SELECT COUNT(*) FROM order_seller WHERE order_status = 4"));
+        result.put("activeSellers", scalarLong("SELECT COUNT(DISTINCT seller_id) FROM order_seller"));
+        result.put("topSellers", jdbcTemplate.queryForList("""
+                SELECT seller_id AS sellerId, MAX(shop_name) AS shopName,
+                       COUNT(*) AS orderCount, COALESCE(SUM(total_after_discount), 0) AS revenue
+                FROM order_seller WHERE order_status = 4
+                GROUP BY seller_id ORDER BY revenue DESC LIMIT 10
+                """));
+        result.put("topProducts", jdbcTemplate.queryForList("""
+                SELECT oi.product_variant_id AS productVariantId, MAX(oi.name) AS productName,
+                       SUM(oi.quantity) AS soldCount, SUM(oi.quantity * oi.sale_price) AS revenue
+                FROM order_item oi JOIN order_seller os ON os.id = oi.order_seller_id
+                WHERE os.order_status = 4
+                GROUP BY oi.product_variant_id ORDER BY soldCount DESC LIMIT 10
+                """));
+        return result;
+    }
+
+    private double scalarDouble(String sql) {
+        Double value = jdbcTemplate.queryForObject(sql, Double.class);
+        return value == null ? 0D : value;
+    }
+
+    private long scalarLong(String sql) {
+        Long value = jdbcTemplate.queryForObject(sql, Long.class);
+        return value == null ? 0L : value;
     }
 
     private Double defaultDouble(Double value) { return value == null ? 0.0 : value; }

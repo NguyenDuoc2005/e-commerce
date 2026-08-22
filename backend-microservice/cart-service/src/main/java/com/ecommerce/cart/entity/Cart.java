@@ -6,11 +6,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "gio_hang")
+@Table(name = "cart")
 public class Cart extends PrimaryEntity {
-    @Column(name = "id_khach_hang")
-    private String khachHangId;
+    @Column(name = "customer_id")
+    private String customerId;
 
-    public String getKhachHangId() { return khachHangId; }
-    public void setKhachHangId(String khachHangId) { this.khachHangId = khachHangId; }
+    public String getCustomerId() { return customerId; }
+    public void setCustomerId(String customerId) { this.customerId = customerId; }
 }

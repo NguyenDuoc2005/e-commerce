@@ -1,7 +1,7 @@
 package com.ecommerce.catalog.service;
 
 import com.ecommerce.catalog.constant.EntityStatus;
-import com.ecommerce.catalog.entity.MauSac;
+import com.ecommerce.catalog.entity.Color;
 import com.ecommerce.catalog.entity.base.CatalogAttribute;
 import com.ecommerce.catalog.model.request.AttributeRequest;
 import com.ecommerce.catalog.model.request.AttributeSearchRequest;
@@ -55,10 +55,10 @@ public class AttributeService {
             Optional<? extends CatalogAttribute> existing = findById(definition, request.getId());
             if (existing.isPresent()) {
                 CatalogAttribute attribute = existing.get();
-                attribute.setMa(request.getCode());
-                attribute.setTen(request.getTen());
-                if (attribute instanceof MauSac mauSac) {
-                    mauSac.setMau(request.getColor());
+                attribute.setCode(request.getCode());
+                attribute.setName(request.getName());
+                if (attribute instanceof Color color) {
+                    color.setMau(request.getColor());
                 }
                 save(definition, attribute);
                 return new ResponseObject<>(attribute, HttpStatus.OK, definition.updateSuccessMessage());
@@ -71,11 +71,11 @@ public class AttributeService {
         }
 
         CatalogAttribute attribute = definition.newEntity();
-        attribute.setMa(request.getCode());
-        attribute.setTen(request.getTen());
+        attribute.setCode(request.getCode());
+        attribute.setName(request.getName());
         attribute.setStatus(EntityStatus.ACTIVE);
-        if (attribute instanceof MauSac mauSac) {
-            mauSac.setMau(request.getColor());
+        if (attribute instanceof Color color) {
+            color.setMau(request.getColor());
         }
         save(definition, attribute);
         return new ResponseObject<>(attribute, HttpStatus.CREATED, definition.createSuccessMessage());
@@ -104,7 +104,7 @@ public class AttributeService {
     private <T extends CatalogAttribute> Page<T> search(Class<T> entityClass, String q, Pageable pageable) {
         String queryText = """
                 SELECT e FROM %s e
-                WHERE (:q IS NULL OR :q = '' OR LOWER(e.ma) LIKE LOWER(CONCAT('%%', :q, '%%')) OR LOWER(e.ten) LIKE LOWER(CONCAT('%%', :q, '%%')))
+                WHERE (:q IS NULL OR :q = '' OR LOWER(e.code) LIKE LOWER(CONCAT('%%', :q, '%%')) OR LOWER(e.name) LIKE LOWER(CONCAT('%%', :q, '%%')))
                 """.formatted(entityClass.getSimpleName());
         TypedQuery<T> query = entityManager.createQuery(queryText, entityClass);
         query.setParameter("q", q);
@@ -113,7 +113,7 @@ public class AttributeService {
 
         String countText = """
                 SELECT COUNT(e) FROM %s e
-                WHERE (:q IS NULL OR :q = '' OR LOWER(e.ma) LIKE LOWER(CONCAT('%%', :q, '%%')) OR LOWER(e.ten) LIKE LOWER(CONCAT('%%', :q, '%%')))
+                WHERE (:q IS NULL OR :q = '' OR LOWER(e.code) LIKE LOWER(CONCAT('%%', :q, '%%')) OR LOWER(e.name) LIKE LOWER(CONCAT('%%', :q, '%%')))
                 """.formatted(entityClass.getSimpleName());
         Long total = entityManager.createQuery(countText, Long.class)
                 .setParameter("q", q)

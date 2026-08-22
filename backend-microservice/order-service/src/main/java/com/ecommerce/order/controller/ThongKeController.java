@@ -2,8 +2,8 @@ package com.ecommerce.order.controller;
 
 import com.ecommerce.order.model.response.ThongKeDoanhThuResponse;
 import com.ecommerce.order.model.response.ThongKeDonHangResponse;
-import com.ecommerce.order.model.response.ThongKeTrangThaiHoaDonResponse;
-import com.ecommerce.order.model.response.TopSanPhamBanChayResponse;
+import com.ecommerce.order.model.response.OrderStatusStatisticsResponse;
+import com.ecommerce.order.model.response.TopSellingProductResponse;
 import com.ecommerce.order.service.ThongKeDoanhThuService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/admin/thong-ke")
@@ -34,31 +35,36 @@ public class ThongKeController {
 
     @GetMapping("/don-hang-hoan-thanh")
     public ResponseEntity<List<ThongKeDonHangResponse>> thongKeDonHangHoanThanhTheoKhoangThoiGian(
-            @RequestParam("ngayBatDau") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate ngayBatDau,
-            @RequestParam("ngayKetThuc") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate ngayKetThuc
+            @RequestParam("startDate") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate endDate
     ) {
-        Long start = ngayBatDau.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
-        Long end = ngayKetThuc.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        Long start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        Long end = endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
         return ResponseEntity.ok(service.thongKeDonHangHoanThanhTheoKhoangThoiGian(start, end));
     }
 
     @GetMapping("/top-san-pham-ban-chay")
-    public ResponseEntity<List<TopSanPhamBanChayResponse>> layTop3SanPhamBanChay(
-            @RequestParam(value = "ngayBatDau", required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate ngayBatDau,
-            @RequestParam(value = "ngayKetThuc", required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate ngayKetThuc
+    public ResponseEntity<List<TopSellingProductResponse>> layTop3ProductBanChay(
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate endDate
     ) {
-        Long start = ngayBatDau == null ? null : ngayBatDau.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
-        Long end = ngayKetThuc == null ? null : ngayKetThuc.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-        return ResponseEntity.ok(service.layTop3SanPhamBanChay(start, end));
+        Long start = startDate == null ? null : startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        Long end = endDate == null ? null : endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return ResponseEntity.ok(service.layTop3ProductBanChay(start, end));
     }
 
     @GetMapping("/ti-le-trang-thai")
-    public ResponseEntity<List<ThongKeTrangThaiHoaDonResponse>> thongKeTiLeTrangThaiHoaDon(
-            @RequestParam("ngayBatDau") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate ngayBatDau,
-            @RequestParam("ngayKetThuc") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate ngayKetThuc
+    public ResponseEntity<List<OrderStatusStatisticsResponse>> thongKeTiLeTrangThaiOrder(
+            @RequestParam("startDate") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate endDate
     ) {
-        Long start = ngayBatDau.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
-        Long end = ngayKetThuc.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-        return ResponseEntity.ok(service.thongKeTiLeTrangThaiHoaDon(start, end));
+        Long start = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        Long end = endDate.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return ResponseEntity.ok(service.thongKeTiLeTrangThaiOrder(start, end));
+    }
+
+    @GetMapping("/marketplace-dashboard")
+    public ResponseEntity<Map<String, Object>> marketplaceDashboard() {
+        return ResponseEntity.ok(service.marketplaceDashboard());
     }
 }

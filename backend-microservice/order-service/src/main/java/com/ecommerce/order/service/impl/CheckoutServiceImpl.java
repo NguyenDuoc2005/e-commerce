@@ -5,9 +5,9 @@ import com.ecommerce.order.client.CartClient;
 import com.ecommerce.order.client.CatalogClient;
 import com.ecommerce.order.client.PromotionClient;
 import com.ecommerce.order.client.UserClient;
-import com.ecommerce.order.constant.EntityLoaiHoaDon;
+import com.ecommerce.order.constant.OrderTypeConstant;
 import com.ecommerce.order.constant.EntityPhuongThucThanhToan;
-import com.ecommerce.order.constant.EntityTrangThaiHoaDon;
+import com.ecommerce.order.constant.OrderStatusConstant;
 import com.ecommerce.order.model.request.CheckoutProductItem;
 import com.ecommerce.order.model.request.CheckoutRequest;
 import com.ecommerce.order.model.request.VoucherPaymentRequest;
@@ -36,15 +36,16 @@ import java.util.concurrent.ThreadLocalRandom;
 public class CheckoutServiceImpl implements CheckoutService {
 
     private static final int ACTIVE = 0;
-    private static final int ONLINE = EntityLoaiHoaDon.ONLINE.ordinal();
-    private static final int CHO_XAC_NHAN = EntityTrangThaiHoaDon.CHO_XAC_NHAN.ordinal();
-    private static final int LUU_TAM = EntityTrangThaiHoaDon.LUU_TAM.ordinal();
+    private static final int ONLINE = OrderTypeConstant.ONLINE.ordinal();
+    private static final int CHO_XAC_NHAN = OrderStatusConstant.CHO_XAC_NHAN.ordinal();
+    private static final int LUU_TAM = OrderStatusConstant.LUU_TAM.ordinal();
 
     private final JdbcTemplate jdbcTemplate;
     private final CatalogClient catalogClient;
     private final PromotionClient promotionClient;
     private final CartClient cartClient;
     private final UserClient userClient;
+    private final com.ecommerce.order.client.SellerClient sellerClient;
 
     @Value("${vnpay.tmn-code:}")
     private String vnpTmnCode;
@@ -58,12 +59,13 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Value("${vnpay.return-url:http://localhost:8386/api/orders/vnpay-return}")
     private String vnpReturnUrl;
 
-    public CheckoutServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient, PromotionClient promotionClient, CartClient cartClient, UserClient userClient) {
+    public CheckoutServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient, PromotionClient promotionClient, CartClient cartClient, UserClient userClient, com.ecommerce.order.client.SellerClient sellerClient) {
         this.jdbcTemplate = jdbcTemplate;
         this.catalogClient = catalogClient;
         this.promotionClient = promotionClient;
         this.cartClient = cartClient;
         this.userClient = userClient;
+        this.sellerClient = sellerClient;
     }
 
     @Override
@@ -74,7 +76,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             return null;
         }
         String orderId = insertOrder(request, CHO_XAC_NHAN);
-        insertStatusHistory(orderId, CHO_XAC_NHAN, "Don hang da duoc dat va cho duoc xac nhan.");
+        insertStatusHistory(orderId, CHO_XAC_NHAN, "Don hang da duoc dat va cho duoc wardc nhan.");
         if (!"TIEN_MAT".equals(request.getHinhThucThanhToan())) {
             insertPayment(orderId, request.getTongCong(), "VNPAY".equals(request.getHinhThucThanhToan()) ? "CHUYEN_KHOAN" : "TIEN_MAT", null);
         }
@@ -94,7 +96,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
         String orderId = insertOrder(request, LUU_TAM);
         insertPayment(orderId, request.getTongCong(), "VNPAY".equals(request.getHinhThucThanhToan()) ? "CHUYEN_KHOAN" : "TIEN_MAT", null);
-        insertDetails(orderId, request);
+        insertDetails(orderId, request, LUU_TAM);
 
         String createDate = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
         String expireDate = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date(System.currentTimeMillis() + 15 * 60 * 1000));
@@ -137,23 +139,24 @@ public class CheckoutServiceImpl implements CheckoutService {
             return false;
         }
         String orderId = params.get("vnp_TxnRef");
-        jdbcTemplate.update("UPDATE hoa_don SET trang_thai_hoa_don = ? WHERE id = ?", CHO_XAC_NHAN, orderId);
-        insertStatusHistory(orderId, CHO_XAC_NHAN, "Don hang da duoc dat va cho duoc xac nhan.");
+        jdbcTemplate.update("UPDATE orders SET order_status = ? WHERE id = ?", CHO_XAC_NHAN, orderId);
+        jdbcTemplate.update("UPDATE order_seller SET order_status = ? WHERE order_id = ?", CHO_XAC_NHAN, orderId);
+        insertStatusHistory(orderId, CHO_XAC_NHAN, "Don hang da duoc dat va cho duoc wardc nhan.");
         Map<String, Object> order = getOrder(orderId);
-        Object voucherId = order.get("id_voucher");
+        Object voucherId = order.get("voucher_id");
         if (voucherId != null) {
             promotionClient.decrementVoucher(String.valueOf(voucherId));
         }
-        List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT id_spct, so_luong FROM hoa_don_chi_tiet WHERE id_hoa_don = ?", orderId);
+        List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT product_variant_id, quantity FROM order_item WHERE order_id = ?", orderId);
         for (Map<String, Object> detail : details) {
-            catalogClient.adjustStock(String.valueOf(detail.get("id_spct")), -intValue(detail.get("so_luong")));
+            catalogClient.adjustStock(String.valueOf(detail.get("product_variant_id")), -intValue(detail.get("quantity")));
         }
         clearCartItemsByOrder(orderId);
         return true;
     }
 
     @Override
-    public ResponseObject<?> getPhieuGiamGia(VoucherPaymentRequest request) {
+    public ResponseObject<?> getVoucher(VoucherPaymentRequest request) {
         Map<String, Object> voucher = promotionClient.getVoucherByCode(request.getMaPGG());
         if (voucher == null || voucher.isEmpty()) {
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Phieu giam gia khong ton tai");
@@ -161,45 +164,45 @@ public class CheckoutServiceImpl implements CheckoutService {
         if (intValue(voucher.get("status")) == 1) {
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Phieu giam gia nay da het han su dung");
         }
-        if (intValue(voucher.get("so_luong_phieu")) <= 0) {
+        if (intValue(voucher.get("quantity")) <= 0) {
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Phieu giam gia nay da het");
         }
-        if (booleanValue(voucher.get("loai_giam")) && !isVoucherAssigned(String.valueOf(voucher.get("id")), request.getIdKH())) {
+        if (booleanValue(voucher.get("discount_type")) && !isVoucherAssigned(String.valueOf(voucher.get("id")), request.getIdKH())) {
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Phieu giam gia khong ap dung cho tai khoan nay");
         }
-        if (doubleValue(voucher.get("dieu_kien")) > value(request.getTongTien())) {
-            double remain = doubleValue(voucher.get("dieu_kien")) - value(request.getTongTien());
+        if (doubleValue(voucher.get("condition_amount")) > value(request.getTongTien())) {
+            double remain = doubleValue(voucher.get("condition_amount")) - value(request.getTongTien());
             return new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Don hang chua du de ap dung phieu giam gia hay mua them " + remain + "d de ap phieu giam gia");
         }
         return new ResponseObject<>(voucherResponse(voucher, value(request.getTongTien())), HttpStatus.OK, "Ap dung phieu giam gia thanh cong");
     }
 
     @Override
-    public ResponseObject<?> getAllApplicablePGG(String idKhachHang, Double tongTien) {
-        List<Map<String, Object>> rows = new java.util.ArrayList<>(promotionClient.getApplicableVouchers(idKhachHang));
-        rows.removeIf(row -> voucherUsedByCustomer(String.valueOf(row.get("id")), idKhachHang));
-        rows.removeIf(row -> intValue(row.get("so_luong_phieu")) <= 0 || doubleValue(row.get("dieu_kien")) > value(tongTien));
+    public ResponseObject<?> getAllApplicablePGG(String idCustomer, Double tongTien) {
+        List<Map<String, Object>> rows = new java.util.ArrayList<>(promotionClient.getApplicableVouchers(idCustomer));
+        rows.removeIf(row -> voucherUsedByCustomer(String.valueOf(row.get("id")), idCustomer));
+        rows.removeIf(row -> intValue(row.get("quantity")) <= 0 || doubleValue(row.get("condition_amount")) > value(tongTien));
         rows = rows.stream()
                 .map(row -> voucherResponse(row, value(tongTien)))
                 .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
-        rows.sort((a, b) -> Double.compare(doubleValue(b.get("giaTriGiamThucTe")), doubleValue(a.get("giaTriGiamThucTe"))));
+        rows.sort((a, b) -> Double.compare(doubleValue(b.get("actualDiscountValue")), doubleValue(a.get("actualDiscountValue"))));
         return new ResponseObject<>(rows, HttpStatus.OK, "Danh sach phieu giam gia hop le");
     }
 
     private Map<String, Object> voucherResponse(Map<String, Object> voucher, double total) {
         Map<String, Object> row = new java.util.LinkedHashMap<>(voucher);
-        row.put("ma", voucher.get("ma_phieu_giam_gia"));
-        row.put("ten", voucher.get("ten_phieu_giam_gia"));
-        row.put("phanTramGiam", voucher.get("phan_tram"));
-        row.put("giaGiam", voucher.get("gia_giam_toi_da"));
-        row.put("kieuGiam", voucher.get("kieu_giam"));
-        row.put("loaiGiam", voucher.get("loai_giam"));
-        row.put("giaTriGiamThucTe", discountValue(voucher, total));
+        row.put("code", voucher.get("code"));
+        row.put("name", voucher.get("name"));
+        row.put("discountValue", voucher.get("discount_value"));
+        row.put("maxDiscountAmount", voucher.get("max_discount_amount"));
+        row.put("discountMethod", voucher.get("discount_method"));
+        row.put("discountType", voucher.get("discount_type"));
+        row.put("actualDiscountValue", discountValue(voucher, total));
         return row;
     }
 
     @Override
-    public ResponseObject<?> getKhachHang(String id) {
+    public ResponseObject<?> getCustomer(String id) {
         Map<String, Object> customer = userClient.getCustomer(id);
         return customer == null || customer.isEmpty()
                 ? new ResponseObject<>(null, HttpStatus.NOT_FOUND, "Khach hang khong ton tai")
@@ -209,51 +212,100 @@ public class CheckoutServiceImpl implements CheckoutService {
     private String insertOrder(CheckoutRequest request, int status) {
         String id = UUID.randomUUID().toString();
         String voucherId = voucherId(request.getMaGiamGia());
-        String customerId = request.getKhachHang() == null || request.getKhachHang().isBlank() || "khach le".equalsIgnoreCase(request.getKhachHang()) || "khÃ¡ch láº»".equals(request.getKhachHang())
+        String customerId = request.getCustomer() == null || request.getCustomer().isBlank() || "khach le".equalsIgnoreCase(request.getCustomer()) || "khÃƒÂ¡ch lÃ¡ÂºÂ»".equals(request.getCustomer())
                 ? null
-                : request.getKhachHang();
+                : request.getCustomer();
         int paymentMethod = "TIEN_MAT".equals(request.getHinhThucThanhToan())
                 ? EntityPhuongThucThanhToan.TIEN_MAT.ordinal()
                 : EntityPhuongThucThanhToan.CHUYEN_KHOAN.ordinal();
         jdbcTemplate.update("""
-                INSERT INTO hoa_don (id, status, created_date, ma_hoa_don, so_dien_thoai_khach_hang, ten_khach_hang,
-                    dia_chi_giao_hang, giam_gia, loai_hoa_don, tong_tien, tong_tien_sau_giam, phuong_thuc_thanh_toan,
-                    email, ghi_chu, phi_van_chuyen, trang_thai_hoa_don, id_voucher, id_khach_hang)
+                INSERT INTO orders (id, status, created_date, code, customer_phone, customer_name,
+                    shipping_address, discount_amount, order_type, total_amount, total_after_discount, payment_method,
+                    email, note, shipping_fee, order_status, voucher_id, customer_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, id, ACTIVE, System.currentTimeMillis(), generateCode("HD"), request.getSoDienThoai(), request.getHoTen(),
-                request.getDiaChi(), request.getGiamGia(), ONLINE, request.getTongTien(), request.getTongCong(), paymentMethod,
+                request.getAddress(), request.getGiamGia(), ONLINE, request.getTongTien(), request.getTongCong(), paymentMethod,
                 request.getEmail(), request.getGhiChu(), request.getPhiShip(), status, voucherId, customerId);
         return id;
     }
 
     private void insertDetailsAndCommitInventory(String orderId, CheckoutRequest request) {
-        insertDetails(orderId, request);
-        if (request.getSanPham() != null) {
-            for (CheckoutProductItem item : request.getSanPham()) {
+        insertDetails(orderId, request, CHO_XAC_NHAN);
+        if (request.getProduct() != null) {
+            for (CheckoutProductItem item : request.getProduct()) {
                 catalogClient.adjustStock(item.getId(), -value(item.getQuantity()));
             }
         }
     }
 
-    private void insertDetails(String orderId, CheckoutRequest request) {
-        if (request.getSanPham() == null) {
+    private void insertDetails(String orderId, CheckoutRequest request, int orderSellerStatus) {
+        if (request.getProduct() == null) {
             return;
         }
-        for (CheckoutProductItem item : request.getSanPham()) {
-            Double price = doubleValue(catalogClient.getProductDetail(item.getId()).get("giaBan"));
-            jdbcTemplate.update("""
-                    INSERT INTO hoa_don_chi_tiet (id, status, created_date, ma_hoa_don_chi_tiet, so_luong, gia_ban, id_spct, id_hoa_don)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, UUID.randomUUID().toString(), ACTIVE, System.currentTimeMillis(), generateCode("HDCT"), item.getQuantity(), price, item.getId(), orderId);
+        Map<String, List<LineSnapshot>> grouped = groupItemsBySeller(request);
+        for (Map.Entry<String, List<LineSnapshot>> entry : grouped.entrySet()) {
+            String orderSellerId = insertOrderSeller(orderId, entry.getKey(), entry.getValue(), orderSellerStatus);
+            for (LineSnapshot line : entry.getValue()) {
+                CheckoutProductItem item = line.item();
+                Double price = doubleValue(line.product().get("salePrice"));
+                jdbcTemplate.update("""
+                        INSERT INTO order_item (id, status, created_date, code, quantity, sale_price, product_variant_id, order_id, order_seller_id, seller_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, UUID.randomUUID().toString(), ACTIVE, System.currentTimeMillis(), generateCode("HDCT"), item.getQuantity(), price, item.getId(), orderId, orderSellerId, line.sellerId());
+            }
+        }
+    }
+
+    private Map<String, List<LineSnapshot>> groupItemsBySeller(CheckoutRequest request) {
+        Map<String, List<LineSnapshot>> grouped = new java.util.LinkedHashMap<>();
+        if (request.getProduct() == null) {
+            return grouped;
+        }
+        for (CheckoutProductItem item : request.getProduct()) {
+            Map<String, Object> product = catalogClient.getProductDetail(item.getId());
+            String sellerId = stringValue(product.get("sellerId"));
+            if (sellerId == null || sellerId.isBlank()) {
+                sellerId = "UNKNOWN_SELLER";
+            }
+            grouped.computeIfAbsent(sellerId, ignored -> new java.util.ArrayList<>())
+                    .add(new LineSnapshot(item, product, sellerId));
+        }
+        return grouped;
+    }
+
+    private String insertOrderSeller(String orderId, String sellerId, List<LineSnapshot> lines, int status) {
+        String id = UUID.randomUUID().toString();
+        double total = lines.stream()
+                .mapToDouble(line -> doubleValue(line.product().get("salePrice")) * value(line.item().getQuantity()))
+                .sum();
+        Map<String, Object> seller = sellerProfile(sellerId);
+        String shopName = stringValue(seller.get("shopName"));
+        String sellerSlug = stringValue(seller.get("sellerSlug"));
+        jdbcTemplate.update("""
+                INSERT INTO order_seller (id, order_id, seller_id, shop_name, seller_slug, total_amount, shipping_fee, discount_amount, total_after_discount, order_status, created_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, id, orderId, sellerId, shopName == null ? sellerId : shopName, sellerSlug, total, 0D, 0D, total, status, System.currentTimeMillis());
+        return id;
+    }
+
+    private Map<String, Object> sellerProfile(String sellerId) {
+        if (sellerId == null || sellerId.isBlank() || "UNKNOWN_SELLER".equals(sellerId)) {
+            return Map.of();
+        }
+        try {
+            Map<String, Object> seller = sellerClient.publicProfile(sellerId);
+            return seller == null ? Map.of() : seller;
+        } catch (Exception ignored) {
+            return Map.of();
         }
     }
 
     private boolean hasStock(CheckoutRequest request) {
-        if (request.getSanPham() == null) {
+        if (request.getProduct() == null) {
             return true;
         }
-        for (CheckoutProductItem item : request.getSanPham()) {
-            Integer stock = intValue(catalogClient.getProductDetail(item.getId()).get("soLuong"));
+        for (CheckoutProductItem item : request.getProduct()) {
+            Integer stock = intValue(catalogClient.getProductDetail(item.getId()).get("quantity"));
             if (stock == null || stock < value(item.getQuantity())) {
                 return false;
             }
@@ -262,27 +314,27 @@ public class CheckoutServiceImpl implements CheckoutService {
     }
 
     private void clearCartItemsWhenOutOfStock(CheckoutRequest request) {
-        if (request.getSanPham() == null) {
+        if (request.getProduct() == null) {
             return;
         }
         clearCartItems(request);
     }
 
     private void clearCartItems(CheckoutRequest request) {
-        if (request.getKhachHang() == null || request.getSanPham() == null || isRetailCustomer(request.getKhachHang())) {
+        if (request.getCustomer() == null || request.getProduct() == null || isRetailCustomer(request.getCustomer())) {
             return;
         }
-        cartClient.deleteItems(request.getKhachHang(), request.getSanPham().stream().map(CheckoutProductItem::getId).toList());
+        cartClient.deleteItems(request.getCustomer(), request.getProduct().stream().map(CheckoutProductItem::getId).toList());
     }
 
     private void clearCartItemsByOrder(String orderId) {
         Map<String, Object> order = getOrder(orderId);
-        Object customerId = order.get("id_khach_hang");
+        Object customerId = order.get("customer_id");
         if (customerId == null) {
             return;
         }
-        List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT id_spct FROM hoa_don_chi_tiet WHERE id_hoa_don = ?", orderId);
-        cartClient.deleteItems(String.valueOf(customerId), details.stream().map(detail -> String.valueOf(detail.get("id_spct"))).toList());
+        List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT product_variant_id FROM order_item WHERE order_id = ?", orderId);
+        cartClient.deleteItems(String.valueOf(customerId), details.stream().map(detail -> String.valueOf(detail.get("product_variant_id"))).toList());
     }
 
     private void applyVoucher(String code) {
@@ -306,26 +358,26 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     private boolean voucherUsedByCustomer(String voucherId, String customerId) {
         Integer count = jdbcTemplate.queryForObject("""
-                SELECT COUNT(*) FROM hoa_don
-                WHERE id_voucher = ? AND id_khach_hang = ? AND trang_thai_hoa_don = ?
-                """, Integer.class, voucherId, customerId, EntityTrangThaiHoaDon.HOAN_THANH.ordinal());
+                SELECT COUNT(*) FROM orders
+                WHERE voucher_id = ? AND customer_id = ? AND order_status = ?
+                """, Integer.class, voucherId, customerId, OrderStatusConstant.HOAN_THANH.ordinal());
         return count != null && count > 0;
     }
 
     private Map<String, Object> getOrder(String orderId) {
-        return jdbcTemplate.queryForMap("SELECT * FROM hoa_don WHERE id = ?", orderId);
+        return jdbcTemplate.queryForMap("SELECT * FROM orders WHERE id = ?", orderId);
     }
 
     private void insertStatusHistory(String orderId, int status, String note) {
         jdbcTemplate.update("""
-                INSERT INTO lich_su_trang_thai_hoa_don (hoa_don_id, trang_thai, thoi_gian, note)
+                INSERT INTO order_status_history (order_id, status, payment_time, note)
                 VALUES (?, ?, ?, ?)
                 """, orderId, status, LocalDateTime.now(), note);
     }
 
     private void insertPayment(String orderId, Double amount, String type, String note) {
         jdbcTemplate.update("""
-                INSERT INTO lich_su_thanh_toan (so_tien, thoi_gian, ma_giao_dich, loai_giao_dich, hoa_don_id, ghi_chu)
+                INSERT INTO payment_history (amount, payment_time, transaction_code, transaction_type, order_id, note)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """, amount, LocalDateTime.now(), UUID.randomUUID().toString(), type, orderId, note);
     }
@@ -363,10 +415,10 @@ public class CheckoutServiceImpl implements CheckoutService {
     }
 
     private static double discountValue(Map<String, Object> voucher, double total) {
-        if (!booleanValue(voucher.get("kieu_giam"))) {
-            return doubleValue(voucher.get("gia_giam_toi_da"));
+        if (!booleanValue(voucher.get("discount_method"))) {
+            return doubleValue(voucher.get("max_discount_amount"));
         }
-        return Math.min(total * doubleValue(voucher.get("phan_tram")) / 100, doubleValue(voucher.get("gia_giam_toi_da")));
+        return Math.min(total * doubleValue(voucher.get("discount_value")) / 100, doubleValue(voucher.get("max_discount_amount")));
     }
 
     private static boolean booleanValue(Object value) {
@@ -380,7 +432,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     }
 
     private static boolean isRetailCustomer(String customer) {
-        return "khach le".equalsIgnoreCase(customer) || "khÃ¡ch láº»".equals(customer);
+        return "khach le".equalsIgnoreCase(customer) || "khÃƒÂ¡ch lÃ¡ÂºÂ»".equals(customer);
     }
 
     private static int intValue(Object value) {
@@ -401,5 +453,12 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     private static String generateCode(String prefix) {
         return prefix + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
+    }
+
+    private static String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private record LineSnapshot(CheckoutProductItem item, Map<String, Object> product, String sellerId) {
     }
 }

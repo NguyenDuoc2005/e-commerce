@@ -8,27 +8,42 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "gio_hang_chi_tiet")
+@Table(name = "cart_detail")
 public class CartDetail extends PrimaryEntity {
-    @Column(name = "id_san_pham_chi_tiet")
-    private String sanPhamChiTietId;
+    @Column(name = "product_variant_id")
+    private String productVariantId;
 
     @ManyToOne
-    @JoinColumn(name = "id_gio_hang", referencedColumnName = "id")
+    @JoinColumn(name = "cart_id", referencedColumnName = "id")
     private Cart cart;
 
-    @Column(name = "so_luong")
+    @Column(name = "quantity")
     private Integer quantity;
 
-    @Column(name = "tien")
+    @Column(name = "price")
     private Double price;
 
-    public String getSanPhamChiTietId() { return sanPhamChiTietId; }
-    public void setSanPhamChiTietId(String sanPhamChiTietId) { this.sanPhamChiTietId = sanPhamChiTietId; }
+    @Column(name = "seller_id", length = 36)
+    private String sellerId;
+
+    @Column(name = "shop_name")
+    private String shopName;
+
+    @Column(name = "seller_slug")
+    private String sellerSlug;
+
+    public String getProductVariantId() { return productVariantId; }
+    public void setProductVariantId(String productVariantId) { this.productVariantId = productVariantId; }
     public Cart getCart() { return cart; }
     public void setCart(Cart cart) { this.cart = cart; }
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
     public Double getPrice() { return price; }
     public void setPrice(Double price) { this.price = price; }
+    public String getSellerId() { return sellerId; }
+    public void setSellerId(String sellerId) { this.sellerId = sellerId; }
+    public String getShopName() { return shopName; }
+    public void setShopName(String shopName) { this.shopName = shopName; }
+    public String getSellerSlug() { return sellerSlug; }
+    public void setSellerSlug(String sellerSlug) { this.sellerSlug = sellerSlug; }
 }

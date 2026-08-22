@@ -32,6 +32,13 @@ export type SanPhamResponse = ResponseList & {
 
 export interface SanPhamMoiResponse {
   id: string
+  sellerId?: string
+  sellerName?: string
+  shopName?: string
+  sellerSlug?: string
+  sellerLogoUrl?: string
+  sellerRating?: number
+  soldCount?: number
   tenSanPham: string
   hinhAnhDaiDien: string
   thuongHieu: string
@@ -46,9 +53,29 @@ export interface SanPhamMoiResponse {
   mauSac: MauSacDTO[]
   dotGiamGia: DotGiamGiaInfo | null
   dsAnh: string[]
+  attributes?: Array<{
+    attributeId: string
+    name: string
+    dataType: 'TEXT' | 'NUMBER' | 'SINGLE_SELECT' | 'MULTI_SELECT'
+    options: Array<{ id: string; value: string }>
+    textValue?: string
+    numberValue?: number
+    unit?: string
+    selectedOptionIds: string[]
+  }>
 }
 
 export interface ParamsGetSanPhamMoi extends PaginationParams {}
+
+export interface DynamicCategoryFilter {
+  attributeId: string
+  name: string
+  dataType: 'TEXT' | 'NUMBER' | 'SINGLE_SELECT' | 'MULTI_SELECT'
+  options: Array<{ id: string; value: string }>
+  min?: number
+  max?: number
+  displayOrder: number
+}
 
 const emptyProductPage = (message = 'Không thể tải danh sách sản phẩm') =>
   ({
@@ -173,4 +200,14 @@ export const GetListDanhMuc = async () => {
   })) as AxiosResponse<DefaultResponse<Array<SanPhamResponse>>>
 
   return res.data
+}
+
+export const GetCategoryFilters = async (categoryId: string) => {
+  const res = (await request({
+    url: `${PREFIX_API_SANPHAM_PERMITALL}/category-filters`,
+    method: 'GET',
+    params: { categoryId }
+  })) as AxiosResponse<DynamicCategoryFilter[]>
+
+  return res.data || []
 }

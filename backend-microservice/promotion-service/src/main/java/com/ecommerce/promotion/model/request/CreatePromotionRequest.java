@@ -9,6 +9,7 @@ public class CreatePromotionRequest {
     private Long startDate;
     private Long endDate;
     private List<IdProductDetail> idProductDetails = new ArrayList<>();
+    private String sellerId;
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -20,4 +21,6 @@ public class CreatePromotionRequest {
     public void setEndDate(Long endDate) { this.endDate = endDate; }
     public List<IdProductDetail> getIdProductDetails() { return idProductDetails; }
     public void setIdProductDetails(List<IdProductDetail> idProductDetails) { this.idProductDetails = idProductDetails; }
+    public String getSellerId() { return sellerId; }
+    public void setSellerId(String sellerId) { this.sellerId = sellerId; }
 }

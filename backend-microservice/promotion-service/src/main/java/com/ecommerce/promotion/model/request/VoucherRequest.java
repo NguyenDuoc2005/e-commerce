@@ -5,40 +5,43 @@ import java.util.List;
 
 public class VoucherRequest {
     private String id;
-    private String ma;
-    private String ten;
+    private String code;
+    private String name;
     private Double LoiPhanNay;
-    private Integer soLuongPhieu;
-    private Date ngayBatDau;
-    private Date ngayKetThuc;
-    private Double dieuKien;
-    private Double giaGiam;
-    private Boolean loaiGiam;
-    private Boolean kieuGiam;
+    private Integer quantity;
+    private Date startDate;
+    private Date endDate;
+    private Double conditionAmount;
+    private Double maxDiscountAmount;
+    private Boolean discountType;
+    private Boolean discountMethod;
     private List<String> khachHangIds;
+    private String sellerId;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
-    public String getMa() { return ma; }
-    public void setMa(String ma) { this.ma = ma; }
-    public String getTen() { return ten; }
-    public void setTen(String ten) { this.ten = ten; }
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
     public Double getLoiPhanNay() { return LoiPhanNay; }
     public void setLoiPhanNay(Double loiPhanNay) { LoiPhanNay = loiPhanNay; }
-    public Integer getSoLuongPhieu() { return soLuongPhieu; }
-    public void setSoLuongPhieu(Integer soLuongPhieu) { this.soLuongPhieu = soLuongPhieu; }
-    public Date getNgayBatDau() { return ngayBatDau; }
-    public void setNgayBatDau(Date ngayBatDau) { this.ngayBatDau = ngayBatDau; }
-    public Date getNgayKetThuc() { return ngayKetThuc; }
-    public void setNgayKetThuc(Date ngayKetThuc) { this.ngayKetThuc = ngayKetThuc; }
-    public Double getDieuKien() { return dieuKien; }
-    public void setDieuKien(Double dieuKien) { this.dieuKien = dieuKien; }
-    public Double getGiaGiam() { return giaGiam; }
-    public void setGiaGiam(Double giaGiam) { this.giaGiam = giaGiam; }
-    public Boolean getLoaiGiam() { return loaiGiam; }
-    public void setLoaiGiam(Boolean loaiGiam) { this.loaiGiam = loaiGiam; }
-    public Boolean getKieuGiam() { return kieuGiam; }
-    public void setKieuGiam(Boolean kieuGiam) { this.kieuGiam = kieuGiam; }
-    public List<String> getKhachHangIds() { return khachHangIds; }
-    public void setKhachHangIds(List<String> khachHangIds) { this.khachHangIds = khachHangIds; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    public Date getStartDate() { return startDate; }
+    public void setStartDate(Date startDate) { this.startDate = startDate; }
+    public Date getEndDate() { return endDate; }
+    public void setEndDate(Date endDate) { this.endDate = endDate; }
+    public Double getConditionAmount() { return conditionAmount; }
+    public void setConditionAmount(Double conditionAmount) { this.conditionAmount = conditionAmount; }
+    public Double getMaxDiscountAmount() { return maxDiscountAmount; }
+    public void setMaxDiscountAmount(Double maxDiscountAmount) { this.maxDiscountAmount = maxDiscountAmount; }
+    public Boolean getDiscountType() { return discountType; }
+    public void setDiscountType(Boolean discountType) { this.discountType = discountType; }
+    public Boolean getDiscountMethod() { return discountMethod; }
+    public void setDiscountMethod(Boolean discountMethod) { this.discountMethod = discountMethod; }
+    public List<String> getCustomerIds() { return khachHangIds; }
+    public void setCustomerIds(List<String> khachHangIds) { this.khachHangIds = khachHangIds; }
+    public String getSellerId() { return sellerId; }
+    public void setSellerId(String sellerId) { this.sellerId = sellerId; }
 }

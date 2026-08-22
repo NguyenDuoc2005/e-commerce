@@ -6,8 +6,8 @@ import com.ecommerce.common.util.PageUtils;
 import com.ecommerce.promotion.client.CatalogClient;
 import com.ecommerce.promotion.constant.Status;
 import com.ecommerce.promotion.constant.StatusPromotion;
-import com.ecommerce.promotion.entity.DotGiamGia;
-import com.ecommerce.promotion.entity.DotGiamGiaChiTietSanPham;
+import com.ecommerce.promotion.entity.PromotionCampaign;
+import com.ecommerce.promotion.entity.PromotionCampaignProduct;
 import com.ecommerce.promotion.model.request.CreatePromotionRequest;
 import com.ecommerce.promotion.model.request.FindPromotionRequest;
 import com.ecommerce.promotion.model.request.IdProductDetail;
@@ -51,54 +51,77 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     public ResponseObject<?> getAll(FindPromotionRequest request) {
         Pageable pageable = PageUtils.createPageable(request, "createdDate");
-        return new ResponseObject<>(PageableObject.of(promotionRepository.getAllDotGiamGia(request, pageable)), HttpStatus.OK, "Lay danh sach dot giam gia thanh cong");
+        request.setPlatformOnly(true);
+        request.setSellerId(null);
+        return new ResponseObject<>(PageableObject.of(promotionRepository.getAllPromotionCampaign(request, pageable)), HttpStatus.OK, "Lay danh sach dot giam gia thanh cong");
     }
 
     @Override
-    public List<Map<String, Object>> getSanPham() {
+    public List<Map<String, Object>> getProduct() {
         return catalogClient.getProducts();
     }
 
     @Override
-    public List<Map<String, Object>> getSanPhamCT(String id) {
+    public List<Map<String, Object>> getProductCT(String id) {
         return catalogClient.getProductDetails(id);
     }
 
     @Override
-    public List<Map<String, Object>> getSanPhamByDot(String id) {
+    public List<Map<String, Object>> getProductByDot(String id) {
         List<String> ids = detailRepository.findActiveProductDetailIdsByPromotion(id);
         return ids.isEmpty() ? List.of() : catalogClient.getProductDetailsByIds(ids);
     }
 
     @Override
-    public List<Map<String, Object>> getMauSac() {
+    public List<Map<String, Object>> getColor() {
         return catalogClient.getColors();
     }
 
     @Override
-    public List<Map<String, Object>> getKichCo() {
+    public List<Map<String, Object>> getSize() {
         return catalogClient.getSizes();
     }
 
     @Override
     @Transactional
-    public DotGiamGia add(CreatePromotionRequest request) {
-        if (promotionRepository.findByTen(request.getName()).isPresent()) {
-            throw new IllegalArgumentException("Ten khuyen mai da ton tai");
+    public PromotionCampaign add(CreatePromotionRequest request) {
+        request.setSellerId(null);
+        return addScoped(null, request);
+    }
+
+    @Override
+    public ResponseObject<?> getSellerAll(String sellerId, FindPromotionRequest request) {
+        Pageable pageable = PageUtils.createPageable(request, "createdDate");
+        request.setSellerId(sellerId);
+        request.setPlatformOnly(false);
+        return new ResponseObject<>(PageableObject.of(promotionRepository.getAllPromotionCampaign(request, pageable)), HttpStatus.OK, "Lay danh sach dot giam gia shop thanh cong");
+    }
+
+    @Override
+    @Transactional
+    public PromotionCampaign addSeller(String sellerId, CreatePromotionRequest request) {
+        request.setSellerId(sellerId);
+        return addScoped(sellerId, request);
+    }
+
+    private PromotionCampaign addScoped(String sellerId, CreatePromotionRequest request) {
+        if (promotionRepository.findByName(request.getName()).isPresent()) {
+            throw new IllegalArgumentException("Ten kdistrict mai da ton tai");
         }
         if (request.getIdProductDetails() == null || request.getIdProductDetails().isEmpty()) {
             throw new IllegalArgumentException("Khong co san pham");
         }
-        validateProductDetails(request.getIdProductDetails());
+        validateProductDetails(request.getIdProductDetails(), sellerId);
         validateDates(request.getStartDate(), request.getEndDate(), true);
 
-        DotGiamGia promotion = new DotGiamGia();
-        promotion.setMa("KM" + UUID.randomUUID().toString().replace("-", "").substring(0, 9));
-        promotion.setTen(request.getName());
-        promotion.setPhanTramGiam(request.getValue());
-        promotion.setNgayBatDau(request.getStartDate());
-        promotion.setNgayKetThuc(request.getEndDate());
+        PromotionCampaign promotion = new PromotionCampaign();
+        promotion.setCode("KM" + UUID.randomUUID().toString().replace("-", "").substring(0, 9));
+        promotion.setName(request.getName());
+        promotion.setDiscountValue(request.getValue());
+        promotion.setStartDate(request.getStartDate());
+        promotion.setEndDate(request.getEndDate());
         promotion.setTrangThai(getStatusPromotion(request.getStartDate(), request.getEndDate()));
+        promotion.setSellerId(sellerId);
         promotionRepository.save(promotion);
 
         createOrUpdateDetails(promotion, request.getIdProductDetails(), request.getValue(), Status.DANG_SU_DUNG);
@@ -107,20 +130,35 @@ public class PromotionServiceImpl implements PromotionService {
 
     @Override
     @Transactional
-    public DotGiamGia update(UpdatePromotionRequest request) {
-        DotGiamGia promotion = promotionRepository.findById(request.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Khuyen mai khong ton tai"));
-        validateProductDetails(request.getIdProductDetails());
+    public PromotionCampaign update(UpdatePromotionRequest request) {
+        request.setSellerId(null);
+        return updateScoped(null, request);
+    }
+
+    @Override
+    @Transactional
+    public PromotionCampaign updateSeller(String sellerId, UpdatePromotionRequest request) {
+        request.setSellerId(sellerId);
+        return updateScoped(sellerId, request);
+    }
+
+    private PromotionCampaign updateScoped(String sellerId, UpdatePromotionRequest request) {
+        PromotionCampaign promotion = promotionRepository.findById(request.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Kdistrict mai khong ton tai"));
+        if (!sameScope(promotion.getSellerId(), sellerId)) {
+            throw new IllegalArgumentException("Khong co quyen cap nhat dot giam gia nay");
+        }
+        validateProductDetails(request.getIdProductDetails(), sellerId);
         validateDates(request.getStartDate(), request.getEndDate(), false);
 
-        promotion.setTen(request.getName());
-        promotion.setPhanTramGiam(request.getValue());
-        promotion.setNgayBatDau(request.getStartDate());
-        promotion.setNgayKetThuc(request.getEndDate());
+        promotion.setName(request.getName());
+        promotion.setDiscountValue(request.getValue());
+        promotion.setStartDate(request.getStartDate());
+        promotion.setEndDate(request.getEndDate());
         promotion.setTrangThai(getStatusPromotion(request.getStartDate(), request.getEndDate()));
         promotionRepository.save(promotion);
 
-        for (DotGiamGiaChiTietSanPham oldDetail : detailRepository.findAllByIdPromotion(promotion.getId())) {
+        for (PromotionCampaignProduct oldDetail : detailRepository.findAllByIdPromotion(promotion.getId())) {
             oldDetail.setTrangThai(Status.KHONG_SU_DUNG);
             detailRepository.save(oldDetail);
         }
@@ -129,10 +167,22 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override
-    public DotGiamGia updateStatus(String id) {
-        DotGiamGia promotion = promotionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Khuyen mai khong ton tai"));
-        promotion.setTrangThai(getStatusPromotion(promotion.getNgayBatDau(), promotion.getNgayKetThuc()));
+    public PromotionCampaign updateStatus(String id) {
+        return updateStatusScoped(null, id);
+    }
+
+    @Override
+    public PromotionCampaign updateSellerStatus(String sellerId, String id) {
+        return updateStatusScoped(sellerId, id);
+    }
+
+    private PromotionCampaign updateStatusScoped(String sellerId, String id) {
+        PromotionCampaign promotion = promotionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Kdistrict mai khong ton tai"));
+        if (!sameScope(promotion.getSellerId(), sellerId)) {
+            throw new IllegalArgumentException("Khong co quyen doi trang thai dot giam gia nay");
+        }
+        promotion.setTrangThai(getStatusPromotion(promotion.getStartDate(), promotion.getEndDate()));
         promotionRepository.save(promotion);
         updateProductDetailsStatus(promotion.getId(), promotion.getTrangThai());
         return promotion;
@@ -149,21 +199,25 @@ public class PromotionServiceImpl implements PromotionService {
         return detailRepository.findAllByProductDetailId(id).stream()
                 .map(detail -> {
                     Map<String, Object> row = new java.util.LinkedHashMap<>();
-                    row.put("image", productDetail.get("anh"));
-                    row.put("code", productDetail.get("ma"));
-                    row.put("name", productDetail.get("tenSanPham"));
-                    row.put("namePromotion", detail.getDotGiamGia().getTen());
-                    row.put("valuePromotion", detail.getDotGiamGia().getPhanTramGiam());
+                    row.put("image", productDetail.get("imageUrl"));
+                    row.put("code", productDetail.get("code"));
+                    row.put("name", productDetail.get("tenProduct"));
+                    row.put("namePromotion", detail.getPromotionCampaign().getName());
+                    row.put("valuePromotion", detail.getPromotionCampaign().getDiscountValue());
                     row.put("statusPromotion", detail.getTrangThai() == null ? null : detail.getTrangThai().name());
                     return row;
                 })
                 .toList();
     }
 
-    private void validateProductDetails(List<IdProductDetail> ids) {
+    private void validateProductDetails(List<IdProductDetail> ids, String sellerId) {
         for (IdProductDetail item : ids) {
-            if (catalogClient.getProductDetail(item.getId()).isEmpty()) {
+            Map<String, Object> productDetail = catalogClient.getProductDetail(item.getId());
+            if (productDetail.isEmpty()) {
                 throw new IllegalArgumentException("Co san pham khong ton tai");
+            }
+            if (sellerId != null && !sellerId.equals(stringValue(productDetail.get("sellerId")))) {
+                throw new IllegalArgumentException("San pham khong thuoc seller hien tai");
             }
         }
     }
@@ -179,19 +233,19 @@ public class PromotionServiceImpl implements PromotionService {
         }
     }
 
-    private void createOrUpdateDetails(DotGiamGia promotion, List<IdProductDetail> ids, Double value, Status status) {
-        List<DotGiamGiaChiTietSanPham> details = new ArrayList<>();
+    private void createOrUpdateDetails(PromotionCampaign promotion, List<IdProductDetail> ids, Double value, Status status) {
+        List<PromotionCampaignProduct> details = new ArrayList<>();
         for (IdProductDetail item : ids) {
             Map<String, Object> productDetail = catalogClient.getProductDetail(item.getId());
-            DotGiamGiaChiTietSanPham detail = Optional.ofNullable(detailRepository.getByProductDetailAndPromotion(item.getId(), promotion.getId()))
-                    .orElseGet(DotGiamGiaChiTietSanPham::new);
-            double original = doubleValue(productDetail.get("giaBan"));
-            detail.setMa(detail.getMa() == null ? "DGCTSP-" + UUID.randomUUID() : detail.getMa());
-            detail.setDotGiamGia(promotion);
-            detail.setSanPhamChiTietId(item.getId());
+            PromotionCampaignProduct detail = Optional.ofNullable(detailRepository.getByProductDetailAndPromotion(item.getId(), promotion.getId()))
+                    .orElseGet(PromotionCampaignProduct::new);
+            double original = doubleValue(productDetail.get("salePrice"));
+            detail.setCode(detail.getCode() == null ? "DGCTSP-" + UUID.randomUUID() : detail.getCode());
+            detail.setPromotionCampaign(promotion);
+            detail.setProductVariantId(item.getId());
             detail.setTrangThai(status);
-            detail.setGiaTruoc(original);
-            detail.setGiaSau(roundTo2Decimals(original - (original * value / 100)));
+            detail.setPriceBeforeDiscount(original);
+            detail.setPriceAfterDiscount(roundTo2Decimals(original - (original * value / 100)));
             details.add(detail);
         }
         detailRepository.saveAll(details);
@@ -218,7 +272,7 @@ public class PromotionServiceImpl implements PromotionService {
         if (!status.equals(StatusPromotion.HET_HAN_KICH_HOAT)) {
             return false;
         }
-        for (DotGiamGiaChiTietSanPham detail : detailRepository.findAllByIdPromotion(idPromotion)) {
+        for (PromotionCampaignProduct detail : detailRepository.findAllByIdPromotion(idPromotion)) {
             detail.setTrangThai(Status.KHONG_SU_DUNG);
             detailRepository.save(detail);
         }
@@ -234,5 +288,16 @@ public class PromotionServiceImpl implements PromotionService {
             return number.doubleValue();
         }
         return value == null ? 0D : Double.parseDouble(String.valueOf(value));
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private boolean sameScope(String currentSellerId, String requestedSellerId) {
+        if ((currentSellerId == null || currentSellerId.isBlank()) && (requestedSellerId == null || requestedSellerId.isBlank())) {
+            return true;
+        }
+        return currentSellerId != null && currentSellerId.equals(requestedSellerId);
     }
 }

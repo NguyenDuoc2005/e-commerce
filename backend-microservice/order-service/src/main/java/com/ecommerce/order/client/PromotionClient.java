@@ -20,6 +20,9 @@ public interface PromotionClient {
     @PostMapping("/vouchers/decrement")
     void decrementVoucher(@RequestParam("voucherId") String voucherId);
 
+    @PostMapping("/vouchers/increment")
+    void incrementVoucher(@RequestParam("voucherId") String voucherId);
+
     @GetMapping("/vouchers/applicable")
     List<Map<String, Object>> getApplicableVouchers(@RequestParam("customerId") String customerId);
 }

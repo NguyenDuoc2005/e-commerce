@@ -21,15 +21,15 @@ spring:
         - id: catalog-service
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/admin/mau-sac/**,/api/v1/admin/size/**,/api/v1/admin/thuong-hieu/**,/api/v1/admin/xuat-xu/**,/api/v1/admin/san-pham/**,/api/v1/admin/san-pham-chi-tiet/**,/api/v1/admin/chat-lieu/**,/api/v1/admin/danh-muc/**,/api/v1/admin/loai-de/**,/api/v1/permitall/san-pham/**,/api/v1/permitall/san-pham-chi-tiet/**,/api/v1/permitall/thuong-hieu/**,/api/catalog/user/products/**
+            - Path=/api/v1/admin/mau-sac/**,/api/v1/admin/size/**,/api/v1/admin/thuong-hieu/**,/api/v1/admin/xuat-xu/**,/api/v1/admin/san-pham/**,/api/v1/admin/san-pham-chi-tiet/**,/api/v1/admin/chat-lieu/**,/api/v1/admin/danh-muc/**,/api/v1/admin/loai-de/**,/api/v1/admin/product-attributes/**,/api/v1/permitall/san-pham/**,/api/v1/permitall/san-pham-chi-tiet/**,/api/v1/permitall/thuong-hieu/**,/api/catalog/user/products/**,/api/v1/seller/products/**,/api/v1/seller/product-variants/**
         - id: promotion-service
           uri: lb://promotion-service
           predicates:
-            - Path=/api/v1/admin/dot-giam-gia/**,/api/v1/admin/voucher/**
+            - Path=/api/v1/admin/dot-giam-gia/**,/api/v1/admin/voucher/**,/api/v1/seller/vouchers/**,/api/v1/seller/promotions/**
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/api/v1/admin/ban-hang/**,/api/v1/admin/hoa-don/**,/api/v1/admin/thong-ke/**,/api/v1/permitall/don-mua/**,/api/orders/**
+            - Path=/api/v1/admin/ban-hang/**,/api/v1/admin/hoa-don/**,/api/v1/admin/thong-ke/**,/api/v1/permitall/don-mua/**,/api/orders/**,/api/v1/seller/orders/**
         - id: cart-service
           uri: lb://cart-service
           predicates:
@@ -38,6 +38,14 @@ spring:
           uri: lb://notification-service
           predicates:
             - Path=/api/v1/notifications/**
+        - id: payout-service
+          uri: lb://payout-service
+          predicates:
+            - Path=/api/v1/admin/payout/**,/api/v1/seller/payout/**
+        - id: seller-service
+          uri: lb://seller-service
+          predicates:
+            - Path=/api/v1/sellers/**,/api/v1/seller/**,/api/v1/admin/sellers/**,/api/v1/admin/banners/**,/api/v1/permitall/shops/**,/api/v1/permitall/banners/**,/api/v1/permitall/reviews/**
 
 server:
   port: ${SERVER_PORT:8080}

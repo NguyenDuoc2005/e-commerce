@@ -1,7 +1,7 @@
 $ErrorActionPreference = "SilentlyContinue"
 
 $logDir = Join-Path $PSScriptRoot "logs"
-$servicePorts = @(8080, 8761, 8081, 8082, 8083, 8085, 8086, 8087)
+$servicePorts = @(8080, 8761, 8081, 8082, 8083, 8085, 8086, 8087, 8089, 8091)
 
 Get-ChildItem -Path $logDir -Filter "*.pid" | ForEach-Object {
     $pidValue = Get-Content $_.FullName | Select-Object -First 1

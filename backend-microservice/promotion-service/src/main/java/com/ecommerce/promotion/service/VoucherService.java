@@ -11,4 +11,7 @@ public interface VoucherService {
     Page<String> getListKH(String id, String search, int page, int size);
     ResponseObject<?> modifyVoucher(VoucherRequest request);
     ResponseObject<?> changeVoucherStatus(String id);
+    ResponseObject<?> getSellerVouchers(String sellerId, VoucherSearchRequest request);
+    ResponseObject<?> modifySellerVoucher(String sellerId, VoucherRequest request);
+    ResponseObject<?> changeSellerVoucherStatus(String sellerId, String id);
 }

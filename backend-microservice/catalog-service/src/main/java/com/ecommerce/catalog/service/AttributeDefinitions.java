@@ -1,20 +1,20 @@
 package com.ecommerce.catalog.service;
 
-import com.ecommerce.catalog.entity.ChatLieu;
-import com.ecommerce.catalog.entity.DanhMuc;
-import com.ecommerce.catalog.entity.KichCo;
-import com.ecommerce.catalog.entity.LoaiDe;
-import com.ecommerce.catalog.entity.MauSac;
-import com.ecommerce.catalog.entity.ThuongHieu;
-import com.ecommerce.catalog.entity.XuatSu;
+import com.ecommerce.catalog.entity.Material;
+import com.ecommerce.catalog.entity.Category;
+import com.ecommerce.catalog.entity.Size;
+import com.ecommerce.catalog.entity.SoleType;
+import com.ecommerce.catalog.entity.Color;
+import com.ecommerce.catalog.entity.Brand;
+import com.ecommerce.catalog.entity.Origin;
 import com.ecommerce.catalog.model.request.AttributeRequest;
-import com.ecommerce.catalog.repository.ChatLieuRepository;
-import com.ecommerce.catalog.repository.DanhMucRepository;
-import com.ecommerce.catalog.repository.KichCoRepository;
-import com.ecommerce.catalog.repository.LoaiDeRepository;
-import com.ecommerce.catalog.repository.MauSacRepository;
-import com.ecommerce.catalog.repository.ThuongHieuRepository;
-import com.ecommerce.catalog.repository.XuatSuRepository;
+import com.ecommerce.catalog.repository.MaterialRepository;
+import com.ecommerce.catalog.repository.CategoryRepository;
+import com.ecommerce.catalog.repository.SizeRepository;
+import com.ecommerce.catalog.repository.SoleTypeRepository;
+import com.ecommerce.catalog.repository.ColorRepository;
+import com.ecommerce.catalog.repository.BrandRepository;
+import com.ecommerce.catalog.repository.OriginRepository;
 import com.ecommerce.common.base.ResponseObject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,10 +24,10 @@ import org.springframework.http.HttpStatus;
 public class AttributeDefinitions {
 
     @Bean
-    AttributeService.AttributeDefinition<MauSac> mauSacDefinition(MauSacRepository repository) {
-        return new Definition<>("mau-sac", MauSac.class, repository, MauSac::new,
+    AttributeService.AttributeDefinition<Color> mauSacDefinition(ColorRepository repository) {
+        return new Definition<>("mau-sac", Color.class, repository, Color::new,
                 request -> {
-                    if (!repository.findByTen(request.getTen()).isEmpty()) {
+                    if (!repository.findByName(request.getName()).isEmpty()) {
                         return new ResponseObject<>(null, HttpStatus.OK, "Mau sac nay da ton tai");
                     }
                     if (!repository.findByMau(request.getColor()).isEmpty()) {
@@ -40,9 +40,9 @@ public class AttributeDefinitions {
     }
 
     @Bean
-    AttributeService.AttributeDefinition<KichCo> kichCoDefinition(KichCoRepository repository) {
-        return new Definition<>("size", KichCo.class, repository, KichCo::new,
-                request -> repository.findByTenContaining(request.getTen()).isEmpty()
+    AttributeService.AttributeDefinition<Size> kichCoDefinition(SizeRepository repository) {
+        return new Definition<>("size", Size.class, repository, Size::new,
+                request -> repository.findByNameContaining(request.getName()).isEmpty()
                         ? null
                         : new ResponseObject<>(null, HttpStatus.OK, "Kich co nay da ton tai"),
                 "Lay danh sach size thanh cong", "Lay size thanh cong", "Khong tim thay size",
@@ -50,28 +50,28 @@ public class AttributeDefinitions {
     }
 
     @Bean
-    AttributeService.AttributeDefinition<ThuongHieu> thuongHieuDefinition(ThuongHieuRepository repository) {
-        return simple("thuong-hieu", ThuongHieu.class, repository, ThuongHieu::new, "thuong hieu", "Thuong hieu");
+    AttributeService.AttributeDefinition<Brand> thuongHieuDefinition(BrandRepository repository) {
+        return simple("thuong-hieu", Brand.class, repository, Brand::new, "thuong hieu", "Thuong hieu");
     }
 
     @Bean
-    AttributeService.AttributeDefinition<XuatSu> xuatSuDefinition(XuatSuRepository repository) {
-        return simple("xuat-xu", XuatSu.class, repository, XuatSu::new, "xuat xu", "Xuat xu");
+    AttributeService.AttributeDefinition<Origin> xuatSuDefinition(OriginRepository repository) {
+        return simple("xuat-xu", Origin.class, repository, Origin::new, "xuat xu", "Xuat xu");
     }
 
     @Bean
-    AttributeService.AttributeDefinition<ChatLieu> chatLieuDefinition(ChatLieuRepository repository) {
-        return simple("chat-lieu", ChatLieu.class, repository, ChatLieu::new, "chat lieu", "Chat lieu");
+    AttributeService.AttributeDefinition<Material> chatLieuDefinition(MaterialRepository repository) {
+        return simple("chat-lieu", Material.class, repository, Material::new, "chat lieu", "Chat lieu");
     }
 
     @Bean
-    AttributeService.AttributeDefinition<DanhMuc> danhMucDefinition(DanhMucRepository repository) {
-        return simple("danh-muc", DanhMuc.class, repository, DanhMuc::new, "danh muc", "Danh muc");
+    AttributeService.AttributeDefinition<Category> danhMucDefinition(CategoryRepository repository) {
+        return simple("danh-muc", Category.class, repository, Category::new, "danh muc", "Danh muc");
     }
 
     @Bean
-    AttributeService.AttributeDefinition<LoaiDe> loaiDeDefinition(LoaiDeRepository repository) {
-        return simple("loai-de", LoaiDe.class, repository, LoaiDe::new, "loai de", "Loai de");
+    AttributeService.AttributeDefinition<SoleType> loaiDeDefinition(SoleTypeRepository repository) {
+        return simple("loai-de", SoleType.class, repository, SoleType::new, "loai de", "Loai de");
     }
 
     private <T extends com.ecommerce.catalog.entity.base.CatalogAttribute> AttributeService.AttributeDefinition<T> simple(

@@ -4,6 +4,11 @@ export interface DecodedToken {
   email: string
   pictureUrl:string
   role: string
+  roles?: string[]
+  sellerId?: string
+  sellerStatus?: string
+  sellerSlug?: string
+  shopName?: string
   exp: number
   iat: number
   iss: string
@@ -14,4 +19,9 @@ export interface UserInformation {
   pictureUrl:string
   email: string
   role: string
+  roles: string[]
+  sellerId?: string
+  sellerStatus?: string
+  sellerSlug?: string
+  shopName?: string
 }

@@ -13,9 +13,9 @@ public interface CheckoutService {
 
     boolean handleVNPayReturn(Map<String, String> params);
 
-    ResponseObject<?> getPhieuGiamGia(VoucherPaymentRequest request);
+    ResponseObject<?> getVoucher(VoucherPaymentRequest request);
 
-    ResponseObject<?> getAllApplicablePGG(String idKhachHang, Double tongTien);
+    ResponseObject<?> getAllApplicablePGG(String idCustomer, Double tongTien);
 
-    ResponseObject<?> getKhachHang(String id);
+    ResponseObject<?> getCustomer(String id);
 }

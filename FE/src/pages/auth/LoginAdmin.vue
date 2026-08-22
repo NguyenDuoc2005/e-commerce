@@ -181,7 +181,7 @@ const onLogin = async () => {
         refreshToken
       })
 
-      router.push({ name: ROUTES_CONSTANTS.ADMIN.children.BAN_HANG.name })
+      router.push({ name: ROUTES_CONSTANTS.ADMIN.children.THONG_KE.name })
     } 
   } catch (err: any) {
     const errorMessage = err?.response?.data?.message ?? 'Đã xảy ra lỗi. Vui lòng thử lại.'

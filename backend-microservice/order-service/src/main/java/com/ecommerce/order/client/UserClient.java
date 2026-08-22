@@ -19,5 +19,5 @@ public interface UserClient {
     List<Map<String, Object>> searchCustomers(@RequestParam(value = "q", required = false) String q);
 
     @PostMapping("/customers")
-    Map<String, Object> createCustomer(@RequestParam("ten") String ten, @RequestParam("sdt") String sdt);
+    Map<String, Object> createCustomer(@RequestParam("name") String name, @RequestParam("phoneNumber") String phoneNumber);
 }

@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="checkout-page container py-4">
     <div class="mb-3">
@@ -187,11 +186,11 @@ import {
   getGHNWards,
   calculateFee,
   getAvailableServices,
-  Province,
-  District,
-  Ward,
-  ShippingFeeRequest,
-  GHNAvailableServiceRequest,
+  type Province,
+  type District,
+  type Ward,
+  type ShippingFeeRequest,
+  type GHNAvailableServiceRequest,
 } from "@/services/api/ghn.api";
 import { localStorageAction } from "@/utils/storage";
 import { USER_INFO_STORAGE_KEY, CHECKOUT_STORAGE_KEY } from "@/constants/storageKey";
@@ -214,6 +213,15 @@ interface CartItem {
   width?: number;
   idChiTietSanPham?: string;
   soLuongTrongKho?: number;
+  sellerId?: string;
+  shopName?: string;
+  sellerSlug?: string;
+}
+
+interface CheckoutShopGroup {
+  sellerId: string;
+  shopName: string;
+  items: CartItem[];
 }
 
 interface Voucher {
@@ -322,6 +330,26 @@ const tongTienTruocGiam = computed(() => tongTien.value + phiShip.value);
 const tongCong = computed(() =>
   Math.max(tongTien.value + phiShip.value - giamGia.value, 0)
 );
+
+const checkoutShopGroups = computed<CheckoutShopGroup[]>(() => {
+  const grouped = new Map<string, CheckoutShopGroup>();
+  for (const item of listSanPham.value) {
+    const sellerId = item.sellerId || "UNKNOWN_SELLER";
+    if (!grouped.has(sellerId)) {
+      grouped.set(sellerId, {
+        sellerId,
+        shopName: item.shopName || "Shop",
+        items: [],
+      });
+    }
+    grouped.get(sellerId)!.items.push(item);
+  }
+  return Array.from(grouped.values());
+});
+
+const shopSubtotal = (group: CheckoutShopGroup) => {
+  return group.items.reduce((sum, item) => sum + getPrice(item) * item.quantity, 0);
+};
 
 watch(tongTienTruocGiam, (newValue) => {
   console.log("tongTienTruocGiam thay đổi:", newValue);
@@ -676,6 +704,7 @@ const performCheckout = async () => {
       hoTen: form.value.hoTen,
       soDienThoai: form.value.soDienThoai,
       email: form.value.email,
+      address: `${form.value.diaChi}, ${selectedWard?.WardName}, ${selectedDistrict?.DistrictName}, ${selectedProvince?.ProvinceName}`,
       diaChi: `${form.value.diaChi}, ${selectedWard?.WardName}, ${selectedDistrict?.DistrictName}, ${selectedProvince?.ProvinceName}`,
       ghiChu: form.value.ghiChu,
       maGiamGia: form.value.maGiamGia,
@@ -684,7 +713,9 @@ const performCheckout = async () => {
       phiShip: phiShip.value,
       giamGia: giamGia.value,
       tongCong: tongCong.value,
+      product: ListSP,
       sanPham: ListSP,
+      Customer: idKH?.userId || "khách lẻ",
       KhachHang: idKH?.userId || "khách lẻ",
       vnp_TmnCode: VNPAY_CONFIG.vnp_TmnCode,
       vnp_ReturnUrl: VNPAY_CONFIG.vnp_ReturnUrl,

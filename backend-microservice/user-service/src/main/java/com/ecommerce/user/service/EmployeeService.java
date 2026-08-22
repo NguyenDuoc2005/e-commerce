@@ -1,20 +1,20 @@
 package com.ecommerce.user.service;
 
 import com.ecommerce.common.base.ResponseObject;
-import com.ecommerce.user.model.request.ADNhanVienSearchRequest;
+import com.ecommerce.user.model.request.ADStaffSearchRequest;
 import com.ecommerce.user.model.request.UserUpsertRequest;
 
 public interface EmployeeService {
 
-    ResponseObject<?> getAllNhanVien(ADNhanVienSearchRequest request);
+    ResponseObject<?> getAllStaff(ADStaffSearchRequest request);
 
-    ResponseObject<?> getNhanVienById(String id);
+    ResponseObject<?> getStaffById(String id);
 
-    ResponseObject<?> modifyNhanVien(UserUpsertRequest request);
+    ResponseObject<?> modifyStaff(UserUpsertRequest request);
 
-    ResponseObject<?> changeNhanVienStatus(String id);
+    ResponseObject<?> changeStaffStatus(String id);
 
-    ResponseObject<?> changeNhanVienRole(String id);
+    ResponseObject<?> changeStaffRole(String id);
 
     boolean checkDuplicateField(String field, String value, String excludeId);
 }

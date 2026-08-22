@@ -103,10 +103,10 @@ public class AuthController {
 
             String accessToken = "ADMIN".equals(role)
                     ? tokenProvider.createTokenForAdmin(authentication)
-                    : tokenProvider.createTokenForKhachHang(authentication);
+                    : tokenProvider.createTokenForCustomer(authentication);
             String refreshToken = "ADMIN".equals(role)
                     ? tokenProvider.createRefreshTokenForAdmin(authentication)
-                    : tokenProvider.createRefreshTokenForKhachHang(authentication);
+                    : tokenProvider.createRefreshTokenForCustomer(authentication);
 
             return ResponseUtils.createResponseEntity(
                     new ResponseObject<>(new AuthTokens(accessToken, refreshToken), HttpStatus.OK, "Lay token thanh cong")
@@ -125,7 +125,7 @@ public class AuthController {
             );
         } catch (CredentialsExpiredException ex) {
             return ResponseUtils.createResponseEntity(
-                    new ResponseObject<>(null, HttpStatus.UNAUTHORIZED, "Thong tin xac thuc da het han")
+                    new ResponseObject<>(null, HttpStatus.UNAUTHORIZED, "Thong tin wardc thuc da het han")
             );
         } catch (Exception ex) {
             return ResponseUtils.createResponseEntity(new ResponseObject<>(

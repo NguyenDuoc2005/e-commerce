@@ -22,6 +22,9 @@ public class AdminVariantAxisController {
     @GetMapping("/insights")
     public Object insights(@RequestParam(defaultValue = "") String q) { return service.axisInsights(q); }
 
+    @GetMapping("/suggestions")
+    public Object suggestions(@RequestParam(defaultValue = "") String q) { return service.axisSuggestions(q); }
+
     @PostMapping("/suggestions")
     public Object create(@RequestBody Map<String, String> body) { return service.createAxisSuggestion(body.get("name")); }
 

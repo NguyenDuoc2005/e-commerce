@@ -75,6 +75,7 @@ export const PREFIX_API_SELLER_VOUCHERS = `${API_URL}/seller/vouchers` as string
 export const PREFIX_API_SELLER_PAYOUT = `${API_URL}/seller/payout` as string;
 export const PREFIX_API_BANNER_ADMIN = `${PREFIX_API_ADMIN}/banners` as string;
 export const PREFIX_API_PRODUCT_ATTRIBUTES_ADMIN = `${PREFIX_API_ADMIN}/product-attributes` as string;
+export const PREFIX_API_PRODUCT_VARIANT_AXES_ADMIN = `${PREFIX_API_ADMIN}/product-variant-axes` as string;
 export const PREFIX_API_BANNER_PERMITALL = `${PREFIX_API_PERMITALL}/banners` as string;
 // Permitall API PREFIX
 export const PREFIX_API_SANPHAM_PERMITALL = `${PREFIX_API_PERMITALL}/san-pham` as string;

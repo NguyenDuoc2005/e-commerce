@@ -1,9 +1,9 @@
 ﻿# PROGRESS.md - Nháº­t kÃ½ tiáº¿n Ä‘á»™ chuyá»ƒn Ä‘á»•i Marketplace
 
 ## Tráº¡ng thÃ¡i tá»•ng quan hiá»‡n táº¡i
-- Giai doan: Product domain normalization P0 da hoan tat audit source/DB that va tai lieu Muc 3-6; ERD/nghiep vu/roadmap da dong bo them quyet dinh product image, merge mot tang, default unit, combination key va singleton concurrency. Source/runtime van la model half-migrated cu, chua bat dau schema cutover.
-- Task dang lam do (neu co): Khong co edit code product model moi dang do. Sau bang hard-code `brand/color/material/origin/size/sole_type`, FK cu va FE/consumer hard-code van con; CDC cu cung van chua dong bo du 4 product do thieu user `debezium`.
-- Viec tiep theo can lam ngay: Theo `docs/product/roadmap-san-pham.md`, lam P1.1: viet schema migration target xoa bang cu + tao descriptive attributes/product_image/variant axes/default variant, default_unit va combination_key NOT NULL/unique; verify tren database tam co lap, chua reset `ecommerce_catalog` that. Sau do moi refactor entity/repository va consumer theo contract moi.
+- Giai doan: Product canonical cutover da co DB/backend/API/CDC smoke theo update P7; dang hoan thien UI Admin cho hau kiem thuoc tinh va truc bien the.
+- Task dang lam do (neu co): Admin `Quan ly thuoc tinh` da fix them truc goi y, category label khong hien UUID, va loi `CATALOG_CONSTRAINT_VIOLATION` khi chuan hoa lai cung danh muc do duplicate `category_attribute_suggestion`. Catalog-service da build/restart va smoke direct API pass. Chua co FE build/typecheck/browser proof vi shell hien tai khong co `node`/`npm.cmd` kha dung.
+- Viec tiep theo can lam ngay: Khi co Node/npm hop le, reload/rerun FE dev server, chay `npm run build` va `vue-tsc --noEmit` trong `FE`, sau do browser smoke `/admin/product-attributes` cho category select/tag hien path ten danh muc, tab truc bien the load insight + goi y chuan, tao/duyet/an goi y truc, va chuan hoa lai thuoc tinh co danh muc cu khong con conflict.
 
 ## Cập nhật product normalization — 2026-08-24
 - P1.1–P1.3, P2, P3 và P4 đã có bằng chứng source/test/compile/runtime cô lập; P5 Admin đã hoàn tất source và FE build/typecheck.
@@ -50,6 +50,115 @@
 - [ ] Flash sale toÃ n sÃ n
 
 ## Nháº­t kÃ½ chi tiáº¿t (entry má»›i nháº¥t á»Ÿ trÃªn cÃ¹ng)
+
+### [2026-08-24 15:27] Phien #26
+**Da lam:**
+- Truy vet loi user bao `CONFLICT / CATALOG_CONSTRAINT_VIOLATION` trong catalog log luc 15:21:56+07: DB bao duplicate key `category_attribute_suggestion.uk_category_attribute_suggestion` cho cap `category_id + attribute_definition_id`.
+- Sua `CatalogAdminService.standardize()`: sau khi `deleteAll(current)` thi `flush()` truoc khi insert lai mapping category, tranh Hibernate day insert moi truoc delete cu trong cung transaction; dong thoi dedupe `categoryIds` bang `LinkedHashSet`.
+- Sua FE `ProductAttributes.vue`: dedupe categoryIds khi mo modal chuan hoa, khi them missing category options, va truoc khi submit.
+- Build va restart rieng `catalog-service` voi jar moi, DB port 3307.
+- Smoke direct API: PUT `/api/v1/admin/product-attributes/41000000-0000-0000-0000-000000000003/standardize` voi category ID lap 2 lan tra 200 va response chi con 1 categoryId; catalog log khong con `Duplicate entry` sau smoke.
+
+**File da tao/sua:**
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/CatalogAdminService.java`
+- `FE/src/pages/admin/product-attributes/ProductAttributes.vue`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE source + runtime backend fix cho loi `CATALOG_CONSTRAINT_VIOLATION` khi chuan hoa thuoc tinh voi danh muc goi y da ton tai/lap lai. Catalog `compileJava` pass, `bootJar` pass, actuator health UP sau restart.
+
+**Ghi chu/vuong mac:**
+- FE build/typecheck chua chay duoc vi shell hien tai khong tim thay `node`/`npm.cmd`.
+- Co file build artifact `backend-microservice/catalog-service/build/tmp/compileJava/previous-compilation-data.bin` dang modified do compile; chua revert vi truoc do `git restore` gap quyen `.git/index.lock`.
+
+---
+
+### [2026-08-24 15:19] Phien #25
+**Da lam:**
+- Truy vet loi danh muc goi y trong bang thuoc tinh va modal chuan hoa van hien UUID: `FE/src/services/api/catalog/catalog.api.ts` cung hard-code `const base='/api/v1/permitall'` trong khi Axios `baseURL` da la `/api/v1`, lam `getCategoryTree()` co nguy co goi sai URL.
+- Doi shared catalog API sang `PREFIX_API_PERMITALL`, dong bo voi cac API FE khac.
+- Kiem tra runtime `/api/v1/permitall/categories/tree`: co category name/path that, nhung mot leaf category tra `children: ""`; harden `flattenCategories()` de chi duyet children khi la array, tranh throw roi set `categoryOptions=[]`.
+- Doi fallback `categoryLabel()` khong hien UUID dai nua: neu category chua load/missing se hien `Danh muc chua tai (SHORTID)`; `openStandardize()` them missing selected IDs vao options de Select khong phoi raw UUID.
+- Runtime doi chieu: category tree gateway 200; admin product attributes co `categoryIds` map voi category tree IDs nhu `...103`, `...105`, `...107`; `git diff --check` pass.
+
+**File da tao/sua:**
+- `FE/src/services/api/catalog/catalog.api.ts`
+- `FE/src/pages/admin/product-attributes/ProductAttributes.vue`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE source fix cho danh muc goi y hien ten/path thay vi UUID khi tree load dung; fallback khong con phoi UUID dai. CHUA DONE FE build/typecheck/browser do thieu Node/npm trong shell.
+
+**Ghi chu/vuong mac:**
+- Neu FE dev server dang chay bundle cu, can reload/restart FE dev server de nhan fix `catalog.api.ts` va `flattenCategories()`.
+- Runtime API da co du name category, loi nam o FE URL/flatten/fallback.
+
+---
+
+### [2026-08-24 15:14] Phien #24
+**Da lam:**
+- Truy vet loi `Them truc goi y`: `variant-axis.api.ts` dang dung base `'/api/v1/admin/product-variant-axes'` trong khi Axios `baseURL` da la `${VITE_BASE_URL_SERVER}/api/v1`, co nguy co goi sai URL lap `/api/v1/api/v1/...`.
+- Them constant `PREFIX_API_PRODUCT_VARIANT_AXES_ADMIN = ${PREFIX_API_ADMIN}/product-variant-axes` va doi `variant-axis.api.ts` dung constant nay, dong bo voi cac API admin khac.
+- Xac nhan runtime cu chua co `GET /suggestions` vi catalog-service dang chay bootJar cu: direct GET tra 405. Chay `:catalog-service:bootJar --no-daemon --max-workers=1`, sau do `run-all.ps1 -DbPort 3307` de restart full backend voi jar moi.
+- Runtime smoke: catalog health 200; gateway health 200; direct `GET /api/v1/admin/product-variant-axes/suggestions?q=Codex` 200; gateway no-token POST tra 401 dung ky vong.
+- Login admin `admin@ecommerce.local` / `Admin@123` thanh cong; gateway POST `/api/v1/admin/product-variant-axes/suggestions` voi admin token tao duoc suggestion, sau do hide suggestion test 204; direct GET `q=Codex` tra `[]`, khong con du lieu test active.
+
+**File da tao/sua:**
+- `FE/src/constants/url.ts`
+- `FE/src/services/api/admin/variant-axis.api.ts`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE fix source va runtime proof cho loi khong them duoc truc goi y qua gateway/admin token. CHUA DONE FE build/typecheck/browser do thieu Node/npm trong shell.
+
+**Ghi chu/vuong mac:**
+- Backend source `GET /suggestions` tu phien #23 da duoc bootJar/restart trong phien nay; neu FE dev server dang chay tu bundle cu thi can reload/restart FE dev server de nhan fix URL moi.
+- `run-all.ps1` start lai full backend; notification-service khong bat vi script mac dinh khong co `-WithNotification`.
+- Artifact tracked `backend-microservice/catalog-service/build/tmp/compileJava/previous-compilation-data.bin` van modified do compile/bootJar; lan truoc thu restore bi chan `.git/index.lock Permission denied`.
+
+---
+
+### [2026-08-24 15:03] Phien #23
+**Da lam:**
+- Sua tiep UI Admin `Quan ly thuoc tinh` theo feedback: bo nut `Them truc goi y` bi trung o header, chi giu nut trong tab `Truc bien the`.
+- Doi nguon danh muc cua modal chuan hoa sang category tree canonical `/api/v1/permitall/categories/tree`, flatten label dang `Cha / Con` de select va tag hien ten truc quan thay vi UUID khi co category name.
+- Them backend Admin API `GET /api/v1/admin/product-variant-axes/suggestions` va service `axisSuggestions(q)` de Admin doc duoc danh sach goi y truc chuan.
+- Sua FE tab `Truc bien the`: load dong thoi axis insight va goi y chuan; them bang `Goi y truc chuan` co trang thai, hau kiem, thao tac duyet/an; tao goi y xong reload lai danh sach.
+- Chay `:catalog-service:compileJava --no-daemon --max-workers=1` voi JDK 17: BUILD SUCCESSFUL.
+
+**File da tao/sua:**
+- `FE/src/pages/admin/product-attributes/ProductAttributes.vue`
+- `FE/src/services/api/admin/variant-axis.api.ts`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/controller/AdminVariantAxisController.java`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/CatalogAdminService.java`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE source/backend compile cho fix truc bien the va category label. CHUA DONE FE build/typecheck/browser runtime do thieu Node/npm trong shell.
+
+**Ghi chu/vuong mac:**
+- `git diff --check` pass cho cac file source vua sua.
+- Lenh compile lam thay doi artifact tracked `backend-microservice/catalog-service/build/tmp/compileJava/previous-compilation-data.bin`; da thu `git restore` file nay nhung bi chan do khong tao duoc `.git/index.lock` (`Permission denied`).
+
+---
+
+### [2026-08-24 14:56] Phien #22
+**Da lam:**
+- Doc `AGENTS.md`, `docs/PROGRESS.md`, prompt marketplace goc va skill/memory roadmap truoc khi sua.
+- Refactor lai toan bo man Admin `Quan ly thuoc tinh`: them header, thong ke nhanh, filter theo ten/trang thai/hau kiem/danh muc, bang responsive, drawer xem option, modal chuan hoa, modal gop va nut dong bo search.
+- Sua tab `Truc bien the`: bo `window.prompt`, thay bang modal nhap ten truc; sua contract FE theo backend `AxisInsight` hien tai (`displayName`, `normalizedName`, `topValues`) thay vi field cu `name/suggestions`.
+- Them helper API FE cho verify option va reindex product attributes; doi component khong goi raw URL truc tiep.
+- Doi chieu gateway da co route `/api/v1/admin/product-attributes/**` va `/api/v1/admin/product-variant-axes/**`; khong can sua backend routing.
+
+**File da tao/sua:**
+- `FE/src/pages/admin/product-attributes/ProductAttributes.vue`
+- `FE/src/services/api/admin/product-attribute.api.ts`
+- `FE/src/services/api/admin/variant-axis.api.ts`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE source FE cleanup cho man Admin quan ly thuoc tinh/truc bien the; `git diff --check` pass. CHUA DONE FE build/typecheck/browser runtime.
+
+**Ghi chu/vuong mac:**
+- `npm.cmd`, `npm` va `node` khong co trong PATH; thu goi truc tiep `C:\ProgramData\nvm\v20.19.6\node.exe`/`npm.cmd` cung khong tim thay executable trong sandbox shell, nen chua chay duoc `vue-tsc --noEmit` hoac `npm run build`.
+- Chua click browser `/admin/product-attributes`; can verify lai khi FE dev/build runtime kha dung.
+
+---
 
 ### [2026-08-24 10:26] Phien #21
 **Da lam:**

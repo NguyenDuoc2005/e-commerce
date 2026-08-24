@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -108,8 +109,12 @@ public class CatalogAdminService {
         definitionRepository.save(definition);
         List<CategoryAttributeSuggestion> current = categorySuggestionRepository.findByDefinition_IdOrderByDisplayOrderAsc(id);
         categorySuggestionRepository.deleteAll(current);
+        categorySuggestionRepository.flush();
         int order = 0;
-        for (String categoryId : request.getCategoryIds() == null ? List.<String>of() : request.getCategoryIds()) {
+        List<String> categoryIds = request.getCategoryIds() == null
+                ? List.of()
+                : new ArrayList<>(new LinkedHashSet<>(request.getCategoryIds()));
+        for (String categoryId : categoryIds) {
             Category category = categoryRepository.findById(categoryId)
                     .orElseThrow(() -> new IllegalArgumentException("CATEGORY_INVALID"));
             CategoryAttributeSuggestion link = new CategoryAttributeSuggestion();
@@ -205,6 +210,14 @@ public class CatalogAdminService {
             map.put("topValues", axisValueRepository.findByAxis_IdIn(ids).stream().map(ProductVariantAxisValue::getValue).distinct().limit(20).toList());
             return map;
         }).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> axisSuggestions(String q) {
+        return axisSuggestionRepository
+                .findByNormalizedNameContainingIgnoreCaseAndStatusOrderByVerifiedDescNameAsc(
+                        ProductAggregateValidator.normalize(q), EntityStatus.ACTIVE)
+                .stream().map(this::axisSuggestionMap).toList();
     }
 
     @Transactional

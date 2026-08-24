@@ -12,3 +12,5 @@ export const mergeProductAttribute = async (id:string,targetId:string,reason?:st
 export const hideProductAttribute = async (id:string,reason?:string) => request.put(`${PREFIX_API_PRODUCT_ATTRIBUTES_ADMIN}/${id}/hide`,{reason})
 export const verifyProductAttribute = async (id:string) => data(await request.put(`${PREFIX_API_PRODUCT_ATTRIBUTES_ADMIN}/${id}/verify`) as AxiosResponse<AdminProductAttribute>)
 export const getProductAttributeOptions = async (id:string) => data(await request.get(`${PREFIX_API_PRODUCT_ATTRIBUTES_ADMIN}/${id}/options`) as AxiosResponse<AdminProductAttributeOption[]>) || []
+export const verifyProductAttributeOption = async (optionId:string) => data(await request.put(`${PREFIX_API_PRODUCT_ATTRIBUTES_ADMIN}/options/${optionId}/verify`) as AxiosResponse<AdminProductAttributeOption>)
+export const reindexProductAttributes = async () => request.post(`${PREFIX_API_PRODUCT_ATTRIBUTES_ADMIN}/reindex`)

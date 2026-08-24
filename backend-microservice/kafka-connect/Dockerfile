@@ -1,4 +1,4 @@
-FROM confluentinc/cp-kafka-connect:7.6.1
+FROM confluentinc/cp-kafka-connect:8.0.0
 
-RUN confluent-hub install --no-prompt debezium/debezium-connector-mysql:2.4.2 \
+RUN confluent-hub install --no-prompt debezium/debezium-connector-mysql:latest \
     && confluent-hub install --no-prompt confluentinc/kafka-connect-elasticsearch:latest

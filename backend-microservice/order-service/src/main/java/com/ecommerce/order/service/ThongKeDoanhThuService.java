@@ -2,6 +2,7 @@ package com.ecommerce.order.service;
 
 import com.ecommerce.order.constant.OrderStatusConstant;
 import com.ecommerce.order.client.CatalogClient;
+import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import com.ecommerce.order.model.response.ThongKeDoanhThuResponse;
 import com.ecommerce.order.model.response.ThongKeDonHangResponse;
 import com.ecommerce.order.model.response.OrderStatusStatisticsResponse;
@@ -68,15 +69,15 @@ public class ThongKeDoanhThuService {
     public List<TopSellingProductResponse> layTop3ProductBanChay(Long startDate, Long endDate) {
         List<TopSellingProductResponse> result = new ArrayList<>();
         for (Object[] row : hoaDonRepository.layTop3ProductBanChay(startDate, endDate)) {
-            Map<String, Object> product = catalogClient.getProductDetail((String) row[0]);
+            CatalogVariantSnapshot product = catalogClient.getProductVariant((String) row[0]);
             TopSellingProductResponse response = new TopSellingProductResponse();
             response.setId((String) row[0]);
-            response.setMaProduct((String) product.get("code"));
-            response.setTenProduct((String) product.get("name"));
-            response.setAnhProduct((String) product.get("imageUrl"));
+            response.setMaProduct(product.sku());
+            response.setTenProduct(product.productName());
+            response.setAnhProduct(product.imageUrl());
             response.setSoLuongBan(((Number) row[1]).longValue());
             response.setDoanhThu(row[2] == null ? 0.0 : ((Number) row[2]).doubleValue());
-            response.setBrand((String) product.get("tenBrand"));
+            response.setBrand(product.variantLabel());
             response.setSalePrice(row[3] == null ? 0.0 : ((Number) row[3]).doubleValue());
             result.add(response);
         }

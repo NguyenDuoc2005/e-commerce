@@ -4,7 +4,7 @@ Pipeline nay dong bo product search theo Outbox Pattern + Debezium CDC:
 
 ```text
 catalog-service transaction
-  -> save san_pham / san_pham_chi_tiet
+  -> save product aggregate / product_variant
   -> insert outbox
   -> MySQL binlog ROW
   -> Debezium MySQL connector + Outbox Event Router
@@ -19,8 +19,9 @@ catalog-service transaction
 - `sql/002-create-debezium-user-mysql.sql`: MySQL replication user cho Debezium.
 - `connectors/debezium-outbox-products.json`: Debezium source connector, chi doc `ecommerce_catalog.outbox`.
 - `connectors/elasticsearch-products-sink.json`: Kafka to Elasticsearch sink connector; dung Kafka key lam ES `_id`.
-- `elasticsearch/products-index-mapping.json`: explicit mapping cho index `products_v1`.
+- `elasticsearch/products-index-mapping.json`: strict nested mapping cho index `products_v2`.
 - `scripts/deploy-connectors.ps1`: tao ES index/alias va deploy 2 connector qua Kafka Connect REST API.
+- `scripts/verify-products-index.ps1`: verify strict mapping va bon truy van seed bat buoc, gom ca chong cross-match variant.
 - `scripts/cleanup-outbox.ps1`: xoa outbox record cu.
 
 ## Start local infrastructure
@@ -65,6 +66,14 @@ cd "C:\My Project\e-commerce"
 powershell -ExecutionPolicy Bypass -File backend-microservice\search-pipeline\scripts\deploy-connectors.ps1
 ```
 
+Neu local Elasticsearch con index concrete `products` tu flow cu, script se dung thay vi nuot loi alias. Sau khi xac nhan day chi la search index dan xuat va co the rebuild tu MySQL/outbox, migrate co kiem soat bang:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File backend-microservice\search-pipeline\scripts\deploy-connectors.ps1 -MigrateLegacyProductsIndex
+```
+
+Script chi xoa index legacy sau khi `_reindex` khong co failure va count dich khong nho hon count nguon. Sau khi connectors `RUNNING`, Platform Admin goi `POST /api/v1/admin/product-attributes/reindex` de enqueue `ProductUpdated` cho toan bo product active qua outbox; catalog khong dual-write truc tiep sang Elasticsearch.
+
 Kiem tra status:
 
 ```powershell
@@ -81,7 +90,7 @@ cd "C:\My Project\e-commerce"
 powershell -ExecutionPolicy Bypass -File backend-microservice\run-all.ps1 -DbPort 3307
 ```
 
-2. Tao/sua product qua API admin hoac UI admin. `catalog-service` se ghi `san_pham`/`san_pham_chi_tiet` va `outbox` trong cung transaction.
+2. Tao/sua product aggregate qua Seller/Admin API. `catalog-service` ghi product/attribute/variant va `outbox` trong cung transaction.
 
 3. Kiem tra outbox:
 
@@ -95,16 +104,10 @@ docker compose -f backend-microservice\docker-compose.yml exec -T mysql mysql -u
 docker compose -f backend-microservice\docker-compose.yml exec -T kafka kafka-console-consumer --bootstrap-server kafka:29092 --topic outbox.event.Product --from-beginning --max-messages 5 --property print.key=true
 ```
 
-5. Kiem tra Elasticsearch:
+5. Kiem tra Elasticsearch (alias `products` tro vao `products_v2`):
 
 ```powershell
 Invoke-RestMethod "http://localhost:9200/products/_search?q=Adidas"
-```
-
-6. Kiem tra search API legacy ma FE dang dung:
-
-```powershell
-Invoke-RestMethod "http://localhost:8080/api/v1/permitall/san-pham/get-all/danh-sach-san-pham?page=1&size=12&q=adi"
 ```
 
 ## Delete behavior
@@ -121,7 +124,7 @@ Nen tombstone/null value se xoa document co `_id = aggregate_id`. Connector Debe
 
 ## Payload contract
 
-`catalog-service` chi ghi cac field public vao outbox payload: `id`, `name`, `description`, `categoryId`, `category`, `price`, `brandId`, `brand`, `imageUrl`. Debezium cau hinh `table.expand.json.payload=true` de Kafka message value la JSON object dung cho Elasticsearch Sink, khong phai string JSON boc ngoai.
+`catalog-service` chi ghi search document canonical vao outbox payload: thong tin product/category, `attributes` nested va `variants` nested (moi variant giu `selections` cua chinh no). Khong con `brandId/brand`, color hay size top-level. Debezium cau hinh `table.expand.json.payload=true` de Kafka message value la JSON object dung cho Elasticsearch Sink, khong phai string JSON boc ngoai.
 
 ## Cleanup outbox
 
@@ -139,9 +142,8 @@ Nen dua len scheduler cua moi truong deploy. Khong dung cleanup job lam co che d
 Khong sua mapping truc tiep tren index production. Tao index moi, vi du `products_v2`, reindex, sau do swap alias `products`.
 
 ```powershell
-Invoke-RestMethod -Method Put -Uri "http://localhost:9200/products_v2" -ContentType "application/json" -Body (Get-Content -Raw backend-microservice\search-pipeline\elasticsearch\products-index-mapping.json)
-Invoke-RestMethod -Method Post -Uri "http://localhost:9200/_reindex" -ContentType "application/json" -Body '{"source":{"index":"products_v1"},"dest":{"index":"products_v2"}}'
-Invoke-RestMethod -Method Post -Uri "http://localhost:9200/_aliases" -ContentType "application/json" -Body '{"actions":[{"remove":{"index":"products_v1","alias":"products"}},{"add":{"index":"products_v2","alias":"products"}}]}'
+powershell -ExecutionPolicy Bypass -File backend-microservice\search-pipeline\scripts\deploy-connectors.ps1
+# Sau khi connector RUNNING, goi POST /api/v1/admin/product-attributes/reindex
 ```
 
 Neu outbox da bi cleanup va can rebuild full index tu DB, can chay mot bootstrap co kiem soat de sinh lai ProductUpdated outbox event cho tung product public. Do khong phai co che sync chinh hang ngay.

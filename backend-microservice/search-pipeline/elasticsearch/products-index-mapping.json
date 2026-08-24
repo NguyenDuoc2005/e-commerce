@@ -15,6 +15,8 @@
     "dynamic": "strict",
     "properties": {
       "id": { "type": "keyword" },
+      "code": { "type": "keyword" },
+      "sellerId": { "type": "keyword" },
       "name": {
         "type": "text",
         "fields": {
@@ -22,42 +24,51 @@
         }
       },
       "description": { "type": "text" },
+      "status": { "type": "keyword" },
       "categoryId": { "type": "keyword" },
-      "category": {
+      "categoryName": {
         "type": "text",
         "fields": {
           "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" }
         }
       },
-      "price": { "type": "double" },
-      "brandId": { "type": "keyword" },
-      "brand": {
-        "type": "text",
-        "fields": {
-          "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" }
-        }
-      },
+      "categorySlug": { "type": "keyword", "normalizer": "lowercase_keyword" },
       "imageUrl": { "type": "keyword", "index": false },
-      "sellerId": { "type": "keyword" },
-      "sellerName": {
-        "type": "text",
-        "fields": {
-          "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" }
-        }
-      },
-      "sellerSlug": { "type": "keyword" },
-      "sellerRating": { "type": "double" },
-      "soldCount": { "type": "long" },
+      "ratingAverage": { "type": "double" },
+      "ratingCount": { "type": "long" },
       "attributes": {
         "type": "nested",
         "properties": {
-          "attributeId": { "type": "keyword" },
+          "definitionId": { "type": "keyword" },
           "name": { "type": "text" },
           "dataType": { "type": "keyword" },
-          "textValues": { "type": "text" },
-          "keywordValues": { "type": "keyword", "normalizer": "lowercase_keyword" },
-          "numberValue": { "type": "double" },
-          "optionIds": { "type": "keyword" }
+          "valueText": { "type": "text" },
+          "valueNumber": { "type": "double" },
+          "unit": { "type": "keyword", "normalizer": "lowercase_keyword" },
+          "optionIds": { "type": "keyword" },
+          "optionValues": { "type": "keyword", "normalizer": "lowercase_keyword" }
+        }
+      },
+      "variants": {
+        "type": "nested",
+        "properties": {
+          "id": { "type": "keyword" },
+          "sku": { "type": "keyword" },
+          "combinationKey": { "type": "keyword" },
+          "salePrice": { "type": "double" },
+          "quantity": { "type": "integer" },
+          "imageUrl": { "type": "keyword", "index": false },
+          "isDefault": { "type": "boolean" },
+          "status": { "type": "keyword" },
+          "selections": {
+            "type": "nested",
+            "properties": {
+              "axisId": { "type": "keyword" },
+              "axisName": { "type": "keyword", "normalizer": "lowercase_keyword" },
+              "valueId": { "type": "keyword" },
+              "value": { "type": "keyword", "normalizer": "lowercase_keyword" }
+            }
+          }
         }
       }
     }

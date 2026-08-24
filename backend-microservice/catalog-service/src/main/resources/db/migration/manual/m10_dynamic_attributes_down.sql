@@ -33,6 +33,7 @@ LEFT JOIN category c ON c.id = p.category_id
 LEFT JOIN brand b ON b.id = p.brand_id;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `product_attribute_moderation_audit`;
 DROP TABLE IF EXISTS `product_attribute_value_option`;
 DROP TABLE IF EXISTS `product_attribute_value`;
 DROP TABLE IF EXISTS `category_attribute_suggestion`;

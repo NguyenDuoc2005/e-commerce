@@ -3,6 +3,8 @@ param(
     [int]$DbPort = 3306,
     [string]$DbUser = "root",
     [string]$DbPassword = "12345678",
+    [int]$MaxHeapMb = 320,
+    [int]$MaxMetaspaceMb = 192,
     [switch]$WithNotification
 )
 
@@ -12,16 +14,41 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $projectDir = Join-Path $repoRoot "backend-microservice"
 $gradle = Join-Path $projectDir "gradlew.bat"
 $logDir = Join-Path $projectDir "logs"
+$java = if ($env:JAVA_HOME -and (Test-Path (Join-Path $env:JAVA_HOME "bin\java.exe"))) {
+    Join-Path $env:JAVA_HOME "bin\java.exe"
+} else {
+    (Get-Command java.exe -ErrorAction Stop).Source
+}
 
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
-Write-Host "Building common-lib before starting services..."
-& $gradle -p $projectDir ":common-lib:jar" "--no-daemon" "--max-workers=1"
+$modules = @(
+    "discovery-server",
+    "auth-service",
+    "user-service",
+    "catalog-service",
+    "promotion-service",
+    "cart-service",
+    "order-service",
+    "seller-service",
+    "payout-service",
+    "api-gateway"
+)
+if ($WithNotification) {
+    $modules += "notification-service"
+}
+
+$bootJarTasks = $modules | ForEach-Object { ":${_}:bootJar" }
+Write-Host "Building service boot jars sequentially..."
+& $gradle -p $projectDir @bootJarTasks "--no-daemon" "--max-workers=1"
+if ($LASTEXITCODE -ne 0) {
+    throw "Backend bootJar build failed with exit code $LASTEXITCODE"
+}
 
 function Start-ServiceProcess {
     param(
         [string]$Name,
-        [string]$Task,
+        [string]$Module,
         [hashtable]$Env = @{}
     )
 
@@ -37,13 +64,19 @@ function Start-ServiceProcess {
     $outLogFile = Join-Path $logDir "$Name.out.log"
     $errLogFile = Join-Path $logDir "$Name.err.log"
     $pidFile = Join-Path $logDir "$Name.pid"
-    $runnerFile = Join-Path $logDir "$Name.run.ps1"
     $cmdFile = Join-Path $logDir "$Name.run.cmd"
+    $jar = Get-ChildItem -Path (Join-Path $projectDir "$Module\build\libs") -Filter "$Module-*.jar" -File |
+        Where-Object { $_.Name -notlike "*-plain.jar" } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+    if (-not $jar) {
+        throw "Cannot find executable jar for $Module"
+    }
     $command = @"
 @echo off
 cd /d "$repoRoot"
 $($envCommands -join "`r`n")
-call "$gradle" -p "$projectDir" $Task > "$outLogFile" 2>&1
+"$java" -Xms64m -Xmx$($MaxHeapMb)m -XX:MaxMetaspaceSize=$($MaxMetaspaceMb)m -jar "$($jar.FullName)" > "$outLogFile" 2>&1
 "@
     Set-Content -Path $cmdFile -Value $command -Encoding ASCII
 
@@ -94,26 +127,26 @@ $dbEnv = @{
     PAYOUT_DATASOURCE_PASSWORD = $DbPassword
 }
 
-Start-ServiceProcess "discovery-server" ":discovery-server:bootRun"
+Start-ServiceProcess "discovery-server" "discovery-server"
 Start-Sleep -Seconds 12
 
-Start-ServiceProcess "auth-service" ":auth-service:bootRun" $dbEnv
-Start-ServiceProcess "user-service" ":user-service:bootRun" $dbEnv
-Start-ServiceProcess "catalog-service" ":catalog-service:bootRun" $dbEnv
-Start-ServiceProcess "promotion-service" ":promotion-service:bootRun" $dbEnv
-Start-ServiceProcess "cart-service" ":cart-service:bootRun" $dbEnv
-Start-ServiceProcess "order-service" ":order-service:bootRun" $dbEnv
-Start-ServiceProcess "seller-service" ":seller-service:bootRun" $dbEnv
-Start-ServiceProcess "payout-service" ":payout-service:bootRun" $dbEnv
+Start-ServiceProcess "auth-service" "auth-service" $dbEnv
+Start-ServiceProcess "user-service" "user-service" $dbEnv
+Start-ServiceProcess "catalog-service" "catalog-service" $dbEnv
+Start-ServiceProcess "promotion-service" "promotion-service" $dbEnv
+Start-ServiceProcess "cart-service" "cart-service" $dbEnv
+Start-ServiceProcess "order-service" "order-service" $dbEnv
+Start-ServiceProcess "seller-service" "seller-service" $dbEnv
+Start-ServiceProcess "payout-service" "payout-service" $dbEnv
 
 if ($WithNotification) {
-    Start-ServiceProcess "notification-service" ":notification-service:bootRun" @{
+    Start-ServiceProcess "notification-service" "notification-service" @{
         KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
     }
 }
 
 Start-Sleep -Seconds 18
-Start-ServiceProcess "api-gateway" ":api-gateway:bootRun"
+Start-ServiceProcess "api-gateway" "api-gateway"
 
 Write-Host ""
 Write-Host "Backend microservice startup requested."

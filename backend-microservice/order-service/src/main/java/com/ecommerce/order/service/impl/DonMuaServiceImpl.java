@@ -1,6 +1,7 @@
 package com.ecommerce.order.service.impl;
 
 import com.ecommerce.common.base.ResponseObject;
+import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import com.ecommerce.order.constant.OrderTypeConstant;
 import com.ecommerce.order.constant.OrderStatusConstant;
 import com.ecommerce.order.client.CatalogClient;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -195,12 +197,12 @@ public class DonMuaServiceImpl implements DonMuaService {
                 shopOrder.put("items", items.stream().map(item -> {
                     Map<String, Object> enriched = new LinkedHashMap<>(item);
                     Object variantId = item.get("product_variant_id");
-                    Map<String, Object> product = variantId == null ? Map.of() : safeProductDetail(String.valueOf(variantId));
-                    enriched.put("productId", product.get("productId"));
-                    enriched.put("productName", firstNonNull(product.get("name"), product.get("tenProduct"), variantId));
-                    enriched.put("imageUrl", product.get("imageUrl"));
-                    enriched.put("color", firstNonNull(product.get("tenColor"), product.get("tenMau")));
-                    enriched.put("size", firstNonNull(product.get("tenSize"), product.get("kichThuoc")));
+                    CatalogVariantSnapshot product = variantId == null ? null : safeProductDetail(String.valueOf(variantId));
+                    enriched.put("productId", product == null ? null : product.productId());
+                    enriched.put("productName", product == null ? variantId : product.productName());
+                    enriched.put("imageUrl", product == null ? null : product.imageUrl());
+                    enriched.put("variantLabel", product == null ? null : product.variantLabel());
+                    enriched.put("selections", product == null ? List.of() : product.selections());
                     return enriched;
                 }).toList());
                 return shopOrder;
@@ -244,8 +246,11 @@ public class DonMuaServiceImpl implements DonMuaService {
 
     @Override
     public ResponseObject<?> getAllProductVariant(ProductVariantSearchRequest request) {
-        List<Map<String, Object>> rows = catalogClient.searchProductDetails(like(request.getQ()), stringValue(request.getEntityStatus()),
-                request.getIdMS(), request.getIdKT(), null, null, null, null, request.getIdSP(), request.getPriceMin(), request.getPriceMax());
+        List<Map<String, Object>> rows = catalogClient.searchProductVariants(
+                request.getQ(), stringValue(request.getEntityStatus()), request.getIdSP(),
+                decimal(request.getPriceMin()), decimal(request.getPriceMax())).stream()
+                .map(DonMuaServiceImpl::variantMap)
+                .toList();
         int offset = Math.max(request.getPage() - 1, 0) * pageSize(request);
         for (int i = 0; i < rows.size(); i++) {
             rows.get(i).put("stt", i + 1);
@@ -378,15 +383,15 @@ public class DonMuaServiceImpl implements DonMuaService {
     @Override
     @Transactional
     public ResponseObject<?> themProduct(ThemProductRequest request) {
-        Map<String, Object> product = catalogClient.getProductDetail(request.getIdSP());
+        CatalogVariantSnapshot product = catalogClient.getProductVariant(request.getIdSP());
         List<Map<String, Object>> existing = jdbcTemplate.queryForList("""
                 SELECT id, quantity, sale_price
                 FROM order_item
                 WHERE order_id = ? AND product_variant_id = ?
                 ORDER BY created_date DESC
                 """, request.getIdHD(), request.getIdSP());
-        int stock = intValue(product.get("quantity"));
-        double currentPrice = doubleValue(product.get("salePrice"));
+        int stock = product.quantity();
+        double currentPrice = product.salePrice().doubleValue();
         if (existing.isEmpty()) {
             if (stock < 1) {
                 return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
@@ -454,12 +459,11 @@ public class DonMuaServiceImpl implements DonMuaService {
                 productDetailId = row.get("idspct");
             }
             if (productDetailId != null) {
-                Map<String, Object> product = catalogClient.getProductDetail(String.valueOf(productDetailId));
-                enriched.put("imageUrl", product.get("imageUrl"));
-                enriched.put("tenProduct", product.get("name"));
-                enriched.put("tenBrand", product.get("tenBrand"));
-                enriched.put("color", product.get("tenMau"));
-                enriched.put("size", product.get("kichThuoc"));
+                CatalogVariantSnapshot product = catalogClient.getProductVariant(String.valueOf(productDetailId));
+                enriched.put("imageUrl", product.imageUrl());
+                enriched.put("tenProduct", product.productName());
+                enriched.put("variantLabel", product.variantLabel());
+                enriched.put("selections", product.selections());
             }
             return enriched;
         }).toList();
@@ -472,24 +476,41 @@ public class DonMuaServiceImpl implements DonMuaService {
             if (productDetailId == null) {
                 productDetailId = row.get("idspct");
             }
-            Map<String, Object> product = productDetailId == null ? Map.of() : safeProductDetail(String.valueOf(productDetailId));
-            enriched.put("tenProduct", firstNonNull(product.get("tenProduct"), product.get("name"), productDetailId));
-            enriched.put("anhProduct", firstNonNull(product.get("imageUrl"), product.get("hinhAnh")));
-            enriched.put("brand", firstNonNull(product.get("tenBrand"), product.get("brand")));
-            enriched.put("color", firstNonNull(product.get("tenColor"), product.get("tenMau"), product.get("mau")));
-            enriched.put("size", firstNonNull(product.get("tenSize"), product.get("kichThuoc"), product.get("size")));
-            enriched.put("origin", firstNonNull(product.get("tenXuatXu"), product.get("xuatXu")));
+            CatalogVariantSnapshot product = productDetailId == null ? null : safeProductDetail(String.valueOf(productDetailId));
+            enriched.put("tenProduct", product == null ? productDetailId : product.productName());
+            enriched.put("anhProduct", product == null ? null : product.imageUrl());
+            enriched.put("variantLabel", product == null ? null : product.variantLabel());
+            enriched.put("selections", product == null ? List.of() : product.selections());
             return enriched;
         }).toList();
     }
 
-    private Map<String, Object> safeProductDetail(String productDetailId) {
+    private CatalogVariantSnapshot safeProductDetail(String productDetailId) {
         try {
-            Map<String, Object> product = catalogClient.getProductDetail(productDetailId);
-            return product == null ? Map.of() : product;
+            return catalogClient.getProductVariant(productDetailId);
         } catch (Exception e) {
-            return Map.of();
+            return null;
         }
+    }
+
+    private static Map<String, Object> variantMap(CatalogVariantSnapshot snapshot) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", snapshot.id());
+        row.put("productId", snapshot.productId());
+        row.put("sellerId", snapshot.sellerId());
+        row.put("sku", snapshot.sku());
+        row.put("productName", snapshot.productName());
+        row.put("variantLabel", snapshot.variantLabel());
+        row.put("selections", snapshot.selections());
+        row.put("salePrice", snapshot.salePrice());
+        row.put("quantity", snapshot.quantity());
+        row.put("imageUrl", snapshot.imageUrl());
+        row.put("status", snapshot.status());
+        return row;
+    }
+
+    private static BigDecimal decimal(Double value) {
+        return value == null ? null : BigDecimal.valueOf(value);
     }
 
     private static Object firstNonNull(Object... values) {

@@ -21,7 +21,7 @@ spring:
         - id: catalog-service
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/admin/mau-sac/**,/api/v1/admin/size/**,/api/v1/admin/thuong-hieu/**,/api/v1/admin/xuat-xu/**,/api/v1/admin/san-pham/**,/api/v1/admin/san-pham-chi-tiet/**,/api/v1/admin/chat-lieu/**,/api/v1/admin/danh-muc/**,/api/v1/admin/loai-de/**,/api/v1/permitall/san-pham/**,/api/v1/permitall/san-pham-chi-tiet/**,/api/v1/permitall/thuong-hieu/**,/api/catalog/user/products/**,/api/v1/seller/products/**,/api/v1/seller/product-variants/**
+            - Path=/api/v1/admin/mau-sac/**,/api/v1/admin/size/**,/api/v1/admin/thuong-hieu/**,/api/v1/admin/xuat-xu/**,/api/v1/admin/san-pham/**,/api/v1/admin/san-pham-chi-tiet/**,/api/v1/admin/chat-lieu/**,/api/v1/admin/danh-muc/**,/api/v1/admin/loai-de/**,/api/v1/admin/categories/**,/api/v1/admin/product-attributes/**,/api/v1/admin/product-variant-axes/**,/api/v1/permitall/san-pham/**,/api/v1/permitall/san-pham-chi-tiet/**,/api/v1/permitall/thuong-hieu/**,/api/v1/permitall/products/**,/api/v1/permitall/categories/**,/api/catalog/user/products/**,/api/v1/seller/products/**,/api/v1/seller/product-variants/**
         - id: promotion-service
           uri: lb://promotion-service
           predicates:
@@ -38,14 +38,14 @@ spring:
           uri: lb://notification-service
           predicates:
             - Path=/api/v1/notifications/**
-        - id: seller-service
-          uri: lb://seller-service
-          predicates:
-            - Path=/api/v1/sellers/**,/api/v1/seller/**,/api/v1/admin/sellers/**,/api/v1/permitall/shops/**
         - id: payout-service
           uri: lb://payout-service
           predicates:
             - Path=/api/v1/admin/payout/**,/api/v1/seller/payout/**
+        - id: seller-service
+          uri: lb://seller-service
+          predicates:
+            - Path=/api/v1/sellers/**,/api/v1/seller/**,/api/v1/admin/sellers/**,/api/v1/admin/banners/**,/api/v1/permitall/shops/**,/api/v1/permitall/banners/**,/api/v1/permitall/reviews/**
 
 server:
   port: ${SERVER_PORT:8080}

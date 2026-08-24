@@ -15,8 +15,6 @@ public interface PromotionService {
     List<Map<String, Object>> getProduct();
     List<Map<String, Object>> getProductCT(String id);
     List<Map<String, Object>> getProductByDot(String id);
-    List<Map<String, Object>> getColor();
-    List<Map<String, Object>> getSize();
     PromotionCampaign add(CreatePromotionRequest request);
     PromotionCampaign update(UpdatePromotionRequest request);
     PromotionCampaign updateStatus(String id);

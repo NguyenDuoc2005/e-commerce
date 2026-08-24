@@ -196,13 +196,13 @@ export const routes: RouteRecordRaw[] = [
 
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
-    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.MAUSAC.path}`,
+    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
     component: () => import("@/layout/Admin.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.MAUSAC.path,
         name: ROUTES_CONSTANTS.ADMIN.children.MAUSAC.name,
-        component: () => import("@/pages/admin/mausac/MauSac.vue"),
+        redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
         // meta: {
         //   requiresRole: ROLES.ADMIN,
         //   requiresAuth: true
@@ -276,13 +276,13 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
-    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.SIZE.path}`,
+    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
     component: () => import("@/layout/Admin.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.SIZE.path,
         name: ROUTES_CONSTANTS.ADMIN.children.SIZE.name,
-        component: () => import("@/pages/admin/size/Size.vue"),
+        redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
         // meta: {
         //   requiresRole: ROLES.ADMIN,
         //   requiresAuth: true
@@ -292,13 +292,13 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
-    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.THUONG_HIEU.path}`,
+    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
     component: () => import("@/layout/Admin.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.THUONG_HIEU.path,
         name: ROUTES_CONSTANTS.ADMIN.children.THUONG_HIEU.name,
-        component: () => import("@/pages/admin/thuonghieu/ThuongHieu.vue"),
+        redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
         // meta: {
         //   requiresRole: ROLES.ADMIN,
         //   requiresAuth: true
@@ -342,13 +342,13 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
-    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.CHAT_LIEU.path}`,
+    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
     component: () => import("@/layout/Admin.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.CHAT_LIEU.path,
         name: ROUTES_CONSTANTS.ADMIN.children.CHAT_LIEU.name,
-        component: () => import("@/pages/admin/chatlieu/ChatLieu.vue"),
+        redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
         // meta: {
         //   requiresRole: ROLES.ADMIN,
         //   requiresAuth: true
@@ -358,13 +358,13 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
-    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.LOAI_DE.path}`,
+    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
     component: () => import("@/layout/Admin.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.LOAI_DE.path,
         name: ROUTES_CONSTANTS.ADMIN.children.LOAI_DE.name,
-        component: () => import("@/pages/admin/loaide/LoaiDe.vue"),
+        redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
         // meta: {
         //   requiresRole: ROLES.ADMIN,
         //   requiresAuth: true
@@ -374,13 +374,13 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
-    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.LOAI_GIAY.path}`,
+    redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
     component: () => import("@/layout/Admin.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.LOAI_GIAY.path,
         name: ROUTES_CONSTANTS.ADMIN.children.LOAI_GIAY.name,
-        component: () => import("@/pages/admin/loaigiay/LoaiGiay.vue"),
+        redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`,
         // meta: {
         //   requiresRole: ROLES.ADMIN,
         //   requiresAuth: true

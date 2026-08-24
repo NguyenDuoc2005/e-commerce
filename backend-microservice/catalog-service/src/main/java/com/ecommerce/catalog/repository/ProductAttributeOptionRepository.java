@@ -8,6 +8,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProductAttributeOptionRepository extends JpaRepository<ProductAttributeOption, String> {
-    List<ProductAttributeOption> findByAttribute_IdAndStatusOrderByDisplayOrderAsc(String attributeId, EntityStatus status);
-    Optional<ProductAttributeOption> findByAttribute_IdAndNormalizedValueAndStatus(String attributeId, String normalizedValue, EntityStatus status);
+    List<ProductAttributeOption> findByDefinition_IdAndStatusOrderByDisplayOrderAsc(String definitionId, EntityStatus status);
+    Optional<ProductAttributeOption> findByDefinition_IdAndNormalizedValueAndStatus(String definitionId, String normalizedValue, EntityStatus status);
 }

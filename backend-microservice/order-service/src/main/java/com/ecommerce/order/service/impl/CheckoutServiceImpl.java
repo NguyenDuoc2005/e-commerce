@@ -1,6 +1,7 @@
 package com.ecommerce.order.service.impl;
 
 import com.ecommerce.common.base.ResponseObject;
+import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import com.ecommerce.order.client.CartClient;
 import com.ecommerce.order.client.CatalogClient;
 import com.ecommerce.order.client.PromotionClient;
@@ -247,7 +248,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             String orderSellerId = insertOrderSeller(orderId, entry.getKey(), entry.getValue(), orderSellerStatus);
             for (LineSnapshot line : entry.getValue()) {
                 CheckoutProductItem item = line.item();
-                Double price = doubleValue(line.product().get("salePrice"));
+                Double price = line.product().salePrice().doubleValue();
                 jdbcTemplate.update("""
                         INSERT INTO order_item (id, status, created_date, code, quantity, sale_price, product_variant_id, order_id, order_seller_id, seller_id)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -262,8 +263,8 @@ public class CheckoutServiceImpl implements CheckoutService {
             return grouped;
         }
         for (CheckoutProductItem item : request.getProduct()) {
-            Map<String, Object> product = catalogClient.getProductDetail(item.getId());
-            String sellerId = stringValue(product.get("sellerId"));
+            CatalogVariantSnapshot product = catalogClient.getProductVariant(item.getId());
+            String sellerId = product.sellerId();
             if (sellerId == null || sellerId.isBlank()) {
                 sellerId = "UNKNOWN_SELLER";
             }
@@ -276,7 +277,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private String insertOrderSeller(String orderId, String sellerId, List<LineSnapshot> lines, int status) {
         String id = UUID.randomUUID().toString();
         double total = lines.stream()
-                .mapToDouble(line -> doubleValue(line.product().get("salePrice")) * value(line.item().getQuantity()))
+                .mapToDouble(line -> line.product().salePrice().doubleValue() * value(line.item().getQuantity()))
                 .sum();
         Map<String, Object> seller = sellerProfile(sellerId);
         String shopName = stringValue(seller.get("shopName"));
@@ -305,7 +306,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             return true;
         }
         for (CheckoutProductItem item : request.getProduct()) {
-            Integer stock = intValue(catalogClient.getProductDetail(item.getId()).get("quantity"));
+            Integer stock = catalogClient.getProductVariant(item.getId()).quantity();
             if (stock == null || stock < value(item.getQuantity())) {
                 return false;
             }
@@ -459,6 +460,6 @@ public class CheckoutServiceImpl implements CheckoutService {
         return value == null ? null : String.valueOf(value);
     }
 
-    private record LineSnapshot(CheckoutProductItem item, Map<String, Object> product, String sellerId) {
+    private record LineSnapshot(CheckoutProductItem item, CatalogVariantSnapshot product, String sellerId) {
     }
 }

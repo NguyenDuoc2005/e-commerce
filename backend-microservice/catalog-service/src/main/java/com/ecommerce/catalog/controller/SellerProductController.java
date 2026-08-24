@@ -1,86 +1,69 @@
 package com.ecommerce.catalog.controller;
 
-import com.ecommerce.catalog.model.request.ProductRequest;
+import com.ecommerce.catalog.constant.EntityStatus;
+import com.ecommerce.catalog.model.request.ProductAggregateRequest;
 import com.ecommerce.catalog.model.request.ProductSearchRequest;
-import com.ecommerce.catalog.service.ProductService;
-import com.ecommerce.catalog.service.DynamicAttributeService;
-import com.ecommerce.common.util.ResponseUtils;
+import com.ecommerce.catalog.service.CatalogProductService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/seller/products")
-@CrossOrigin(origins = "*")
 public class SellerProductController {
+    private final CatalogProductService service;
 
-    private final ProductService productService;
-    private final DynamicAttributeService dynamicAttributeService;
+    public SellerProductController(CatalogProductService service) { this.service = service; }
 
-    public SellerProductController(ProductService productService, DynamicAttributeService dynamicAttributeService) {
-        this.productService = productService;
-        this.dynamicAttributeService = dynamicAttributeService;
+    @GetMapping("/categories/tree")
+    public Object categories() { return service.categoryTree(); }
+
+    @GetMapping("/categories/{categoryId}/attribute-suggestions")
+    public Object suggestions(@PathVariable String categoryId, @RequestParam(defaultValue = "") String q) {
+        return service.attributeSuggestions(categoryId, q);
     }
+
+    @GetMapping("/variant-axis-name-suggestions")
+    public Object axisSuggestions(@RequestParam(defaultValue = "") String q) { return service.axisNameSuggestions(q); }
 
     @GetMapping
-    public ResponseEntity<?> getAll(ProductSearchRequest request, @RequestHeader("X-Seller-Id") String sellerId) {
-        return ResponseUtils.createResponseEntity(productService.getSellerAll(request, sellerId));
-    }
-
-    @GetMapping("/list-thuong-hieu")
-    public ResponseEntity<?> getListBrand() {
-        return ResponseUtils.createResponseEntity(productService.getListBrand());
-    }
-
-    @GetMapping("/list-xuat-xu")
-    public ResponseEntity<?> getListXuatXu() {
-        return ResponseUtils.createResponseEntity(productService.getXuatXu());
-    }
-
-    @GetMapping("/list-loai-de")
-    public ResponseEntity<?> getListSoleType() {
-        return ResponseUtils.createResponseEntity(productService.getListSoleType());
-    }
-
-    @GetMapping("/list-danh-muc")
-    public ResponseEntity<?> getListCategory() {
-        return ResponseUtils.createResponseEntity(productService.getListCategory());
-    }
-
-    @GetMapping("/list-chat-lieu")
-    public ResponseEntity<?> getListMaterial() {
-        return ResponseUtils.createResponseEntity(productService.getListMaterial());
-    }
-
-    @GetMapping("/categories/{categoryId}/attributes")
-    public ResponseEntity<?> getCategoryAttributes(
-            @PathVariable String categoryId,
-            @RequestParam(required = false) String q,
-            @RequestHeader("X-Seller-Id") String sellerId
-    ) {
-        return ResponseEntity.ok(dynamicAttributeService.suggestions(categoryId, sellerId, q));
+    public Object list(@RequestHeader("X-Seller-Id") String sellerId, ProductSearchRequest request) {
+        return service.sellerProducts(sellerId, request);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable String id, @RequestHeader("X-Seller-Id") String sellerId) {
-        return ResponseUtils.createResponseEntity(productService.getSellerProductById(id, sellerId));
+    public Object detail(@RequestHeader("X-Seller-Id") String sellerId, @PathVariable String id) {
+        Map<String, Object> detail = service.detail(id);
+        if (!sellerId.equals(detail.get("sellerId"))) throw new SecurityException("SELLER_PRODUCT_FORBIDDEN");
+        return detail;
     }
 
     @PostMapping
-    public ResponseEntity<?> modify(@ModelAttribute ProductRequest request, @RequestHeader("X-Seller-Id") String sellerId) {
-        return ResponseUtils.createResponseEntity(productService.modifySellerProduct(request, sellerId));
+    public ResponseEntity<?> create(@RequestHeader("X-Seller-Id") String sellerId,
+                                    @Valid @RequestBody ProductAggregateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(sellerId, request));
     }
 
-    @PutMapping("/{id}/change-status")
-    public ResponseEntity<?> changeStatus(@PathVariable String id, @RequestHeader("X-Seller-Id") String sellerId) {
-        return ResponseUtils.createResponseEntity(productService.changeSellerProductStatus(id, sellerId));
+    @PutMapping("/{id}")
+    public Object update(@RequestHeader("X-Seller-Id") String sellerId, @PathVariable String id,
+                         @Valid @RequestBody ProductAggregateRequest request) {
+        return service.update(sellerId, id, request);
+    }
+
+    @PutMapping("/{id}/status")
+    public Object status(@RequestHeader("X-Seller-Id") String sellerId, @PathVariable String id,
+                         @RequestBody Map<String, EntityStatus> body) {
+        return service.changeStatus(sellerId, id, body.get("status"));
     }
 }

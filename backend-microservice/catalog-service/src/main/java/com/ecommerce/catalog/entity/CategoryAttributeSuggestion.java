@@ -12,7 +12,7 @@ import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(name = "category_attribute_suggestion", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_category_attribute", columnNames = {"category_id", "attribute_id"})
+        @UniqueConstraint(name = "uk_category_attribute_suggestion", columnNames = {"category_id", "attribute_definition_id"})
 }, indexes = @Index(name = "idx_category_attribute_order", columnList = "category_id, display_order"))
 public class CategoryAttributeSuggestion extends PrimaryEntity {
 
@@ -21,11 +21,8 @@ public class CategoryAttributeSuggestion extends PrimaryEntity {
     private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "attribute_id", nullable = false)
-    private ProductAttributeDefinition attribute;
-
-    @Column(name = "default_suggestion", nullable = false)
-    private boolean defaultSuggestion = true;
+    @JoinColumn(name = "attribute_definition_id", nullable = false)
+    private ProductAttributeDefinition definition;
 
     @Column(name = "filterable", nullable = false)
     private boolean filterable;
@@ -38,10 +35,8 @@ public class CategoryAttributeSuggestion extends PrimaryEntity {
 
     public Category getCategory() { return category; }
     public void setCategory(Category category) { this.category = category; }
-    public ProductAttributeDefinition getAttribute() { return attribute; }
-    public void setAttribute(ProductAttributeDefinition attribute) { this.attribute = attribute; }
-    public boolean isDefaultSuggestion() { return defaultSuggestion; }
-    public void setDefaultSuggestion(boolean defaultSuggestion) { this.defaultSuggestion = defaultSuggestion; }
+    public ProductAttributeDefinition getDefinition() { return definition; }
+    public void setDefinition(ProductAttributeDefinition definition) { this.definition = definition; }
     public boolean isFilterable() { return filterable; }
     public void setFilterable(boolean filterable) { this.filterable = filterable; }
     public boolean isRequiredValue() { return requiredValue; }

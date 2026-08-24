@@ -1,170 +1,179 @@
 import type { AxiosResponse } from 'axios'
 import request from '@/services/request'
-import { PREFIX_API_SELLER_PRODUCTS, PREFIX_API_SELLER_PRODUCT_VARIANTS } from '@/constants/url'
-import type { DefaultResponse, PaginationResponse } from '@/types/api.common'
+import { PREFIX_API_SELLER_PRODUCTS } from '@/constants/url'
 
-export interface SellerProduct {
+export type AttributeDataType = 'TEXT' | 'NUMBER' | 'SELECT_ONE' | 'SELECT_MULTI'
+export type EntityStatus = 'ACTIVE' | 'INACTIVE'
+
+export interface CategoryNode {
   id: string
   code: string
   name: string
-  description?: string
-  tenBrand?: string
-  idBrand?: string
-  tenXuatXu?: string
-  idXuatXu?: string
-  tenSoleType?: string
-  idSoleType?: string
-  tenCategory?: string
-  idCategory?: string
-  tenMaterial?: string
-  idMaterial?: string
-  tongSP?: number
-  status: string
-  attributes?: DynamicAttribute[]
+  slug: string
+  children: CategoryNode[]
 }
 
-export interface SellerProductVariant {
+export interface AttributeOption {
   id: string
-  name: string
-  quantity: number
-  salePrice: number
-  kichThuoc?: string
-  tenMau?: string
-  imageUrl?: string
-  status: string
+  value: string
+  verified: boolean
+  resolvedOptionId: string
 }
 
-export interface CatalogOption {
-  id: string
+export interface AttributeSuggestion {
+  definitionId: string
   name: string
+  dataType: AttributeDataType
+  defaultUnit?: string
+  verified: boolean
+  required: boolean
+  filterable: boolean
+  displayOrder: number
+  options: AttributeOption[]
 }
 
-export interface ProductPayload {
+export interface ProductAttributeInput {
+  definitionId?: string
+  name?: string
+  dataType: AttributeDataType
+  valueText?: string
+  valueNumber?: number
+  unit?: string
+  selectedOptionIds: string[]
+  selectedOptionValues: string[]
+  displayOrder: number
+}
+
+export interface AxisValueInput {
   id?: string
-  name: string
-  description?: string
-  idBrand?: string
-  idXuatXu?: string
-  idSoleType?: string
-  idCategory?: string
-  idMaterial?: string
-  attributes?: DynamicAttributePayload[]
+  clientKey: string
+  value: string
+  displayOrder: number
 }
 
-export type AttributeDataType = 'TEXT' | 'NUMBER' | 'SINGLE_SELECT' | 'MULTI_SELECT'
+export interface AxisInput {
+  id?: string
+  clientKey: string
+  name: string
+  nameSuggestionId?: string
+  displayOrder: number
+  values: AxisValueInput[]
+}
 
-export interface DynamicAttributeOption {
-  id: string
+export interface VariantInput {
+  id?: string
+  sku: string
+  salePrice: number
+  quantity: number
+  imageUrl?: string
+  defaultVariant: boolean
+  status: EntityStatus
+  selectionValueKeys: string[]
+}
+
+export interface ProductAggregatePayload {
+  categoryId: string
+  code?: string
+  name: string
+  description?: string
+  productImages: Array<{ url: string; displayOrder: number; status: EntityStatus }>
+  attributes: ProductAttributeInput[]
+  variantAxes: AxisInput[]
+  variants: VariantInput[]
+}
+
+export interface ProductSelection {
+  axisId: string
+  axisName: string
+  valueId: string
   value: string
 }
 
-export interface DynamicAttribute {
-  attributeId: string
-  name: string
-  dataType: AttributeDataType
-  normalizationStatus: 'PENDING' | 'STANDARDIZED' | 'MERGED' | 'HIDDEN'
-  ownedBySeller: boolean
-  defaultSuggestion: boolean
-  filterable: boolean
-  required: boolean
-  options: DynamicAttributeOption[]
-  textValue?: string
-  numberValue?: number
-  unit?: string
-  selectedOptionIds: string[]
-  displayOrder: number
+export interface ProductVariant extends Omit<VariantInput, 'selectionValueKeys' | 'defaultVariant'> {
+  combinationKey: string
+  isDefault: boolean
+  selections: ProductSelection[]
 }
 
-export interface DynamicAttributePayload {
-  attributeId?: string
+export interface ProductAggregateDetail {
+  id: string
+  code: string
+  sellerId: string
   name: string
-  dataType: AttributeDataType
-  textValue?: string
-  numberValue?: number
-  unit?: string
-  optionValues?: string[]
-  selectedOptionIds?: string[]
-  selectedOptionValues?: string[]
-  displayOrder: number
+  description?: string
+  status: EntityStatus
+  category: Omit<CategoryNode, 'children'>
+  productImages: Array<{ id: string; url: string; displayOrder: number; status: EntityStatus }>
+  attributes: Array<ProductAttributeInput & { selectedOptions: AttributeOption[] }>
+  variantAxes: Array<AxisInput & { values: AxisValueInput[] }>
+  variants: ProductVariant[]
 }
 
-export interface VariantPayload {
-  id?: string
-  idSP: string
-  idMau?: string
-  idSize?: string
-  quantity: number
-  salePrice: number
-  imageUrl?: File
+export interface ProductSummary {
+  id: string
+  sellerId: string
+  name: string
+  status: EntityStatus
+  category: Omit<CategoryNode, 'children'>
+  minPrice?: number
+  maxPrice?: number
+  totalQuantity: number
+  activeVariantCount: number
+  thumbnailUrl?: string
+  ratingAverage?: number
+  ratingCount: number
+  attributePreview: Array<{ name: string; valueText?: string; valueNumber?: number; unit?: string }>
+  axisPreview: Array<{ name: string; values: Array<{ value: string }> }>
+}
+
+export interface SpringPage<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  number: number
+  size: number
 }
 
 export const getSellerProducts = async (params: { page: number; size: number; q?: string }) => {
-  const res = (await request.get(PREFIX_API_SELLER_PRODUCTS, { params })) as AxiosResponse<DefaultResponse<PaginationResponse<SellerProduct[]>>>
-  return res.data
+  const response = (await request.get(PREFIX_API_SELLER_PRODUCTS, { params })) as AxiosResponse<SpringPage<ProductSummary>>
+  return response.data
 }
 
 export const getSellerProduct = async (id: string) => {
-  const res = (await request.get(`${PREFIX_API_SELLER_PRODUCTS}/${id}`)) as AxiosResponse<DefaultResponse<SellerProduct>>
-  return res.data
+  const response = (await request.get(`${PREFIX_API_SELLER_PRODUCTS}/${id}`)) as AxiosResponse<ProductAggregateDetail>
+  return response.data
 }
 
-export const saveSellerProduct = async (payload: ProductPayload) => {
-  const formData = new FormData()
-  Object.entries(payload).forEach(([key, value]) => {
-    if (value === undefined || value === null) return
-    formData.append(key, key === 'attributes' ? JSON.stringify(value) : String(value))
-  })
-  const res = (await request.post(PREFIX_API_SELLER_PRODUCTS, formData)) as AxiosResponse<DefaultResponse<SellerProduct>>
-  return res.data
+export const createSellerProduct = async (payload: ProductAggregatePayload) => {
+  const response = (await request.post(PREFIX_API_SELLER_PRODUCTS, payload)) as AxiosResponse<ProductAggregateDetail>
+  return response.data
 }
 
-export const changeSellerProductStatus = async (id: string) => {
-  const res = (await request.put(`${PREFIX_API_SELLER_PRODUCTS}/${id}/change-status`)) as AxiosResponse<DefaultResponse<null>>
-  return res.data
+export const updateSellerProduct = async (id: string, payload: ProductAggregatePayload) => {
+  const response = (await request.put(`${PREFIX_API_SELLER_PRODUCTS}/${id}`, payload)) as AxiosResponse<ProductAggregateDetail>
+  return response.data
 }
 
-export const getSellerProductOptions = async () => {
-  const response = await request.get(`${PREFIX_API_SELLER_PRODUCTS}/list-danh-muc`)
-  return (response.data?.data || []) as CatalogOption[]
+export const changeSellerProductStatus = async (id: string, status: EntityStatus) => {
+  const response = (await request.put(`${PREFIX_API_SELLER_PRODUCTS}/${id}/status`, { status })) as AxiosResponse<ProductAggregateDetail>
+  return response.data
 }
 
-export const getSellerCategoryAttributes = async (categoryId: string, q?: string) => {
-  const res = (await request.get(`${PREFIX_API_SELLER_PRODUCTS}/categories/${categoryId}/attributes`, {
-    params: q ? { q } : undefined
-  })) as AxiosResponse<DynamicAttribute[]>
-  return res.data || []
+export const getSellerCategoryTree = async () => {
+  const response = (await request.get(`${PREFIX_API_SELLER_PRODUCTS}/categories/tree`)) as AxiosResponse<CategoryNode[]>
+  return response.data
 }
 
-export const getSellerVariants = async (params: { page: number; size: number; q?: string; idSP?: string }) => {
-  const res = (await request.get(PREFIX_API_SELLER_PRODUCT_VARIANTS, { params })) as AxiosResponse<DefaultResponse<PaginationResponse<SellerProductVariant[]>>>
-  return res.data
+export const getSellerCategoryAttributes = async (categoryId: string, q = '') => {
+  const response = (await request.get(`${PREFIX_API_SELLER_PRODUCTS}/categories/${categoryId}/attribute-suggestions`, {
+    params: { q }
+  })) as AxiosResponse<AttributeSuggestion[]>
+  return response.data
 }
 
-export const getSellerVariant = async (id: string) => {
-  const res = (await request.get(`${PREFIX_API_SELLER_PRODUCT_VARIANTS}/${id}`)) as AxiosResponse<DefaultResponse<any>>
-  return res.data
-}
-
-export const getSellerVariantOptions = async () => {
-  const responses = await Promise.all([
-    request.get(`${PREFIX_API_SELLER_PRODUCT_VARIANTS}/list-sp`),
-    request.get(`${PREFIX_API_SELLER_PRODUCT_VARIANTS}/list-mau`),
-    request.get(`${PREFIX_API_SELLER_PRODUCT_VARIANTS}/list-size`)
-  ])
-  return responses.map((response) => (response.data?.data || []) as CatalogOption[])
-}
-
-export const saveSellerVariant = async (payload: VariantPayload) => {
-  const formData = new FormData()
-  Object.entries(payload).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) formData.append(key, value as string | Blob)
-  })
-  const url = payload.id ? `${PREFIX_API_SELLER_PRODUCT_VARIANTS}/update` : PREFIX_API_SELLER_PRODUCT_VARIANTS
-  const res = (await request.post(url, formData)) as AxiosResponse<DefaultResponse<SellerProductVariant>>
-  return res.data
-}
-
-export const changeSellerVariantStatus = async (id: string) => {
-  const res = (await request.put(`${PREFIX_API_SELLER_PRODUCT_VARIANTS}/${id}/change-status`)) as AxiosResponse<DefaultResponse<null>>
-  return res.data
+export const getAxisNameSuggestions = async (q = '') => {
+  const response = (await request.get(`${PREFIX_API_SELLER_PRODUCTS}/variant-axis-name-suggestions`, {
+    params: { q }
+  })) as AxiosResponse<Array<{ id: string; name: string; verified: boolean; resolvedSuggestionId: string }>>
+  return response.data
 }

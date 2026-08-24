@@ -1,578 +1,445 @@
 <template>
-  <div class="seller-page">
+  <section class="seller-products">
     <div class="page-head">
-      <h2>Sản phẩm shop</h2>
-      <a-space wrap>
-        <a-input-search
-          v-model:value="keyword"
-          placeholder="Tìm tên hoặc mã"
-          allow-clear
-          style="width: 240px"
-          @search="reloadActiveTab"
-        />
-        <a-button :loading="loading" title="Tải lại" @click="reloadActiveTab">
-          <template #icon><ReloadOutlined /></template>
-        </a-button>
-        <a-button type="primary" @click="openCreate">
-          <template #icon><PlusOutlined /></template>
-          {{ activeTab === 'products' ? 'Thêm sản phẩm' : 'Thêm phân loại' }}
-        </a-button>
-      </a-space>
+      <div>
+        <h2>Sản phẩm của shop</h2>
+        <p>Quản lý thông số mô tả và toàn bộ phân loại hàng trong một aggregate.</p>
+      </div>
+      <a-button type="primary" @click="openCreate">Tạo sản phẩm</a-button>
     </div>
 
-    <a-tabs v-model:active-key="activeTab" @change="reloadActiveTab">
-      <a-tab-pane key="products" tab="Sản phẩm">
-        <a-table
-          row-key="id"
-          :columns="productColumns"
-          :data-source="products"
-          :loading="loading"
-          :pagination="productPagination"
-          @change="onProductPageChange"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'name'">
-              <div class="strong">{{ record.name }}</div>
-              <div class="muted">{{ record.code }}</div>
-            </template>
-            <template v-if="column.key === 'attributes'">
-              {{ attributeSummary(record.attributes) }}
-            </template>
-            <template v-if="column.key === 'status'">
-              <a-tag :color="isActive(record.status) ? 'green' : 'default'">
-                {{ isActive(record.status) ? 'Đang bán' : 'Đã ẩn' }}
-              </a-tag>
-            </template>
-            <template v-if="column.key === 'actions'">
-              <a-space>
-                <a-button size="small" title="Sửa" @click="editProduct(record.id)">
-                  <template #icon><EditOutlined /></template>
-                </a-button>
-                <a-button size="small" title="Đổi trạng thái" @click="toggleProduct(record.id)">
-                  <template #icon><PoweroffOutlined /></template>
-                </a-button>
-              </a-space>
-            </template>
+    <a-card :bordered="false">
+      <div class="toolbar">
+        <a-input-search v-model:value="keyword" placeholder="Tên sản phẩm" allow-clear @search="loadProducts" />
+      </div>
+      <a-table :columns="columns" :data-source="products" :loading="loading" :pagination="pagination"
+        row-key="id" @change="changePage">
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'product'">
+            <div class="product-cell">
+              <img v-if="record.thumbnailUrl" :src="record.thumbnailUrl" alt="" />
+              <div><strong>{{ record.name }}</strong><small>{{ record.category?.name }}</small></div>
+            </div>
           </template>
-        </a-table>
-      </a-tab-pane>
-
-      <a-tab-pane key="variants" tab="Phân loại">
-        <a-table
-          row-key="id"
-          :columns="variantColumns"
-          :data-source="variants"
-          :loading="loading"
-          :pagination="variantPagination"
-          @change="onVariantPageChange"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'variant'">
-              <div class="variant-name">
-                <img v-if="record.imageUrl" :src="record.imageUrl" :alt="record.name" />
-                <div>
-                  <div class="strong">{{ record.name }}</div>
-                  <div class="muted">{{ record.tenMau || '-' }} / {{ record.kichThuoc || '-' }}</div>
-                </div>
-              </div>
-            </template>
-            <template v-if="column.key === 'price'">{{ currency(record.salePrice) }}</template>
-            <template v-if="column.key === 'status'">
-              <a-tag :color="isActive(record.status) ? 'green' : 'default'">
-                {{ isActive(record.status) ? 'Đang bán' : 'Đã ẩn' }}
-              </a-tag>
-            </template>
-            <template v-if="column.key === 'actions'">
-              <a-space>
-                <a-button size="small" title="Sửa" @click="editVariant(record.id)">
-                  <template #icon><EditOutlined /></template>
-                </a-button>
-                <a-button size="small" title="Đổi trạng thái" @click="toggleVariant(record.id)">
-                  <template #icon><PoweroffOutlined /></template>
-                </a-button>
-              </a-space>
-            </template>
+          <template v-else-if="column.key === 'price'">{{ priceRange(record) }}</template>
+          <template v-else-if="column.key === 'stock'">{{ record.totalQuantity }} / {{ record.activeVariantCount }} variant</template>
+          <template v-else-if="column.key === 'attributes'">
+            {{ record.attributePreview?.map((item: any) => item.name).join(' · ') || '-' }}
           </template>
-        </a-table>
-      </a-tab-pane>
-    </a-tabs>
-
-    <a-modal v-model:open="productOpen" :title="productForm.id ? 'Sửa sản phẩm' : 'Thêm sản phẩm'" width="860px" ok-text="Lưu" :confirm-loading="saving" @ok="submitProduct">
-      <a-form layout="vertical">
-        <a-form-item label="Tên sản phẩm" required><a-input v-model:value="productForm.name" /></a-form-item>
-        <a-form-item label="Mô tả"><a-textarea v-model:value="productForm.description" :rows="3" /></a-form-item>
-        <a-form-item label="Danh mục" required>
-          <a-select
-            :value="productForm.idCategory"
-            :options="categories"
-            show-search
-            option-filter-prop="label"
-            @change="changeCategory"
-          />
-        </a-form-item>
-
-        <div class="attribute-head">
-          <div>
-            <h3>Thuộc tính sản phẩm</h3>
-            <span class="muted">{{ dynamicAttributes.length }}/50</span>
-          </div>
-          <a-button :disabled="!productForm.idCategory || dynamicAttributes.length >= 50" @click="addCustomAttribute">
-            <template #icon><PlusOutlined /></template>
-            Thêm thuộc tính
-          </a-button>
-        </div>
-
-        <a-empty v-if="productForm.idCategory && !dynamicAttributes.length" :image="simpleImage" />
-        <div v-for="(attribute, index) in dynamicAttributes" :key="attribute.rowKey" class="attribute-row">
-          <div class="attribute-grid">
-            <a-form-item label="Tên thuộc tính" required>
-              <a-auto-complete
-                v-if="!attribute.attributeId"
-                v-model:value="attribute.name"
-                :options="attributeNameOptions"
-                @search="searchAttributeNames"
-                @select="(value: string) => selectExistingAttribute(value, index)"
-              />
-              <a-input v-else :value="attribute.name" disabled />
-            </a-form-item>
-            <a-form-item label="Kiểu dữ liệu" required>
-              <a-select
-                v-model:value="attribute.dataType"
-                :options="attributeTypeOptions"
-                :disabled="!!attribute.attributeId"
-                @change="resetAttributeValue(attribute)"
-              />
-            </a-form-item>
-            <a-button class="remove-attribute" danger title="Xóa thuộc tính" @click="removeAttribute(index)">
-              <template #icon><DeleteOutlined /></template>
-            </a-button>
-          </div>
-
-          <a-form-item v-if="attribute.dataType === 'TEXT'" label="Giá trị" required>
-            <a-input v-model:value="attribute.textValue" />
-          </a-form-item>
-          <div v-else-if="attribute.dataType === 'NUMBER'" class="number-grid">
-            <a-form-item label="Giá trị" required><a-input-number v-model:value="attribute.numberValue" style="width: 100%" /></a-form-item>
-            <a-form-item label="Đơn vị"><a-input v-model:value="attribute.unit" maxlength="50" /></a-form-item>
-          </div>
-          <template v-else>
-            <a-form-item v-if="!attribute.attributeId" label="Danh sách lựa chọn" required>
-              <a-select v-model:value="attribute.optionValues" mode="tags" :token-separators="[',']" />
-            </a-form-item>
-            <a-form-item label="Giá trị" required>
-              <a-select
-                v-if="attribute.attributeId"
-                v-model:value="attribute.selectedOptionIds"
-                :mode="attribute.dataType === 'MULTI_SELECT' ? 'multiple' : undefined"
-                :options="attribute.options.map((option) => ({ value: option.id, label: option.value }))"
-              />
-              <a-select
-                v-else
-                v-model:value="attribute.selectedOptionValues"
-                :mode="attribute.dataType === 'MULTI_SELECT' ? 'multiple' : undefined"
-                :options="attribute.optionValues.map((value) => ({ value, label: value }))"
-              />
-            </a-form-item>
+          <template v-else-if="column.key === 'axes'">
+            <a-tag v-for="axis in record.axisPreview" :key="axis.id">{{ axis.name }}</a-tag>
+            <span v-if="!record.axisPreview?.length">Không phân loại</span>
           </template>
-        </div>
-      </a-form>
+          <template v-else-if="column.key === 'action'">
+            <a-space>
+              <a-button size="small" @click="openEdit(record.id)">Sửa aggregate</a-button>
+              <a-button size="small" @click="toggleStatus(record.id, record.status)">Đổi trạng thái</a-button>
+            </a-space>
+          </template>
+        </template>
+      </a-table>
+    </a-card>
+
+    <a-modal v-model:open="modalOpen" :title="editingId ? 'Sửa sản phẩm' : 'Tạo sản phẩm'" width="1180px"
+      :confirm-loading="saving" ok-text="Lưu aggregate" @ok="submit">
+      <div class="aggregate-form">
+        <a-card size="small" title="1. Thông tin chung">
+          <div class="grid three">
+            <a-form-item label="Danh mục lá" required>
+              <a-select :value="form.categoryId" show-search :options="categoryOptions"
+                option-filter-prop="label" @change="changeCategory" />
+            </a-form-item>
+            <a-form-item label="Tên sản phẩm" required><a-input v-model:value="form.name" /></a-form-item>
+            <a-form-item label="Mã sản phẩm"><a-input v-model:value="form.code" placeholder="Tự sinh nếu để trống" /></a-form-item>
+          </div>
+          <a-form-item label="Mô tả"><a-textarea v-model:value="form.description" :rows="3" /></a-form-item>
+          <div class="section-title"><strong>Ảnh gallery</strong><a-button size="small" @click="addImage">Thêm URL ảnh</a-button></div>
+          <div v-for="(image, index) in form.productImages" :key="index" class="inline-row">
+            <a-input v-model:value="image.url" placeholder="https://..." />
+            <a-button danger @click="form.productImages.splice(index, 1)">Xóa</a-button>
+          </div>
+        </a-card>
+
+        <a-card size="small">
+          <template #title>
+            <div class="section-title"><span>2. Thông số mô tả</span><a-button size="small" @click="addCustomAttribute">Thêm thông số tự do</a-button></div>
+          </template>
+          <a-alert type="info" show-icon message="Không giới hạn 50 thông số. Giá trị mới của SELECT được dùng ngay và chờ hậu kiểm." />
+          <a-empty v-if="!attributes.length" description="Chọn danh mục để nhận gợi ý" />
+          <div v-for="(attribute, index) in attributes" :key="attribute.rowKey" class="attribute-row">
+            <div class="grid attribute-grid">
+              <a-form-item :label="`Tên ${attribute.required ? '*' : ''}`">
+                <a-input v-model:value="attribute.name" :disabled="Boolean(attribute.definitionId)" />
+              </a-form-item>
+              <a-form-item label="Kiểu">
+                <a-select v-model:value="attribute.dataType" :disabled="Boolean(attribute.definitionId)" :options="dataTypeOptions" />
+              </a-form-item>
+              <a-form-item v-if="attribute.dataType === 'TEXT'" label="Giá trị">
+                <a-input v-model:value="attribute.valueText" />
+              </a-form-item>
+              <a-form-item v-else-if="attribute.dataType === 'NUMBER'" label="Giá trị / đơn vị">
+                <a-input-group compact><a-input-number v-model:value="attribute.valueNumber" style="width: 65%" /><a-input v-model:value="attribute.unit" style="width: 35%" /></a-input-group>
+              </a-form-item>
+              <a-form-item v-else label="Chọn hoặc nhập mới">
+                <a-select v-model:value="attribute.selectedTokens" :mode="attribute.dataType === 'SELECT_MULTI' ? 'tags' : 'tags'"
+                  :max-count="attribute.dataType === 'SELECT_ONE' ? 1 : undefined" :options="attribute.options.map(option => ({ value: option.id, label: option.value }))" />
+              </a-form-item>
+              <a-button v-if="!attribute.required" danger class="remove-button" @click="attributes.splice(index, 1)">Xóa</a-button>
+            </div>
+          </div>
+        </a-card>
+
+        <a-card size="small">
+          <template #title>
+            <div class="section-title"><span>3. Phân loại hàng (0–2 trục)</span><a-button size="small" :disabled="axes.length >= 2" @click="addAxis">Thêm trục</a-button></div>
+          </template>
+          <a-alert type="warning" show-icon message="Đổi tên/giá trị trục sẽ sinh lại ma trận. Kiểm tra SKU, giá và tồn trước khi lưu." />
+          <div v-for="(axis, axisIndex) in axes" :key="axis.clientKey" class="axis-row">
+            <a-input v-model:value="axis.name" placeholder="Tên trục, ví dụ Màu sắc / Dung lượng" @change="markMatrixDirty" />
+            <a-select v-model:value="axis.valueLabels" mode="tags" placeholder="Nhập các giá trị" @change="markMatrixDirty" />
+            <a-button danger @click="removeAxis(axisIndex)">Xóa trục</a-button>
+          </div>
+          <div class="matrix-actions">
+            <a-button type="primary" ghost @click="generateMatrix">{{ matrixDirty ? 'Sinh lại ma trận' : 'Làm mới ma trận' }}</a-button>
+            <a-input-number v-model:value="bulkPrice" :min="0" placeholder="Giá chung" />
+            <a-input-number v-model:value="bulkStock" :min="0" placeholder="Tồn chung" />
+            <a-button @click="applyBulk">Áp dụng hàng loạt</a-button>
+          </div>
+          <a-table :columns="variantColumns" :data-source="variants" row-key="localKey" size="small" :pagination="false" :scroll="{ x: 900 }">
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'enabled'"><a-checkbox v-model:checked="record.enabled" /></template>
+              <template v-else-if="column.key === 'sku'"><a-input v-model:value="record.sku" /></template>
+              <template v-else-if="column.key === 'price'"><a-input-number v-model:value="record.salePrice" :min="0" /></template>
+              <template v-else-if="column.key === 'stock'"><a-input-number v-model:value="record.quantity" :min="0" /></template>
+              <template v-else-if="column.key === 'image'"><a-input v-model:value="record.imageUrl" placeholder="URL ảnh variant" /></template>
+            </template>
+          </a-table>
+        </a-card>
+      </div>
     </a-modal>
-
-    <a-modal v-model:open="variantOpen" :title="variantForm.id ? 'Sửa phân loại' : 'Thêm phân loại'" ok-text="Lưu" :confirm-loading="saving" @ok="submitVariant">
-      <a-form layout="vertical">
-        <a-form-item label="Sản phẩm" required>
-          <a-select v-model:value="variantForm.idSP" :options="variantOptions.products" :disabled="!!variantForm.id" show-search option-filter-prop="label" />
-        </a-form-item>
-        <div class="form-grid">
-          <a-form-item label="Màu sắc"><a-select v-model:value="variantForm.idMau" :options="variantOptions.colors" allow-clear /></a-form-item>
-          <a-form-item label="Kích cỡ"><a-select v-model:value="variantForm.idSize" :options="variantOptions.sizes" allow-clear /></a-form-item>
-          <a-form-item label="Số lượng" required><a-input-number v-model:value="variantForm.quantity" :min="0" style="width: 100%" /></a-form-item>
-          <a-form-item label="Giá bán" required><a-input-number v-model:value="variantForm.salePrice" :min="0" :step="1000" style="width: 100%" /></a-form-item>
-        </div>
-        <a-form-item label="Ảnh sản phẩm">
-          <input type="file" accept="image/*" @change="selectImage" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-  </div>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Empty, Modal, message } from 'ant-design-vue'
-import { DeleteOutlined, EditOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { message, Modal } from 'ant-design-vue'
 import {
   changeSellerProductStatus,
-  changeSellerVariantStatus,
-  getSellerProduct,
+  createSellerProduct,
   getSellerCategoryAttributes,
-  getSellerProductOptions,
+  getSellerCategoryTree,
+  getSellerProduct,
   getSellerProducts,
-  getSellerVariant,
-  getSellerVariantOptions,
-  getSellerVariants,
-  saveSellerProduct,
-  saveSellerVariant,
-  type CatalogOption,
+  updateSellerProduct,
   type AttributeDataType,
-  type DynamicAttribute,
-  type DynamicAttributeOption,
-  type DynamicAttributePayload,
-  type ProductPayload,
-  type SellerProduct,
-  type SellerProductVariant,
-  type VariantPayload
+  type AttributeOption,
+  type AxisInput,
+  type CategoryNode,
+  type EntityStatus,
+  type ProductAggregatePayload,
+  type ProductSummary,
+  type VariantInput
 } from '@/services/api/seller/product.api'
 
-type SelectOption = { value: string; label: string }
-type DynamicAttributeInput = {
+interface AttributeRow {
   rowKey: string
-  attributeId?: string
+  definitionId?: string
   name: string
   dataType: AttributeDataType
-  options: DynamicAttributeOption[]
-  textValue?: string
-  numberValue?: number
+  defaultUnit?: string
+  required: boolean
+  options: AttributeOption[]
+  valueText?: string
+  valueNumber?: number
   unit?: string
-  optionValues: string[]
-  selectedOptionIds: string | string[]
-  selectedOptionValues: string | string[]
+  selectedTokens: string[]
+  displayOrder: number
 }
 
-const activeTab = ref('products')
-const keyword = ref('')
-const loading = ref(false)
-const saving = ref(false)
-const productOpen = ref(false)
-const variantOpen = ref(false)
-const products = ref<SellerProduct[]>([])
-const variants = ref<SellerProductVariant[]>([])
-const categories = ref<SelectOption[]>([])
-const dynamicAttributes = ref<DynamicAttributeInput[]>([])
-const autocompleteAttributes = ref<DynamicAttribute[]>([])
-const productPage = reactive({ current: 1, pageSize: 10, total: 0 })
-const variantPage = reactive({ current: 1, pageSize: 10, total: 0 })
+interface AxisRow extends AxisInput { valueLabels: string[] }
+interface VariantRow extends VariantInput { localKey: string; label: string; enabled: boolean }
 
-const productForm = reactive<ProductPayload>({ name: '', description: '' })
-const variantForm = reactive<VariantPayload>({ idSP: '', idMau: '', idSize: '', quantity: 0, salePrice: 0 })
-const variantOptions = reactive({ products: [] as SelectOption[], colors: [] as SelectOption[], sizes: [] as SelectOption[] })
-const simpleImage = Empty.PRESENTED_IMAGE_SIMPLE
-const attributeTypeOptions = [
-  { value: 'TEXT', label: 'Văn bản' },
-  { value: 'NUMBER', label: 'Số' },
-  { value: 'SINGLE_SELECT', label: 'Chọn một' },
-  { value: 'MULTI_SELECT', label: 'Chọn nhiều' }
-]
-const attributeNameOptions = computed(() => autocompleteAttributes.value.map((item) => ({ value: item.name, label: item.name })))
-
-const productColumns = [
-  { title: 'Sản phẩm', key: 'name' },
-  { title: 'Thuộc tính', key: 'attributes' },
-  { title: 'Tồn kho', dataIndex: 'tongSP', width: 100 },
-  { title: 'Trạng thái', key: 'status', width: 120 },
-  { title: 'Thao tác', key: 'actions', width: 110 }
+const columns = [
+  { title: 'Sản phẩm', key: 'product' },
+  { title: 'Giá', key: 'price', width: 180 },
+  { title: 'Tồn / variant', key: 'stock', width: 150 },
+  { title: 'Thông số', key: 'attributes' },
+  { title: 'Phân loại', key: 'axes', width: 220 },
+  { title: '', key: 'action', width: 220 }
 ]
 const variantColumns = [
-  { title: 'Phân loại', key: 'variant' },
-  { title: 'Giá bán', key: 'price', width: 150 },
-  { title: 'Tồn kho', dataIndex: 'quantity', width: 100 },
-  { title: 'Trạng thái', key: 'status', width: 120 },
-  { title: 'Thao tác', key: 'actions', width: 110 }
+  { title: 'Bán', key: 'enabled', width: 60 },
+  { title: 'Tổ hợp', dataIndex: 'label', width: 200 },
+  { title: 'SKU', key: 'sku', width: 180 },
+  { title: 'Giá', key: 'price', width: 150 },
+  { title: 'Tồn', key: 'stock', width: 120 },
+  { title: 'Ảnh', key: 'image', width: 240 }
 ]
-const productPagination = computed(() => ({ current: productPage.current, pageSize: productPage.pageSize, total: productPage.total, showSizeChanger: true }))
-const variantPagination = computed(() => ({ current: variantPage.current, pageSize: variantPage.pageSize, total: variantPage.total, showSizeChanger: true }))
+const dataTypeOptions = [
+  { value: 'TEXT', label: 'Văn bản' }, { value: 'NUMBER', label: 'Số' },
+  { value: 'SELECT_ONE', label: 'Chọn một' }, { value: 'SELECT_MULTI', label: 'Chọn nhiều' }
+]
 
-const toOptions = (items: CatalogOption[]): SelectOption[] => items.map((item) => ({ value: item.id, label: item.name }))
-const isActive = (status: unknown) => status === 'ACTIVE' || status === 0 || status === '0'
-const currency = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value) || 0)
-const asArray = (value: string | string[] | undefined) => Array.isArray(value) ? value : value ? [value] : []
-const rowKey = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
-
-const toAttributeInput = (item: DynamicAttribute): DynamicAttributeInput => ({
-  rowKey: rowKey(),
-  attributeId: item.attributeId,
-  name: item.name,
-  dataType: item.dataType,
-  options: item.options || [],
-  textValue: item.textValue,
-  numberValue: item.numberValue,
-  unit: item.unit,
-  optionValues: (item.options || []).map((option) => option.value),
-  selectedOptionIds: item.dataType === 'SINGLE_SELECT' ? item.selectedOptionIds?.[0] || '' : item.selectedOptionIds || [],
-  selectedOptionValues: item.dataType === 'SINGLE_SELECT' ? '' : []
+const products = ref<ProductSummary[]>([])
+const categoryTree = ref<CategoryNode[]>([])
+const attributes = ref<AttributeRow[]>([])
+const axes = ref<AxisRow[]>([])
+const variants = ref<VariantRow[]>([])
+const loading = ref(false)
+const saving = ref(false)
+const modalOpen = ref(false)
+const editingId = ref<string>()
+const keyword = ref('')
+const matrixDirty = ref(false)
+const bulkPrice = ref<number>()
+const bulkStock = ref<number>()
+const page = reactive({ current: 1, size: 10, total: 0 })
+const form = reactive<ProductAggregatePayload>({
+  categoryId: '', name: '', code: '', description: '', productImages: [], attributes: [], variantAxes: [], variants: []
 })
 
-const hasAttributeValue = (attribute: DynamicAttributeInput) => {
-  if (attribute.dataType === 'TEXT') return !!attribute.textValue?.trim()
-  if (attribute.dataType === 'NUMBER') return attribute.numberValue !== undefined && attribute.numberValue !== null
-  return attribute.attributeId
-    ? asArray(attribute.selectedOptionIds).length > 0
-    : asArray(attribute.selectedOptionValues).length > 0
+const pagination = computed(() => ({ current: page.current, pageSize: page.size, total: page.total, showSizeChanger: true }))
+const categoryOptions = computed(() => {
+  const result: Array<{ value: string; label: string; disabled: boolean }> = []
+  const walk = (nodes: CategoryNode[], prefix = '') => nodes.forEach(node => {
+    const label = prefix ? `${prefix} / ${node.name}` : node.name
+    result.push({ value: node.id, label, disabled: Boolean(node.children?.length) })
+    walk(node.children || [], label)
+  })
+  walk(categoryTree.value)
+  return result
+})
+
+const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`
+const priceRange = (record: ProductSummary) => {
+  if (record.minPrice == null) return '-'
+  const format = (value: number) => new Intl.NumberFormat('vi-VN').format(value) + ' ₫'
+  return record.minPrice === record.maxPrice ? format(record.minPrice) : `${format(record.minPrice)} – ${format(record.maxPrice || record.minPrice)}`
 }
 
-const attributeSummary = (attributes?: DynamicAttribute[]) => {
-  if (!attributes?.length) return '-'
-  return attributes.slice(0, 3).map((item) => item.name).join(' · ') + (attributes.length > 3 ? ` +${attributes.length - 3}` : '')
-}
-
-const fetchProducts = async () => {
+const loadProducts = async () => {
   loading.value = true
   try {
-    const response = await getSellerProducts({ page: productPage.current, size: productPage.pageSize, q: keyword.value || undefined })
-    products.value = response.data?.data || []
-    productPage.total = Number(response.data?.totalElements || 0)
-  } catch {
-    message.error('Không tải được sản phẩm shop')
-  } finally {
-    loading.value = false
-  }
+    const response = await getSellerProducts({ page: page.current - 1, size: page.size, q: keyword.value || undefined })
+    products.value = response.content || []
+    page.total = response.totalElements || 0
+  } finally { loading.value = false }
 }
 
-const fetchVariants = async () => {
-  loading.value = true
-  try {
-    const response = await getSellerVariants({ page: variantPage.current, size: variantPage.pageSize, q: keyword.value || undefined })
-    variants.value = response.data?.data || []
-    variantPage.total = Number(response.data?.totalElements || 0)
-  } catch {
-    message.error('Không tải được phân loại sản phẩm')
-  } finally {
-    loading.value = false
-  }
+const resetForm = () => {
+  Object.assign(form, { categoryId: '', name: '', code: '', description: '', productImages: [] })
+  attributes.value = []
+  axes.value = []
+  variants.value = []
+  editingId.value = undefined
+  matrixDirty.value = false
 }
 
-const reloadActiveTab = () => activeTab.value === 'products' ? fetchProducts() : fetchVariants()
-
-const loadProductOptions = async () => {
-  categories.value = toOptions(await getSellerProductOptions())
+const openCreate = () => {
+  resetForm()
+  variants.value = [defaultVariant()]
+  modalOpen.value = true
 }
 
-const loadCategoryAttributes = async (categoryId: string, current: DynamicAttribute[] = []) => {
-  const suggested = await getSellerCategoryAttributes(categoryId)
-  const currentById = new Map(current.map((item) => [item.attributeId, item]))
-  const merged = suggested.map((item) => toAttributeInput({ ...item, ...(currentById.get(item.attributeId) || {}) }))
-  const suggestedIds = new Set(suggested.map((item) => item.attributeId))
-  current.filter((item) => !suggestedIds.has(item.attributeId)).forEach((item) => merged.push(toAttributeInput(item)))
-  dynamicAttributes.value = merged.slice(0, 50)
+const loadSuggestions = async (categoryId: string) => {
+  const suggestions = await getSellerCategoryAttributes(categoryId)
+  attributes.value = suggestions.map(item => ({
+    rowKey: uid(), definitionId: item.definitionId, name: item.name, dataType: item.dataType,
+    defaultUnit: item.defaultUnit, required: item.required, options: item.options || [], unit: item.defaultUnit,
+    selectedTokens: [], displayOrder: item.displayOrder
+  }))
 }
 
 const applyCategory = async (categoryId: string) => {
-  productForm.idCategory = categoryId
-  dynamicAttributes.value = []
-  autocompleteAttributes.value = []
-  await loadCategoryAttributes(categoryId)
+  form.categoryId = categoryId
+  await loadSuggestions(categoryId)
 }
 
 const changeCategory = (categoryId: string) => {
-  if (!productForm.idCategory || productForm.idCategory === categoryId || !dynamicAttributes.value.some(hasAttributeValue)) {
-    void applyCategory(categoryId)
-    return
-  }
+  if (!form.categoryId || (!attributes.value.some(hasAttributeValue) && !axes.value.length)) return void applyCategory(categoryId)
   Modal.confirm({
-    title: 'Đổi danh mục sản phẩm?',
-    content: 'Các giá trị thuộc tính hiện tại sẽ được xóa và thay bằng gợi ý của danh mục mới.',
-    okText: 'Đổi danh mục',
-    cancelText: 'Giữ lại',
+    title: 'Đổi danh mục sẽ xóa thông số hiện tại',
+    content: 'Bạn cần nhập lại thông số phù hợp với danh mục mới.',
     onOk: () => applyCategory(categoryId)
   })
 }
 
-const addCustomAttribute = () => {
-  if (!productForm.idCategory) return void message.warning('Vui lòng chọn danh mục trước')
-  if (dynamicAttributes.value.length >= 50) return void message.warning('Mỗi sản phẩm chỉ được tối đa 50 thuộc tính')
-  dynamicAttributes.value.push({
-    rowKey: rowKey(),
-    name: '',
-    dataType: 'TEXT',
-    options: [],
-    optionValues: [],
-    selectedOptionIds: [],
-    selectedOptionValues: []
+const addImage = () => form.productImages.push({ url: '', displayOrder: form.productImages.length, status: 'ACTIVE' })
+const addCustomAttribute = () => attributes.value.push({
+  rowKey: uid(), name: '', dataType: 'TEXT', required: false, options: [], selectedTokens: [], displayOrder: attributes.value.length + 1
+})
+const addAxis = () => {
+  if (axes.value.length >= 2) return
+  axes.value.push({ clientKey: `axis-${uid()}`, name: '', displayOrder: axes.value.length + 1, values: [], valueLabels: [] })
+  markMatrixDirty()
+}
+const removeAxis = (index: number) => {
+  axes.value.splice(index, 1)
+  axes.value.forEach((axis, order) => { axis.displayOrder = order + 1 })
+  markMatrixDirty()
+}
+const markMatrixDirty = () => { matrixDirty.value = true }
+
+const defaultVariant = (): VariantRow => ({
+  localKey: 'DEFAULT', label: 'Mặc định', sku: '', salePrice: 0, quantity: 0,
+  defaultVariant: true, status: 'ACTIVE', selectionValueKeys: [], enabled: true
+})
+
+const generateMatrix = () => {
+  if (!axes.value.length) {
+    variants.value = [variants.value.find(item => item.defaultVariant) || defaultVariant()]
+    matrixDirty.value = false
+    return
+  }
+  if (axes.value.some(axis => !axis.name.trim() || !axis.valueLabels.length)) return void message.warning('Mỗi trục cần tên và ít nhất một giá trị')
+  const prepared = axes.value.map((axis, axisIndex) => axis.valueLabels.map((value, valueIndex) => ({
+    key: axis.values.find(item => item.value === value)?.clientKey || `axis-${axisIndex}-value-${valueIndex}-${uid()}`,
+    value
+  })))
+  const combinations = prepared.reduce<Array<Array<{ key: string; value: string }>>>((result, values) =>
+    result.flatMap(combination => values.map(value => [...combination, value])), [[]])
+  const previous = new Map(variants.value.map(item => [item.label, item]))
+  variants.value = combinations.map(combination => {
+    const label = combination.map(item => item.value).join(' / ')
+    return previous.get(label) || {
+      localKey: combination.map(item => item.key).join('|'), label, sku: '', salePrice: bulkPrice.value || 0,
+      quantity: bulkStock.value || 0, defaultVariant: false, status: 'ACTIVE',
+      selectionValueKeys: combination.map(item => item.key), enabled: true
+    }
   })
-}
-
-const removeAttribute = (index: number) => dynamicAttributes.value.splice(index, 1)
-
-const resetAttributeValue = (attribute: DynamicAttributeInput) => {
-  attribute.textValue = undefined
-  attribute.numberValue = undefined
-  attribute.unit = undefined
-  attribute.optionValues = []
-  attribute.selectedOptionIds = []
-  attribute.selectedOptionValues = []
-}
-
-let autocompleteRequest = 0
-const searchAttributeNames = async (query: string) => {
-  if (!productForm.idCategory || !query.trim()) {
-    autocompleteAttributes.value = []
-    return
-  }
-  const requestId = ++autocompleteRequest
-  const result = await getSellerCategoryAttributes(productForm.idCategory, query.trim())
-  if (requestId === autocompleteRequest) autocompleteAttributes.value = result
-}
-
-const selectExistingAttribute = (name: string, index: number) => {
-  const match = autocompleteAttributes.value.find((item) => item.name === name)
-  if (!match) return
-  if (dynamicAttributes.value.some((item, itemIndex) => itemIndex !== index && item.attributeId === match.attributeId)) {
-    message.warning('Thuộc tính này đã có trong sản phẩm')
-    return
-  }
-  dynamicAttributes.value.splice(index, 1, toAttributeInput(match))
-}
-
-const loadVariantOptions = async () => {
-  const [productItems, colors, sizes] = await getSellerVariantOptions()
-  Object.assign(variantOptions, { products: toOptions(productItems), colors: toOptions(colors), sizes: toOptions(sizes) })
-}
-
-const openCreate = async () => {
-  if (activeTab.value === 'products') {
-    Object.assign(productForm, { id: undefined, name: '', description: '', idCategory: undefined, attributes: [] })
-    dynamicAttributes.value = []
-    await loadProductOptions()
-    productOpen.value = true
-    return
-  }
-  Object.assign(variantForm, { id: undefined, idSP: '', idMau: '', idSize: '', quantity: 0, salePrice: 0, imageUrl: undefined })
-  await loadVariantOptions()
-  variantOpen.value = true
-}
-
-const editProduct = async (id: string) => {
-  const [response] = await Promise.all([getSellerProduct(id), loadProductOptions()])
-  const detail = response.data
-  Object.assign(productForm, { id: detail.id, name: detail.name, description: detail.description, idCategory: detail.idCategory })
-  if (detail.idCategory) await loadCategoryAttributes(detail.idCategory, detail.attributes || [])
-  productOpen.value = true
-}
-
-const editVariant = async (id: string) => {
-  const [response] = await Promise.all([getSellerVariant(id), loadVariantOptions()])
-  const detail = response.data || {}
-  Object.assign(variantForm, {
-    id,
-    idSP: '',
-    idMau: detail.idColor,
-    idSize: detail.idKichThuoc,
-    quantity: Number(detail.quantity || 0),
-    salePrice: Number(detail.salePrice || 0),
-    imageUrl: undefined
+  axes.value.forEach((axis, axisIndex) => {
+    axis.values = prepared[axisIndex].map((item, valueIndex) => ({ clientKey: item.key, value: item.value, displayOrder: valueIndex + 1 }))
   })
-  variantOpen.value = true
+  matrixDirty.value = false
 }
 
-const submitProduct = async () => {
-  if (!productForm.name.trim()) return void message.warning('Vui lòng nhập tên sản phẩm')
-  if (!productForm.idCategory) return void message.warning('Vui lòng chọn danh mục')
-  if (dynamicAttributes.value.length > 50) return void message.warning('Mỗi sản phẩm chỉ được tối đa 50 thuộc tính')
+const applyBulk = () => variants.value.forEach(variant => {
+  if (bulkPrice.value != null) variant.salePrice = bulkPrice.value
+  if (bulkStock.value != null) variant.quantity = bulkStock.value
+})
 
-  const usedAttributes = dynamicAttributes.value.filter(hasAttributeValue)
-  const invalidCustom = usedAttributes.find((item) => !item.attributeId && !item.name.trim())
-  if (invalidCustom) return void message.warning('Vui lòng nhập tên thuộc tính')
-  const invalidDropdown = usedAttributes.find((item) =>
-    !item.attributeId
-    && (item.dataType === 'SINGLE_SELECT' || item.dataType === 'MULTI_SELECT')
-    && item.optionValues.length === 0
-  )
-  if (invalidDropdown) return void message.warning('Vui lòng nhập danh sách lựa chọn cho thuộc tính dropdown')
-
-  const attributes: DynamicAttributePayload[] = usedAttributes.map((item, index) => ({
-    attributeId: item.attributeId,
-    name: item.name.trim(),
-    dataType: item.dataType,
-    textValue: item.dataType === 'TEXT' ? item.textValue?.trim() : undefined,
-    numberValue: item.dataType === 'NUMBER' ? item.numberValue : undefined,
-    unit: item.dataType === 'NUMBER' ? item.unit?.trim() : undefined,
-    optionValues: item.attributeId ? undefined : item.optionValues,
-    selectedOptionIds: item.attributeId ? asArray(item.selectedOptionIds) : undefined,
-    selectedOptionValues: item.attributeId ? undefined : asArray(item.selectedOptionValues),
-    displayOrder: index
+const openEdit = async (id: string) => {
+  resetForm()
+  const detail = await getSellerProduct(id)
+  editingId.value = id
+  Object.assign(form, {
+    categoryId: detail.category.id, code: detail.code, name: detail.name, description: detail.description,
+    productImages: detail.productImages.map(image => ({ url: image.url, displayOrder: image.displayOrder, status: image.status }))
+  })
+  const suggestions = await getSellerCategoryAttributes(detail.category.id)
+  const suggestionMap = new Map(suggestions.map(item => [item.definitionId, item]))
+  attributes.value = detail.attributes.map((item, index) => {
+    const suggestion = suggestionMap.get(item.definitionId || '')
+    return {
+      rowKey: uid(), definitionId: item.definitionId, name: suggestion?.name || item.name || '', dataType: item.dataType,
+      defaultUnit: suggestion?.defaultUnit, required: suggestion?.required || false, options: suggestion?.options || [],
+      valueText: item.valueText, valueNumber: item.valueNumber, unit: item.unit || suggestion?.defaultUnit,
+      selectedTokens: item.selectedOptions?.map(option => option.resolvedOptionId || option.id) || [], displayOrder: item.displayOrder || index + 1
+    }
+  })
+  suggestions.filter(item => item.required && !attributes.value.some(row => row.definitionId === item.definitionId)).forEach(item =>
+    attributes.value.push({ rowKey: uid(), definitionId: item.definitionId, name: item.name, dataType: item.dataType,
+      defaultUnit: item.defaultUnit, required: true, options: item.options, unit: item.defaultUnit, selectedTokens: [], displayOrder: item.displayOrder }))
+  axes.value = detail.variantAxes.map((axis, axisIndex) => ({
+    id: axis.id, clientKey: axis.id || `axis-${axisIndex}`, name: axis.name, displayOrder: axis.displayOrder,
+    values: axis.values.map((value, valueIndex) => ({ id: value.id, clientKey: value.id || `value-${axisIndex}-${valueIndex}`, value: value.value, displayOrder: value.displayOrder })),
+    valueLabels: axis.values.map(value => value.value)
   }))
-  saving.value = true
-  try {
-    await saveSellerProduct({ ...productForm, attributes })
-    message.success('Đã lưu sản phẩm')
-    productOpen.value = false
-    await fetchProducts()
-  } catch {
-    message.error('Không lưu được sản phẩm')
-  } finally {
-    saving.value = false
+  variants.value = detail.variants.map(variant => ({
+    id: variant.id, localKey: variant.id, label: variant.selections.length ? variant.selections.map(item => item.value).join(' / ') : 'Mặc định',
+    sku: variant.sku, salePrice: variant.salePrice, quantity: variant.quantity, imageUrl: variant.imageUrl,
+    defaultVariant: variant.isDefault, status: variant.status, selectionValueKeys: variant.selections.map(item => item.valueId), enabled: true
+  }))
+  modalOpen.value = true
+}
+
+const hasAttributeValue = (row: AttributeRow) => row.dataType === 'TEXT' ? Boolean(row.valueText?.trim())
+  : row.dataType === 'NUMBER' ? row.valueNumber != null : row.selectedTokens.length > 0
+
+const buildPayload = (): ProductAggregatePayload => {
+  if (matrixDirty.value) generateMatrix()
+  const optionIds = (row: AttributeRow) => new Set(row.options.map(option => option.id))
+  return {
+    categoryId: form.categoryId, code: form.code || undefined, name: form.name.trim(), description: form.description,
+    productImages: form.productImages.filter(image => image.url.trim()).map((image, index) => ({ ...image, url: image.url.trim(), displayOrder: index })),
+    attributes: attributes.value.filter(hasAttributeValue).map((row, index) => ({
+      definitionId: row.definitionId, name: row.definitionId ? undefined : row.name.trim(), dataType: row.dataType,
+      valueText: row.dataType === 'TEXT' ? row.valueText?.trim() : undefined,
+      valueNumber: row.dataType === 'NUMBER' ? row.valueNumber : undefined,
+      unit: row.dataType === 'NUMBER' ? row.unit?.trim() || undefined : undefined,
+      selectedOptionIds: row.selectedTokens.filter(token => optionIds(row).has(token)),
+      selectedOptionValues: row.selectedTokens.filter(token => !optionIds(row).has(token)), displayOrder: index + 1
+    })),
+    variantAxes: axes.value.map((axis, axisIndex) => ({
+      id: axis.id, clientKey: axis.clientKey, name: axis.name.trim(), displayOrder: axisIndex + 1,
+      values: axis.values.map((value, valueIndex) => ({ ...value, value: value.value.trim(), displayOrder: valueIndex + 1 }))
+    })),
+    variants: variants.value.filter(item => item.enabled).map(item => ({
+      id: item.id, sku: item.sku.trim(), salePrice: item.salePrice, quantity: item.quantity, imageUrl: item.imageUrl?.trim() || undefined,
+      defaultVariant: item.defaultVariant, status: item.status, selectionValueKeys: item.selectionValueKeys
+    }))
   }
 }
 
-const submitVariant = async () => {
-  if (!variantForm.id && !variantForm.idSP) return void message.warning('Vui lòng chọn sản phẩm')
+const submit = async () => {
+  if (!form.categoryId || !form.name.trim()) return void message.warning('Danh mục và tên sản phẩm là bắt buộc')
+  const missingRequired = attributes.value.find(row => row.required && !hasAttributeValue(row))
+  if (missingRequired) return void message.warning(`Thiếu thông số bắt buộc: ${missingRequired.name}`)
+  if (matrixDirty.value) generateMatrix()
+  const enabled = variants.value.filter(item => item.enabled)
+  if (!enabled.length || enabled.some(item => !item.sku.trim())) return void message.warning('Cần ít nhất một variant và mọi SKU phải có giá trị')
   saving.value = true
   try {
-    await saveSellerVariant(variantForm)
-    message.success('Đã lưu phân loại')
-    variantOpen.value = false
-    await fetchVariants()
-  } catch {
-    message.error('Không lưu được phân loại')
-  } finally {
-    saving.value = false
-  }
+    const payload = buildPayload()
+    if (editingId.value) await updateSellerProduct(editingId.value, payload)
+    else await createSellerProduct(payload)
+    message.success('Đã lưu product aggregate')
+    modalOpen.value = false
+    await loadProducts()
+  } finally { saving.value = false }
 }
 
-const toggleProduct = async (id: string) => {
-  await changeSellerProductStatus(id)
-  message.success('Đã đổi trạng thái sản phẩm')
-  await fetchProducts()
+const toggleStatus = async (id: string, current?: EntityStatus) => {
+  await changeSellerProductStatus(id, current === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE')
+  await loadProducts()
 }
 
-const toggleVariant = async (id: string) => {
-  await changeSellerVariantStatus(id)
-  message.success('Đã đổi trạng thái phân loại')
-  await fetchVariants()
+const changePage = (next: { current: number; pageSize: number }) => {
+  page.current = next.current
+  page.size = next.pageSize
+  void loadProducts()
 }
 
-const selectImage = (event: Event) => {
-  variantForm.imageUrl = (event.target as HTMLInputElement).files?.[0]
-}
-
-const onProductPageChange = (pagination: any) => {
-  productPage.current = pagination.current
-  productPage.pageSize = pagination.pageSize
-  fetchProducts()
-}
-
-const onVariantPageChange = (pagination: any) => {
-  variantPage.current = pagination.current
-  variantPage.pageSize = pagination.pageSize
-  fetchVariants()
-}
-
-onMounted(fetchProducts)
+onMounted(async () => {
+  categoryTree.value = await getSellerCategoryTree()
+  await loadProducts()
+})
 </script>
 
 <style scoped>
-.seller-page { padding: 24px; }
-.page-head { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 8px; }
-.page-head h2 { margin: 0; font-size: 22px; font-weight: 700; }
-.strong { font-weight: 700; }
-.muted { color: #64748b; font-size: 13px; margin-top: 2px; }
-.variant-name { display: flex; align-items: center; gap: 10px; min-width: 220px; }
-.variant-name img { width: 44px; height: 44px; object-fit: cover; border: 1px solid #e2e8f0; border-radius: 4px; }
-.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
-.attribute-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 12px; }
-.attribute-head > div { display: flex; align-items: baseline; gap: 10px; }
-.attribute-head h3 { margin: 0; font-size: 16px; font-weight: 700; }
-.attribute-row { border-top: 1px solid #e5e7eb; padding: 16px 0 4px; }
-.attribute-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(180px, 1fr) 40px; gap: 12px; align-items: end; }
-.remove-attribute { width: 36px; height: 32px; margin-bottom: 24px; padding: 0; }
-.number-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr); gap: 12px; }
-@media (max-width: 768px) {
-  .seller-page { padding: 16px; }
-  .page-head { align-items: flex-start; flex-direction: column; }
-  .form-grid { grid-template-columns: 1fr; }
-  .attribute-grid { grid-template-columns: minmax(0, 1fr) 40px; }
-  .attribute-grid :deep(.ant-form-item):nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
-  .remove-attribute { grid-column: 2; grid-row: 1; }
-  .number-grid { grid-template-columns: 1fr; gap: 0; }
+.seller-products { padding: 24px; background: #f6f8fb; min-height: 100%; }
+.page-head, .section-title, .toolbar, .matrix-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.page-head { margin-bottom: 18px; }
+.page-head h2 { margin: 0; font-size: 24px; }
+.page-head p { margin: 4px 0 0; color: #64748b; }
+.toolbar { justify-content: flex-end; margin-bottom: 16px; }
+.toolbar :deep(.ant-input-search) { max-width: 360px; }
+.product-cell { display: flex; gap: 12px; align-items: center; }
+.product-cell img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; }
+.product-cell strong, .product-cell small { display: block; }
+.product-cell small { color: #64748b; margin-top: 4px; }
+.aggregate-form { display: grid; gap: 16px; max-height: 72vh; overflow-y: auto; padding-right: 6px; }
+.grid { display: grid; gap: 12px; }
+.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.attribute-grid { grid-template-columns: 1.2fr 160px minmax(280px, 2fr) 56px; align-items: end; }
+.attribute-row, .axis-row { padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 12px; }
+.axis-row { display: grid; grid-template-columns: 220px 1fr 70px; gap: 12px; }
+.inline-row { display: grid; grid-template-columns: 1fr 70px; gap: 10px; margin-top: 10px; }
+.matrix-actions { justify-content: flex-start; flex-wrap: wrap; margin: 14px 0; }
+.remove-button { margin-bottom: 24px; }
+@media (max-width: 900px) {
+  .seller-products { padding: 12px; }
+  .grid.three, .attribute-grid, .axis-row { grid-template-columns: 1fr; }
+  .page-head { align-items: flex-start; }
 }
 </style>

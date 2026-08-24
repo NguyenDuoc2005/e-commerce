@@ -7,7 +7,7 @@ spring:
     password: ${CATALOG_DATASOURCE_PASSWORD:12345678}
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: ${JPA_DDL_AUTO:validate}
     properties:
       hibernate:
         globally_quoted_identifiers: true

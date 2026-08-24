@@ -34,14 +34,14 @@
               <img :src="productImage(item)" alt="product" />
             </div>
             <div class="product-body">
-              <h3 :title="item.tenSanPham">{{ item.tenSanPham }}</h3>
+            <h3 :title="item.name">{{ item.name }}</h3>
               <div class="price-row">
-                <strong>{{ formatVND(item.giaSauGiam ?? item.giaBan) }}</strong>
-                <span v-if="item.dotGiamGia">{{ formatVND(item.giaBan) }}</span>
+                <strong>{{ formatVND(item.minPrice) }}</strong>
+                <span v-if="item.maxPrice && item.maxPrice !== item.minPrice">– {{ formatVND(item.maxPrice) }}</span>
               </div>
               <div class="meta-row">
-                <span>{{ item.thuongHieu }}</span>
-                <span>Da ban {{ item.soldCount ?? 0 }}</span>
+                <span>{{ item.category?.name || 'Sản phẩm' }}</span>
+                <span>{{ item.totalQuantity }} còn</span>
               </div>
             </div>
           </div>
@@ -79,7 +79,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { followShop, getPublicShop, getShopFollowState, unfollowShop, type SellerResponse } from '@/services/api/seller/seller.api'
 import { getPublicReviews, type Review } from '@/services/api/seller/review.api'
-import { GetDanhSachSanPhamTrangSanPham, type SanPhamMoiResponse } from '@/services/api/permitall/sanpham/pmsanpham.api'
+import { getCatalogProducts, type CatalogSummary } from '@/services/api/catalog/catalog.api'
 import { useAuthStore } from '@/stores/auth'
 
 type PublicSellerResponse = SellerResponse & {
@@ -93,7 +93,7 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const productsLoading = ref(false)
 const shop = ref<PublicSellerResponse | null>(null)
-const products = ref<SanPhamMoiResponse[]>([])
+const products = ref<CatalogSummary[]>([])
 const currentPage = ref(1)
 const pageSize = 12
 const totalElements = ref(0)
@@ -111,20 +111,20 @@ const formatVND = (price: number | undefined): string => {
   return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' VND'
 }
 
-const productImage = (item: SanPhamMoiResponse) => item.dsAnh?.[0] || item.hinhAnhDaiDien
+const productImage = (item: CatalogSummary) => item.thumbnailUrl || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="100%" height="100%" fill="%23f1f5f9"/%3E%3C/svg%3E'
 
 const loadProducts = async () => {
   if (!shop.value?.id) return
   productsLoading.value = true
   try {
-    const res = await GetDanhSachSanPhamTrangSanPham({
-      page: currentPage.value,
+    const res = await getCatalogProducts({
+      page: currentPage.value - 1,
       size: pageSize,
       sellerId: shop.value.id,
-      sortBy: 'createdAt_desc'
+      sort: 'createdAt_desc'
     })
-    products.value = res.data?.data ?? []
-    totalElements.value = res.data?.totalElements ?? 0
+    products.value = res.content ?? []
+    totalElements.value = res.totalElements ?? 0
   } finally {
     productsLoading.value = false
   }

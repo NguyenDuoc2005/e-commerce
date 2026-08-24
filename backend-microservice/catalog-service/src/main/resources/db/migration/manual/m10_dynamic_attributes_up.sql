@@ -114,6 +114,21 @@ CREATE TABLE IF NOT EXISTS `product_attribute_value_option` (
   CONSTRAINT `fk_product_value_option_option` FOREIGN KEY (`option_id`) REFERENCES `product_attribute_option` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `product_attribute_moderation_audit` (
+  `id` varchar(36) NOT NULL,
+  `status` tinyint NOT NULL DEFAULT 0,
+  `created_date` bigint NULL,
+  `last_modified_date` bigint NULL,
+  `action` varchar(30) NOT NULL,
+  `actor_user_id` varchar(36) NULL,
+  `source_attribute_id` varchar(36) NOT NULL,
+  `target_attribute_id` varchar(36) NULL,
+  `reason` varchar(1000) NULL,
+  `affected_product_count` int NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_attribute_audit_source` (`source_attribute_id`, `created_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT IGNORE INTO `category` (`id`, `status`, `created_date`, `last_modified_date`, `code`, `name`)
 VALUES ('32000000-0000-0000-0000-000000000010', 0, @m10_now, @m10_now, 'DM-GIAY', 'Giay');
 

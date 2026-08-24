@@ -1,15 +1,29 @@
 ﻿# PROGRESS.md - Nháº­t kÃ½ tiáº¿n Ä‘á»™ chuyá»ƒn Ä‘á»•i Marketplace
 
 ## Tráº¡ng thÃ¡i tá»•ng quan hiá»‡n táº¡i
-- Giai doan: Phase 2 extension Muc 10 da trien khai source cho dynamic attribute sau khi policy 1A/2A/3A da chot: custom attribute `PENDING` rieng shop, toi da 50/product, seller chon du 4 kieu du lieu.
-- Task dang lam do (neu co): Can verify tiep FE build/browser va migration up/down tren DB that; backend compile da pass bang JDK 17 local. Phase 4 Buyer filter/detail + Admin hau kiem va Phase 5 audit/regression se lam tiep theo roadmap sau khi co runtime/FE proof.
-- Viec tiep theo can lam ngay: Chay FE build voi Node/npm kha dung, smoke Seller Product dynamic attribute qua gateway/DB, chay migration up/down co doi soat neu duoc phep reset/backup DB; khong can hoi lai policy Muc 10.6.
+- Giai doan: Product domain normalization P0 da hoan tat audit source/DB that va tai lieu Muc 3-6; ERD/nghiep vu/roadmap da dong bo them quyet dinh product image, merge mot tang, default unit, combination key va singleton concurrency. Source/runtime van la model half-migrated cu, chua bat dau schema cutover.
+- Task dang lam do (neu co): Khong co edit code product model moi dang do. Sau bang hard-code `brand/color/material/origin/size/sole_type`, FK cu va FE/consumer hard-code van con; CDC cu cung van chua dong bo du 4 product do thieu user `debezium`.
+- Viec tiep theo can lam ngay: Theo `docs/product/roadmap-san-pham.md`, lam P1.1: viet schema migration target xoa bang cu + tao descriptive attributes/product_image/variant axes/default variant, default_unit va combination_key NOT NULL/unique; verify tren database tam co lap, chua reset `ecommerce_catalog` that. Sau do moi refactor entity/repository va consumer theo contract moi.
 
-## CÃ¢u há»i / quyáº¿t Ä‘á»‹nh cáº§n ngÆ°á»i dÃ¹ng xÃ¡c nháº­n
+## Cập nhật product normalization — 2026-08-24
+- P1.1–P1.3, P2, P3 và P4 đã có bằng chứng source/test/compile/runtime cô lập; P5 Admin đã hoàn tất source và FE build/typecheck.
+- FE build dùng Docker volume dependency Linux: npm run build pass; vue-tsc --noEmit pass.
+- DB live ecommerce_catalog chưa được cutover: còn đủ 6 bảng legacy; các bảng product hiện tại là schema half-migrated cũ (ví dụ `product_variant` còn `size_id/color_id`, chưa có canonical axis/image schema). Không có DB tạm/index/volume kiểm chứng còn tồn tại.
+- P3 CDC/connector live và P7 cutover chưa DONE; cần phê duyệt reset DB và quyền CDC trước khi thực hiện.
+- Task tiếp theo: P6 FE Buyer, sau đó mới xem xét P7 theo checklist roadmap.
+
+## Cập nhật P6 Buyer — 2026-08-24
+- Buyer product list/filter/detail và ShopDetail đã dùng public catalog aggregate canonical; không còn dùng field variant màu/size trong các màn hình này.
+- Selector detail hỗ trợ 0/1/2 axis, disable value không có variant còn hàng; cart/checkout giữ variant ID và generic `variantLabel/selections`.
+- `vue-tsc --noEmit` và `npm run build` pass; `:catalog-service:compileJava` pass sau bổ sung seller filter public.
+- P7 vẫn blocked theo quyền: live DB còn schema legacy/half-migrated, chưa reset/cutover; Kafka Connect hiện có 0 connector; chưa triển khai Debezium/CDC hoặc browser E2E runtime.
+
+## CÃ¢u há»i / quyáº¿t Ä‘á»nh cáº§n ngÆ°á»i dÃ¹ng xÃ¡c nháº­n
 - Phase 1 Ä‘ang triá»ƒn khai theo quyáº¿t Ä‘á»‹nh táº¡m: má»—i tÃ i khoáº£n buyer sá»Ÿ há»¯u tá»‘i Ä‘a 1 shop Ä‘ang hoáº¡t Ä‘á»™ng/chá» duyá»‡t; shop bá»‹ `REJECTED` hoáº·c `CLOSED` cÃ³ thá»ƒ Ä‘Äƒng kÃ½ láº¡i.
 - Da chot review domain dat trong `seller-service` de dung roadmap Phase 5 va tranh them microservice khi domain con nho.
 - Can nguoi dung xac nhan ro co cho phep DROP/CREATE lai 8 database `ecommerce_*` tren Docker local de nap bo seed marketplace moi hay khong.
-- Da chot Muc 10.6 ngay 2026-08-22 theo 1A/2A/3A: thuoc tinh `PENDING` chi hien/goi y trong shop tao; toi da 50 thuoc tinh dong/product; seller duoc chon `TEXT`, `NUMBER`, `SINGLE_SELECT`, `MULTI_SELECT`.
+- Can nguoi dung xac nhan co cho phep chay `search-pipeline/sql/002-create-debezium-user-mysql.sql`: tao `debezium`@`%` va cap `SELECT`, `RELOAD`, `SHOW DATABASES`, `REPLICATION SLAVE`, `REPLICATION CLIENT` tren `*.*` de hoan tat CDC/reindex hay khong.
+- Quyet dinh Muc 10.6 ngay 2026-08-22 da bi prompt product moi thay the trong pham vi chuan hoa san pham: descriptive attribute khong gioi han 50, definition/option chua verified dung chung de autocomplete; type dich la `TEXT`, `NUMBER`, `SELECT_ONE`, `SELECT_MULTI`; variant axis toi da 2.
 
 ## Checklist tÃ­nh nÄƒng (Ä‘á»‘i chiáº¿u Má»¥c 3.5 cá»§a prompt gá»‘c)
 - [x] ÄÄƒng kÃ½/Ä‘Äƒng nháº­p buyer, seller, platform admin
@@ -28,7 +42,7 @@
 - [x] Thá»‘ng kÃª riÃªng theo seller + thá»‘ng kÃª tá»•ng toÃ n sÃ n
 - [x] Duyá»‡t/khÃ³a seller bá»Ÿi Platform Admin
 - [x] ThÃ´ng bÃ¡o qua `notification-service`
-- [ ] Thuoc tinh dong: schema + migration du lieu giay co backup/revert
+- [ ] Chuan hoa san pham: schema target + reset seed demo da nganh, xoa 6 bang hard-code
 - [ ] Thuoc tinh dong: Seller suggestion/autocomplete/tu them tren form san pham (lien ket Muc 3.2)
 - [ ] Thuoc tinh dong: Buyer filter theo danh muc va product detail (lien ket Muc 3.3)
 - [ ] Thuoc tinh dong: Platform Admin hau kiem/chuan hoa/gop/an (lien ket Muc 3.4)
@@ -36,6 +50,112 @@
 - [ ] Flash sale toÃ n sÃ n
 
 ## Nháº­t kÃ½ chi tiáº¿t (entry má»›i nháº¥t á»Ÿ trÃªn cÃ¹ng)
+
+### [2026-08-24 10:26] Phien #21
+**Da lam:**
+- Dong bo `erd-san-pham.md` va `01-nghiep-vu-thuoc-tinh.md` theo 6 quyet dinh da chot: them `product_image`; merge definition/option mot tang voi target chua merge; bat buoc `combination_key NOT NULL` va unique theo product; leaf-category enforce tai service.
+- Them `default_unit` nullable cho definition NUMBER va quy tac value `unit` chi luu override khac mac dinh.
+- Ghi ro invariant singleton TEXT/NUMBER/SELECT_ONE phai enforce trong transaction va co test race hai request ghi dong thoi.
+- Cap nhat P1.1/P2.1/P2.2 trong roadmap de pham vi DDL, constraint va test sau nay khop thiet ke moi.
+
+**File da tao/sua:**
+- `docs/product/01-nghiep-vu-thuoc-tinh.md`
+- `docs/product/erd-san-pham.md`
+- `docs/product/roadmap-san-pham.md`
+- `docs/product/PROGRESS-PRODUCT.md`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE dong bo tai lieu theo 6 quyet dinh. CHUA chay P1.1, CHUA tao/chay migration, CHUA sua schema/source va CHUA reset database.
+
+**Ghi chu/vuong mac:**
+- Thay doi anh huong truc tiep DDL P1.1 va test concurrency P2.1; roadmap da duoc cap nhat truoc khi implementation.
+- Phien nay chi sua tai lieu, khong chay build/test/runtime vi khong co thay doi source thuc thi.
+
+---
+
+### [2026-08-24 10:17] Phien #20
+**Da lam:**
+- Doc day du `AGENTS.md`, `docs/PROGRESS.md`, prompt marketplace goc va `docs/product/PROMPT-CHUAN-HOA-SAN-PHAM.md`; xac nhan `PROGRESS-PRODUCT.md` chua ton tai nen chay dung cau lenh khoi tao Muc 11.
+- Audit source that catalog-service: entity, repository, model, controller, service, migration/test/outbox/Elasticsearch; audit FE Seller/Admin/Buyer va trace contract sang cart/order/promotion.
+- Query chi doc MySQL that: xac nhan 16 bang, 4 product, 6 variant, 5 dynamic definition, 20 dynamic value; `product` van FK brand/origin/material/sole_type va `product_variant` van FK color/size song song voi dynamic attribute.
+- Tao bo tai lieu product day du: audit, nghiep vu 3 nganh, ERD Mermaid, seed plan, API/consumer impact va roadmap P0-P7. Model dich tach descriptive attribute voi variant axis, toi da 2 axis, product khong axis co 1 default variant, direct breaking API cutover va xoa 6 bang hard-code.
+- Kiem tra tai lieu khong co TODO/TBD/placeholder, Mermaid fence day du va `git diff --check -- docs/product docs/PROGRESS.md` khong co whitespace error.
+
+**File da tao/sua:**
+- `docs/product/00-audit-hien-trang.md`
+- `docs/product/01-nghiep-vu-thuoc-tinh.md`
+- `docs/product/erd-san-pham.md`
+- `docs/product/seed-data-plan.md`
+- `docs/product/api-contract-changes.md`
+- `docs/product/roadmap-san-pham.md`
+- `docs/product/PROGRESS-PRODUCT.md`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE audit source/DB that va phien khoi tao tai lieu product Muc 3-6. CHUA DONE schema migration, backend/consumer refactor, FE, DB cutover/seed va runtime E2E.
+
+**Ghi chu/vuong mac:**
+- Prompt product moi thay policy tam Muc 10 cu: descriptive attribute khong gioi han 50; definition/option chua verified duoc dung chung de autocomplete; variant axis moi gioi han toi da 2. Source/test hien tai chua duoc sua theo policy moi.
+- `m10_dynamic_attributes_up/down.sql` hien backup/migrate va giu bang hard-code, khong phu hop cutover product moi; P1.1 se viet schema target rieng va verify tren DB tam.
+- Khong chay DROP/CREATE/reset, khong sua code runtime va khong goi build/compile la proof trong phien tai lieu hoa nay. Reset DB local that van can xac dinh ro target/chap thuan truoc khi thuc thi.
+
+---
+
+### [2026-08-24 10:02] Phien #19
+**Da lam:**
+- Doc day du `AGENTS.md`, prompt goc, `PROGRESS.md`, roadmap va cac muc thiet ke dynamic attribute lien quan; doi chieu source/diff that va giu nguyen cac thay doi khong lien quan trong worktree.
+- Tai hien loi startup: `run-all.ps1` tao mot Gradle daemon cho moi service, `catalog-service` chet voi `The paging file is too small`. Sua script thanh build tat ca `bootJar` tuan tu mot lan, sau do chay JAR truc tiep voi heap/metaspace co gioi han va fail-fast neu build loi.
+- Chay script moi: bootJar 10 module pass; 9 ung dung core `AUTH/USER/CATALOG/PROMOTION/CART/ORDER/SELLER/PAYOUT/API-GATEWAY` dang ky `UP` tren Eureka, log hien tai khong co `ERROR`, `OutOfMemoryError`, `paging file` hay `APPLICATION FAILED TO START`.
+- JWT/gateway smoke: Admin va Seller login 200; Seller token co `roles=[USERS,SELLER]`, `sellerId` va shop claims. Admin attribute no-token 401, Seller token 403, Admin token 200; Seller products 200 va chi tra 2 product cua shop hien tai.
+- Dynamic Buyer/runtime: category filters tra 5 thuoc tinh; filter Thuong hieu=Nike tra dung 2 product. Admin reindex qua gateway tra 202 va enqueue 4 product; outbox tang tu 4 len 8.
+- Phat hien va xoa doan FE gan nguoc vao computed `totalPages` read-only trong `ProductsView.vue`; `vue-tsc --noEmit` pass va Vite production build pass sau sua.
+- Fresh verification: `:catalog-service:test :catalog-service:compileJava --rerun-tasks` pass 5 tests/0 failure; FE route `/san-pham` va `/admin/product-attributes` deu HTTP 200. Browser runtime khong co browser instance nen khong co click/screenshot desktop-mobile.
+
+**File da tao/sua:**
+- `backend-microservice/run-all.ps1`
+- `FE/src/pages/users/products/ProductsView.vue`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE harden startup full stack, JWT authorization/list/reindex queue smoke, Buyer dynamic filter runtime va FE computed fix. DO DANG CDC Elasticsearch, mutation smoke Seller/Admin, browser visual va migration DB that.
+
+**Ghi chu/vuong mac:**
+- Docker MySQL hien khong co user `debezium`; Kafka Connect co 0 connector. Deploy preflight dung voi `Access denied for user 'debezium'`; Elasticsearch `products` alias co 1 document trong khi MySQL co 4 product, 5 definition, 20 value va 8 outbox event.
+- `ecommerce_catalog` that van khong co `m10_migration_manifest`; khong chay migration/reset DB va khong cap quyen replication khi chua co xac nhan ro.
+- Khong chay Seller create/edit hay Admin standardize/merge/hide mutation tren data hien tai khi CDC tat, de tranh tao trang thai test khong duoc dong bo; authorization va read/reindex route da co runtime proof.
+- Vite build con warning 5 font Inter resolve luc runtime va main chunk 1.66 MB; build van thanh cong. FE dev server dang o `http://127.0.0.1:5173`; backend full stack dang chay, notification-service khong bat vi script mac dinh khong co `-WithNotification`.
+
+---
+
+### [2026-08-24 09:32] Phien #18
+**Da lam:**
+- Doc lai `AGENTS.md`, toan bo prompt goc, `PROGRESS.md` va roadmap/dong nghiep vu Muc 10 truoc khi sua; doi chieu source that thay Buyer/Admin dynamic attribute da co nhung Elasticsearch filter chua di xuong nested query va migration thieu audit DDL.
+- Buyer filter: parse `attributeFilters` mot lan, dung moi filter thanh mot Elasticsearch `nested` clause ghep `attributeId` voi text/option/range trong cung object; van doi soat MySQL fallback de khong sai ket qua khi index chua du.
+- Admin hau kiem: standardize validate category ton tai, dong bo chinh xac tap category duoc chon (deactivate link bo chon), them endpoint `POST /api/v1/admin/product-attributes/reindex` enqueue full active product qua outbox, khong dual-write Elasticsearch.
+- Migration: them bang `product_attribute_moderation_audit` vao up/down; chay schema-only clone + 1 product synthetic trong DB tam `verify_m10_20260824`. Up pass `1/1` backup, 5 dynamic values, audit table ton tai; down restore checksum `3144645032/3144645032` va xoa dynamic tables. DB tam da xoa sau verify.
+- Search pipeline: harden deploy script de preflight Kafka Connect/connector credential truoc migration, phat hien concrete index legacy, chi migrate khi co switch ro, bo `_class`, refresh + count guard, va verify mapping `attributes=nested`. Local legacy `products` 1 document da migrate an toan sang `products_v1` + alias `products`.
+- Verification: `:catalog-service:test` pass 5 tests/0 failure, co test cau truc nested query; Vite production build pass bang Node 20.19.6. Runtime catalog/MySQL/Elasticsearch/Eureka UP; gateway category filters tra 5 filter, danh sach 4 product va filter Nike tra 2; direct reindex queue 5 product, cung route qua gateway tra 401 khi khong co Admin JWT.
+
+**File da tao/sua:**
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/controller/AdminDynamicAttributeController.java`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/AdminDynamicAttributeService.java`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/DynamicAttributeService.java`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/impl/ProductSearchServiceImpl.java`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/impl/ProductServiceImpl.java`
+- `backend-microservice/catalog-service/src/test/java/com/ecommerce/catalog/service/impl/ProductServiceImplTest.java`
+- `backend-microservice/catalog-service/src/main/resources/db/migration/manual/m10_dynamic_attributes_up.sql`
+- `backend-microservice/catalog-service/src/main/resources/db/migration/manual/m10_dynamic_attributes_down.sql`
+- `backend-microservice/search-pipeline/scripts/deploy-connectors.ps1`
+- `backend-microservice/search-pipeline/README.md`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE source hardening Buyer nested filter, Admin category moderation/audit/reindex, FE build va migration up/down tren DB tam. DO DANG CDC nested end-to-end va full Seller/Admin/browser/runtime proof.
+
+**Ghi chu/vuong mac:**
+- Connector preflight dung dung voi loi `Access denied for user 'debezium'`; yeu cau cap quyen toan MySQL bi lop phe duyet chan, khong duoc lach. 5 ProductUpdated moi dang nam trong outbox, chua duoc day sang Elasticsearch.
+- Browser plugin khong co browser instance kha dung, nen khong co click/screenshot desktop-mobile; chi co FE build va HTTP runtime proof.
+- `ecommerce_catalog` that khong co `m10_migration_manifest`, nen khong danh dau migration DB that DONE du current Hibernate schema dang co 20 attribute values.
+- Khong chay reset 8 database. FE dev server duoc khoi dong tai `http://127.0.0.1:5173`; runtime chi khoi dong discovery/catalog/gateway va dependency MySQL/Elasticsearch/Kafka/Kafka Connect, khong phai full stack marketplace.
+
+---
 
 ### [2026-08-22 16:43] Phien #17
 **Da lam:**
@@ -510,3 +630,27 @@
 - FE Ä‘ang cÃ³ interceptor gá»i `/api/v1/auth/refresh`, trong scan `AuthController` hiá»‡n chÆ°a tháº¥y endpoint nÃ y; cáº§n xá»­ lÃ½ sá»›m á»Ÿ Phase 1.
 
 ---
+# P7 PRODUCT CUTOVER UPDATE - 2026-08-24 14:00
+
+- Nguoi dung da xac nhan bo data cu local/dev va cho phep reset/cutover DB product.
+- Da DROP/CREATE lai rieng `ecommerce_catalog`, chay schema/seed canonical product; DB verify pass: legacy table count = 0, target table count = 14, products = 4, variants = 12.
+- Da sua `backend-microservice/catalog-service/src/main/resources/application.yml` de default `ddl-auto=validate`, tranh Hibernate tu mutate schema target.
+- Da sua `backend-microservice/api-gateway/src/main/resources/application.yml` de route canonical `/api/v1/permitall/products/**`, `/api/v1/permitall/categories/**`, `/api/v1/admin/categories/**`, `/api/v1/admin/product-variant-axes/**`.
+- Backend test/compile pass va full `run-all.ps1 -DbPort 3307` bootJar/start pass; gateway health thay 9 service core; gateway `GET /api/v1/permitall/products` tra 4 products.
+- Elasticsearch alias `products` da tro `products_v2`; catalog reindex endpoint enqueue 4 `ProductUpdated` vao outbox.
+- P7 con DO DANG o CDC/ES/browser: Kafka Connect connectors = 0, ES `products` count = 0. Lenh cap quyen Debezium global bi policy chan, can user phe duyet cu the SQL tao `debezium`@`%` password `dbz` va grant `SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.*`.
+# ADMIN PRODUCT UI CLEANUP - 2026-08-24
+- Da an/xu ly phan Admin `Danh muc chung` legacy sau product canonical cutover.
+- `FE/src/components/custom/Sidebar/AdminSidebar.vue`: sidebar filter bo toan bo route catalog hard-code cu (`mau-sac`, `chat-lieu`, `loai-de`, `loai-giay`, `size`, `thuong-hieu`), nen Admin khong con hien group `Danh muc chung`.
+- `FE/src/routes/router.ts`: `/admin` default va cac legacy route hard-code neu go truc tiep redirect ve `/admin/product-attributes`.
+- Trang dung tiep theo cho Admin product/catalog: `Quan ly thuoc tinh` (`/admin/product-attributes`), gan danh muc canonical khi chuan hoa thuoc tinh; category tree canonical phuc vu Seller/Buyer.
+- Kiem chung: `git diff --check` cho hai file FE pass. KHONG THE KIEM CHUNG FE build/browser trong turn nay vi host khong co `node`/`npm` trong PATH.
+
+# P7 PRODUCT CUTOVER UPDATE - 2026-08-24 14:35
+- Da reset/cutover `ecommerce_catalog` local theo product canonical schema va seed moi; khong giu data cu theo chi dao user.
+- DB verify: legacy product tables khong con trong `ecommerce_catalog`; target table count = 14; required canonical columns/FK/unique invariant da pass; seed: 4 products, 12 variants, 8 categories, 12 definitions, 13 options, 5 axes, 11 axis values.
+- Runtime verify: catalog-service port 8083 health UP voi MySQL 8.4 va `ddl-auto=validate`; api-gateway port 8080 route `/api/v1/permitall/products` OK; public list tra 4 products voi canonical aggregate summary.
+- CDC verify: da cap user/quyen Debezium; Kafka Connect image moi `cp-kafka-connect:8.0.0`; plugins load `io.debezium.connector.mysql.MySqlConnector` 3.2.6-3 va Elasticsearch sink 15.1.3; source/sink connectors RUNNING; reindex enqueued 4; MySQL outbox count 4; Kafka topic `outbox.event.Product` offset den 11; Elasticsearch `products` count 4.
+- Config/code thay doi trong phien: `catalog-service` default `ddl-auto=validate`; gateway them route canonical catalog public/admin; Kafka Connect base image/plugin; sink dung `topic.to.external.resource.mapping` + `external.resource.usage=alias_index`; source Debezium prefix/schema history v4; `CatalogProductService` outbox search document dang flat product-level fields.
+- Gioi han con lai: nested `attributes`/`variants` khong con trong CDC payload vi Debezium 3.2 EventRouter fail voi nested JSON arrays (`Invalid type for STRUCT: class java.lang.String`). Mapping nested ES van con, nhung chua co nested docs qua CDC. FE build/browser khong rerun duoc trong turn nay do host thieu `npm.cmd`, khong co FE dev/preview server va khong co node image local.
+- Trang thai: P7 backend/DB/CDC/API smoke DONE voi gioi han nested ES payload neu can search facets tren Elasticsearch. Viec tiep theo neu tiep tuc: xu ly P8 nested ES publisher hoac cung cap Node runtime de rerun FE/browser E2E.

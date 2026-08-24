@@ -2,6 +2,7 @@ package com.ecommerce.promotion.service.impl;
 
 import com.ecommerce.common.base.PageableObject;
 import com.ecommerce.common.base.ResponseObject;
+import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import com.ecommerce.common.util.PageUtils;
 import com.ecommerce.promotion.client.CatalogClient;
 import com.ecommerce.promotion.constant.Status;
@@ -63,23 +64,14 @@ public class PromotionServiceImpl implements PromotionService {
 
     @Override
     public List<Map<String, Object>> getProductCT(String id) {
-        return catalogClient.getProductDetails(id);
+        return catalogClient.getProductVariants(id).stream().map(PromotionServiceImpl::variantMap).toList();
     }
 
     @Override
     public List<Map<String, Object>> getProductByDot(String id) {
         List<String> ids = detailRepository.findActiveProductDetailIdsByPromotion(id);
-        return ids.isEmpty() ? List.of() : catalogClient.getProductDetailsByIds(ids);
-    }
-
-    @Override
-    public List<Map<String, Object>> getColor() {
-        return catalogClient.getColors();
-    }
-
-    @Override
-    public List<Map<String, Object>> getSize() {
-        return catalogClient.getSizes();
+        return ids.isEmpty() ? List.of() : catalogClient.getProductVariantsByIds(ids).stream()
+                .map(PromotionServiceImpl::variantMap).toList();
     }
 
     @Override
@@ -195,13 +187,14 @@ public class PromotionServiceImpl implements PromotionService {
 
     @Override
     public List<Map<String, Object>> getByIdProductDetail(String id) {
-        Map<String, Object> productDetail = catalogClient.getProductDetail(id);
+        CatalogVariantSnapshot productDetail = catalogClient.getProductVariant(id);
         return detailRepository.findAllByProductDetailId(id).stream()
                 .map(detail -> {
                     Map<String, Object> row = new java.util.LinkedHashMap<>();
-                    row.put("image", productDetail.get("imageUrl"));
-                    row.put("code", productDetail.get("code"));
-                    row.put("name", productDetail.get("tenProduct"));
+                    row.put("image", productDetail.imageUrl());
+                    row.put("code", productDetail.sku());
+                    row.put("name", productDetail.productName());
+                    row.put("variantLabel", productDetail.variantLabel());
                     row.put("namePromotion", detail.getPromotionCampaign().getName());
                     row.put("valuePromotion", detail.getPromotionCampaign().getDiscountValue());
                     row.put("statusPromotion", detail.getTrangThai() == null ? null : detail.getTrangThai().name());
@@ -212,11 +205,11 @@ public class PromotionServiceImpl implements PromotionService {
 
     private void validateProductDetails(List<IdProductDetail> ids, String sellerId) {
         for (IdProductDetail item : ids) {
-            Map<String, Object> productDetail = catalogClient.getProductDetail(item.getId());
-            if (productDetail.isEmpty()) {
+            CatalogVariantSnapshot productDetail = catalogClient.getProductVariant(item.getId());
+            if (productDetail == null) {
                 throw new IllegalArgumentException("Co san pham khong ton tai");
             }
-            if (sellerId != null && !sellerId.equals(stringValue(productDetail.get("sellerId")))) {
+            if (sellerId != null && !sellerId.equals(productDetail.sellerId())) {
                 throw new IllegalArgumentException("San pham khong thuoc seller hien tai");
             }
         }
@@ -236,10 +229,10 @@ public class PromotionServiceImpl implements PromotionService {
     private void createOrUpdateDetails(PromotionCampaign promotion, List<IdProductDetail> ids, Double value, Status status) {
         List<PromotionCampaignProduct> details = new ArrayList<>();
         for (IdProductDetail item : ids) {
-            Map<String, Object> productDetail = catalogClient.getProductDetail(item.getId());
+            CatalogVariantSnapshot productDetail = catalogClient.getProductVariant(item.getId());
             PromotionCampaignProduct detail = Optional.ofNullable(detailRepository.getByProductDetailAndPromotion(item.getId(), promotion.getId()))
                     .orElseGet(PromotionCampaignProduct::new);
-            double original = doubleValue(productDetail.get("salePrice"));
+            double original = productDetail.salePrice().doubleValue();
             detail.setCode(detail.getCode() == null ? "DGCTSP-" + UUID.randomUUID() : detail.getCode());
             detail.setPromotionCampaign(promotion);
             detail.setProductVariantId(item.getId());
@@ -281,6 +274,22 @@ public class PromotionServiceImpl implements PromotionService {
 
     private double roundTo2Decimals(double value) {
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    private static Map<String, Object> variantMap(CatalogVariantSnapshot snapshot) {
+        Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("id", snapshot.id());
+        row.put("productId", snapshot.productId());
+        row.put("sellerId", snapshot.sellerId());
+        row.put("sku", snapshot.sku());
+        row.put("productName", snapshot.productName());
+        row.put("variantLabel", snapshot.variantLabel());
+        row.put("selections", snapshot.selections());
+        row.put("salePrice", snapshot.salePrice());
+        row.put("quantity", snapshot.quantity());
+        row.put("imageUrl", snapshot.imageUrl());
+        row.put("status", snapshot.status());
+        return row;
     }
 
     private double doubleValue(Object value) {

@@ -26,6 +26,9 @@ public abstract class PrimaryEntity extends AuditEntity {
         if (id == null || id.isBlank()) {
             id = UUID.randomUUID().toString();
         }
+        if (status == null) {
+            status = EntityStatus.ACTIVE;
+        }
     }
 
     public String getId() { return id; }

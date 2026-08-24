@@ -172,11 +172,24 @@ const visibleMenuItems = (items: any[]) => {
     ROUTES_CONSTANTS.SELLER.children.REVIEWS.name,
     ROUTES_CONSTANTS.USERS.children.TRANGCHU.name,
   ])
+  const legacyCatalogRoutes = new Set([
+    ROUTES_CONSTANTS.ADMIN.children.MAUSAC.name,
+    ROUTES_CONSTANTS.ADMIN.children.CHAT_LIEU.name,
+    ROUTES_CONSTANTS.ADMIN.children.LOAI_DE.name,
+    ROUTES_CONSTANTS.ADMIN.children.LOAI_GIAY.name,
+    ROUTES_CONSTANTS.ADMIN.children.SIZE.name,
+    ROUTES_CONSTANTS.ADMIN.children.THUONG_HIEU.name,
+  ])
+  const withoutLegacyCatalog = items.filter((item) => {
+    if (legacyCatalogRoutes.has(item.routeName)) return false
+    if (item.children?.some((child: any) => legacyCatalogRoutes.has(child.routeName))) return false
+    return true
+  })
   if (currentRoles.value.includes(ROLES.ADMIN)) {
-    return items.filter((item) => !sellerRoutes.has(item.routeName))
+    return withoutLegacyCatalog.filter((item) => !sellerRoutes.has(item.routeName))
   }
   if (currentRoles.value.includes(ROLES.SELLER)) {
-    return items.filter((item) => sellerRoutes.has(item.routeName))
+    return withoutLegacyCatalog.filter((item) => sellerRoutes.has(item.routeName))
   }
   return []
 };

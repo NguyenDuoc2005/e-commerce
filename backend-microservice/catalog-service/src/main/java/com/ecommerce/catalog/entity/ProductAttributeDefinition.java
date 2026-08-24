@@ -1,7 +1,6 @@
 package com.ecommerce.catalog.entity;
 
 import com.ecommerce.catalog.constant.AttributeDataType;
-import com.ecommerce.catalog.constant.AttributeNormalizationStatus;
 import com.ecommerce.catalog.entity.base.PrimaryEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,8 +11,8 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "product_attribute_definition", indexes = {
-        @Index(name = "idx_attribute_normalized_name", columnList = "normalized_name"),
-        @Index(name = "idx_attribute_creator_status", columnList = "creator_seller_id, normalization_status")
+        @Index(name = "idx_attribute_definition_name_status", columnList = "normalized_name, status"),
+        @Index(name = "idx_attribute_definition_creator_verified_status", columnList = "created_by_seller_id, is_verified, status")
 })
 public class ProductAttributeDefinition extends PrimaryEntity {
 
@@ -30,15 +29,17 @@ public class ProductAttributeDefinition extends PrimaryEntity {
     @Column(name = "data_type", nullable = false, length = 30)
     private AttributeDataType dataType;
 
-    @Column(name = "creator_seller_id", length = 36)
-    private String creatorSellerId;
+    @Column(name = "created_by_seller_id", length = 36)
+    private String createdBySellerId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "normalization_status", nullable = false, length = 30)
-    private AttributeNormalizationStatus normalizationStatus;
+    @Column(name = "default_unit", length = 50)
+    private String defaultUnit;
 
-    @Column(name = "merged_into_attribute_id", length = 36)
-    private String mergedIntoAttributeId;
+    @Column(name = "is_verified", nullable = false)
+    private boolean verified;
+
+    @Column(name = "merged_into_definition_id", length = 36)
+    private String mergedIntoDefinitionId;
 
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
@@ -48,10 +49,12 @@ public class ProductAttributeDefinition extends PrimaryEntity {
     public void setNormalizedName(String normalizedName) { this.normalizedName = normalizedName; }
     public AttributeDataType getDataType() { return dataType; }
     public void setDataType(AttributeDataType dataType) { this.dataType = dataType; }
-    public String getCreatorSellerId() { return creatorSellerId; }
-    public void setCreatorSellerId(String creatorSellerId) { this.creatorSellerId = creatorSellerId; }
-    public AttributeNormalizationStatus getNormalizationStatus() { return normalizationStatus; }
-    public void setNormalizationStatus(AttributeNormalizationStatus normalizationStatus) { this.normalizationStatus = normalizationStatus; }
-    public String getMergedIntoAttributeId() { return mergedIntoAttributeId; }
-    public void setMergedIntoAttributeId(String mergedIntoAttributeId) { this.mergedIntoAttributeId = mergedIntoAttributeId; }
+    public String getCreatedBySellerId() { return createdBySellerId; }
+    public void setCreatedBySellerId(String createdBySellerId) { this.createdBySellerId = createdBySellerId; }
+    public String getDefaultUnit() { return defaultUnit; }
+    public void setDefaultUnit(String defaultUnit) { this.defaultUnit = defaultUnit; }
+    public boolean isVerified() { return verified; }
+    public void setVerified(boolean verified) { this.verified = verified; }
+    public String getMergedIntoDefinitionId() { return mergedIntoDefinitionId; }
+    public void setMergedIntoDefinitionId(String mergedIntoDefinitionId) { this.mergedIntoDefinitionId = mergedIntoDefinitionId; }
 }

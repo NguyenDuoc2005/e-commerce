@@ -52,16 +52,6 @@ public class PromotionController {
         return ResponseEntity.ok(promotionService.getProductByDot(id));
     }
 
-    @GetMapping("/mau-sac")
-    public ResponseEntity<?> getColor() {
-        return ResponseEntity.ok(promotionService.getColor());
-    }
-
-    @GetMapping("/size")
-    public ResponseEntity<?> getSize() {
-        return ResponseEntity.ok(promotionService.getSize());
-    }
-
     @PostMapping
     public ResponseEntity<PromotionCampaign> add(@RequestBody CreatePromotionRequest request) {
         return ResponseEntity.ok(promotionService.add(request));

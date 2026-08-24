@@ -11,6 +11,7 @@ import com.ecommerce.cart.repository.CartDetailRepository;
 import com.ecommerce.cart.repository.CartRepository;
 import com.ecommerce.cart.service.CartService;
 import com.ecommerce.common.base.ResponseObject;
+import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -55,17 +56,17 @@ public class CartServiceImpl implements CartService {
     @Override
     public ResponseObject<?> createCartDetail(CartDetailRequest req) {
         Cart cart = cartRepository.findByCustomerId(req.getIdCustomer()).orElseGet(() -> createCart(req.getIdCustomer()));
-        Map<String, Object> productVariant = findBySPCT(req.getIdSPCT());
+        CatalogVariantSnapshot productVariant = findBySPCT(req.getIdSPCT());
         int quantity = Integer.parseInt(req.getQuantity());
 
-        if (intValue(productVariant.get("quantity")) < quantity) {
+        if (productVariant.quantity() < quantity) {
             return new ResponseObject<>().success("So luong san pham khong du");
         }
 
         String existingCartDetailId = cartRepository.checkChungSp(cart.getId(), req.getIdSPCT());
         if (existingCartDetailId == null) {
             CartDetail cartDetail = new CartDetail();
-            cartDetail.setPrice(Double.parseDouble(req.getPrice()));
+            cartDetail.setPrice(productVariant.salePrice().doubleValue() * quantity);
             cartDetail.setCart(cart);
             cartDetail.setProductVariantId(req.getIdSPCT());
             cartDetail.setQuantity(quantity);
@@ -76,10 +77,10 @@ public class CartServiceImpl implements CartService {
         }
 
         CartDetail cartDetail = cartDetailRepository.findById(existingCartDetailId).orElseThrow();
-        cartDetail.setPrice(cartDetail.getPrice() + Double.parseDouble(req.getPrice()));
         cartDetail.setQuantity(cartDetail.getQuantity() + quantity);
+        cartDetail.setPrice(productVariant.salePrice().doubleValue() * cartDetail.getQuantity());
         applySellerSnapshot(cartDetail, productVariant);
-        if (cartDetail.getQuantity() > intValue(productVariant.get("quantity"))) {
+        if (cartDetail.getQuantity() > productVariant.quantity()) {
             return new ResponseObject<>().success("So luong san pham trong gio hang da vuot qua so luong san pham");
         }
         cartDetailRepository.save(cartDetail);
@@ -104,9 +105,9 @@ public class CartServiceImpl implements CartService {
         return cartRepository.save(cart);
     }
 
-    private Map<String, Object> findBySPCT(String id) {
-        Map<String, Object> productDetail = catalogClient.getProductDetail(id);
-        if (productDetail == null || productDetail.isEmpty()) {
+    private CatalogVariantSnapshot findBySPCT(String id) {
+        CatalogVariantSnapshot productDetail = catalogClient.getProductVariant(id);
+        if (productDetail == null) {
             throw new EntityNotFoundException("Khong tim thay");
         }
         return productDetail;
@@ -127,8 +128,8 @@ public class CartServiceImpl implements CartService {
         return row;
     }
 
-    private void applySellerSnapshot(CartDetail cartDetail, Map<String, Object> productVariant) {
-        String sellerId = stringValue(productVariant.get("sellerId"));
+    private void applySellerSnapshot(CartDetail cartDetail, CatalogVariantSnapshot productVariant) {
+        String sellerId = productVariant.sellerId();
         cartDetail.setSellerId(sellerId);
         Map<String, Object> seller = sellerProfile(sellerId);
         cartDetail.setShopName(stringValue(seller.get("shopName")));

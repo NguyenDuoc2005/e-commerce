@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface CategoryAttributeSuggestionRepository extends JpaRepository<CategoryAttributeSuggestion, String> {
     List<CategoryAttributeSuggestion> findByCategory_IdAndStatusOrderByDisplayOrderAsc(String categoryId, EntityStatus status);
-    boolean existsByCategory_IdAndAttribute_IdAndStatus(String categoryId, String attributeId, EntityStatus status);
-    List<CategoryAttributeSuggestion> findByAttribute_IdOrderByDisplayOrderAsc(String attributeId);
-    Optional<CategoryAttributeSuggestion> findByCategory_IdAndAttribute_Id(String categoryId, String attributeId);
+    List<CategoryAttributeSuggestion> findByDefinition_IdOrderByDisplayOrderAsc(String definitionId);
+    Optional<CategoryAttributeSuggestion> findByCategory_IdAndDefinition_Id(String categoryId, String definitionId);
+    void deleteByCategory_Id(String categoryId);
 }

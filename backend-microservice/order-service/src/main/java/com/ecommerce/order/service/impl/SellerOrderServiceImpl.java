@@ -189,7 +189,10 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     }
 
     private void createPayoutReceivable(Map<String, Object> order, int status) {
-        double gross = ((Number) order.get("total_after_discount")).doubleValue();
+        double itemTotal = ((Number) order.get("total_amount")).doubleValue();
+        double discount = order.get("discount_amount") == null
+                ? 0D : ((Number) order.get("discount_amount")).doubleValue();
+        double gross = Math.max(0D, itemTotal - discount);
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("orderSellerId", order.get("id"));
         payload.put("orderId", order.get("order_id"));

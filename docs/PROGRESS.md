@@ -1,12 +1,13 @@
 # PROGRESS.md - Nhat ky tien do chuyen doi Marketplace
 
 ## Trang thai tong quan hien tai
-- Giai doan: Rollout theo prompt marketplace moi, da hoan tat PR NHOM 11 — nhom PR cuoi cung duoc dinh nghia trong Muc 6 cua prompt.
-- Task dang lam do (neu co): Khong. Payout lifecycle va soldCount that da PASS backend test, FE typecheck va production build.
-- Viec tiep theo can lam ngay: Ap dung migration `m11_payout_lifecycle_up.sql`, restart runtime va smoke test 1 sub-order COMPLETE qua du chu ky payout; sau do chon backlog tiep theo vi prompt khong dinh nghia PR NHOM 12.
+- Giai doan: Da hoan tat ca source va runtime acceptance cua PR NHOM 11 — nhom PR cuoi cung duoc dinh nghia trong Muc 6 cua prompt.
+- Task dang lam do (neu co): Khong. Migration payout da apply, runtime moi da restart va luong COMPLETE -> PENDING -> AVAILABLE -> PAID batch + soldCount public da duoc smoke test tren DB that.
+- Viec tiep theo can lam ngay: Nguoi dung chon backlog tiep theo vi prompt khong dinh nghia PR NHOM 12.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
+- Can chon backlog sau PR NHOM 11: Chat buyer-seller, Flash sale toan san, don route/security legacy `/permitall`, hay audit/cutover schema product con lai. Cac nhanh nay khac pham vi lon va prompt khong sap thu tu tiep.
 
 ## Checklist tinh nang
 - [x] Dang ky/dang nhap buyer, seller, platform admin
@@ -44,6 +45,44 @@
 - [ ] Flash sale toan san
 
 ## Nhat ky chi tiet
+
+### [2026-08-25 19:45] Phien #43
+**Da lam:**
+- Doc lai `docs/PROGRESS.md`, `HE_THONG_HIEN_TAI_MARKETPLACE.md` va `docs/Prompt chuyen doi marketplace.md`; xac nhan Muc 6 ket thuc tai PR NHOM 11 va viec con lai da ghi ro la runtime acceptance.
+- Audit runtime phat hien cac Java service dang tro MySQL Docker cong `3307`, nhung container `backend-microservice-mysql-1` da dung khoang 7 gio; khoi dong lai dung container va volume cu, khong reset/seed DB. MySQL host cong `3306` la instance khac, khong dung.
+- Apply thanh cong `m11_payout_lifecycle_up.sql` vao `ecommerce_payout`: them cot lifecycle, index `idx_receivable_release`, bang `payout_batch`/`payout_batch_item` va backfill `available_at` cho 4 receivable cu.
+- Build boot jar va restart catalog-service, order-service, payout-service; sau do build/restart seller-service khi smoke phat hien runtime seller cu van tra `soldCount=0` du internal order da tra dung.
+- Doi chieu DB that phat hien `order_seller.total_after_discount` co gom `shipping_fee`: sub-order hang 1.100.000 co total_after_discount 1.130.000. Sua payout gross thanh `total_amount - discount_amount`, dung tong item sau discount va khong tinh phi van chuyen.
+- Smoke sub-order `62000000-0000-0000-0000-000000000005` cua seller `70000000-0000-0000-0000-000000000002`: goi complete that, status `3 -> 4`, receivable `ed2b9379-4b86-4684-ad52-3b8da0adabf2` tu dong tao gross 1.100.000, commission 5%=55.000, net 1.045.000 va wallet pending tang 1.283.400 -> 2.328.400.
+- Mo phong het hold period rieng receivable moi bang cach dat `available_at` ve truoc hien tai 1 giay, goi release API. Hai receivable seed cu da qua han tu 2024 cung duoc chuyen AVAILABLE dung theo lifecycle; wallet pending ve 0 va available tang tuong ung.
+- Tao batch runtime `PAY-8F7E7B53` (`8f7e7b53-a4da-4828-9a57-fec2a47a221f`) cho receivable moi: status PAID, released/paid amount 1.045.000, wallet seller 2 paid tang 1.422.900 -> 2.467.900, batch item va staff/note smoke duoc luu dung.
+- Xac minh soldCount sau complete: internal order aggregate tra 3; public shop `run-active-store` qua ca seller-service direct va gateway deu tra `soldCount=3`, khong con runtime hard-code 0.
+
+**File da tao/sua:**
+- `backend-microservice/order-service/src/main/java/com/ecommerce/order/service/impl/SellerOrderServiceImpl.java`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE runtime acceptance PR NHOM 11. Migration, service artifact moi, payout lifecycle, batch history, wallet va public soldCount deu da duoc xac minh tren database/runtime that.
+
+**Kiem chung:**
+- `gradlew :catalog-service:bootJar :order-service:bootJar :payout-service:bootJar --no-daemon --max-workers=1`: PASS.
+- `gradlew :order-service:test :order-service:bootJar --no-daemon --max-workers=1`: PASS sau khi sua gross khong gom shipping.
+- `gradlew :seller-service:test :seller-service:bootJar --no-daemon --max-workers=1`: PASS.
+- Port runtime `8080`, `8083`, `8086`, `8089`, `8091`, `6688`, `3307`: LISTEN.
+- Order-service va payout-service actuator: HTTP 200/UP. Catalog API internal tra category snapshot moi; actuator catalog HTTP 503 chi vi Elasticsearch local dang dung.
+- Gateway public shop `/api/v1/permitall/shops/run-active-store`: HTTP 200, `soldCount=3`.
+- DB join receivable/batch: gross 1.100.000, commission 55.000, net/released/batch amount 1.045.000, status PAID, reference `PAY-8F7E7B53`.
+
+**Ghi chu/vuong mac:**
+- Runtime smoke co chu dong thay doi du lieu demo: sub-order `...0005` da thanh HOAN_THANH, tao/chi receivable moi va release hai receivable PENDING seed cu da qua ngay kha dung tu 2024. Day la thay doi acceptance co chu dich, khong phai reset du lieu.
+- Gateway admin payout tra 401 khi goi khong kem JWT admin, dung voi route protected. Lifecycle duoc goi truc tiep payout-service va doi chieu DB; public soldCount duoc xac minh qua gateway.
+- Catalog actuator con DOWN do Elasticsearch container dang dung, nhung DB va internal product-variant API can cho payout hoat dong binh thuong; khong khoi dong ca monitoring/search stack ngoai pham vi acceptance.
+- Prompt khong co PR NHOM 12; khong tu chon Chat/Flash sale/security/schema cleanup vi day la cac nhanh nghiep vu khac nhau dang ke.
+
+**Viec tiep theo can lam ngay:**
+- Chon mot backlog moi de tao thu tu PR tiep: Chat buyer-seller, Flash sale toan san, don route/security legacy `/permitall`, hoac audit/cutover schema product con lai.
+
+---
 
 ### [2026-08-25 19:20] Phien #42
 **Da lam:**
@@ -84,7 +123,7 @@
 
 **Ghi chu/vuong mac:**
 - Runtime stack dang chay chua restart va migration chua duoc ap dung trong phien nay; khong tu dong sua du lieu DB local. Can apply migration/restart truoc smoke test end-to-end.
-- Gross payout dung `order_seller.total_after_discount`, la tong sub-order sau voucher/discount; gross duoc phan bo theo ty trong gia tri `order_item` cua tung category de ap dung config rieng. Category khong co config dung muc mac dinh (5% neu chua cau hinh).
+- Gross payout dung tong gia tri `order_item` sau discount (`order_seller.total_amount - discount_amount`), khong tinh `shipping_fee`; gross duoc phan bo theo ty trong tung category de ap dung config rieng. Category khong co config dung muc mac dinh (5% neu chua cau hinh).
 - Flow complete -> payout hien dung internal API dong bo co idempotency thay vi event/outbox. Neu payout-service tam loi, complete rollback de retry; notification van best-effort va khong rollback nghiep vu.
 - FE build van co warning font Inter khong resolve tai build-time va chunk lon hon 500 kB; khong lam build fail.
 - Prompt chi dinh nghia den PR NHOM 11, khong co PR NHOM 12 de tu dong lam tiep.

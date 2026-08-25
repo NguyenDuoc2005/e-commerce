@@ -75,8 +75,6 @@ public class EmployeeServiceImpl implements EmployeeService {
             if (existing.isPresent()) {
                 Staff nhanVien = existing.get();
                 applyRequest(nhanVien, request);
-                nhanVien.setRole(EntityRole.STAFF);
-                nhanVien.setStatus(EntityStatus.ACTIVE);
                 saveAvatarIfPresent(nhanVien, request);
                 nhanVienRepository.save(nhanVien);
                 return new ResponseObject<>(nhanVien, HttpStatus.OK, "Cap nhat nhan vien thanh cong");

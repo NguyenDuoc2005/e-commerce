@@ -35,7 +35,7 @@
   
       // Điều hướng sau khi đăng nhập
       await router.push({
-      path: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.MAUSAC.path}`
+      path: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path}`
     });
 
     } catch (err: any) {
@@ -73,4 +73,3 @@
     margin-top: 8px;
   }
   </style>
-  

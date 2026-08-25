@@ -29,7 +29,7 @@ spring:
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/api/v1/admin/ban-hang/**,/api/v1/admin/hoa-don/**,/api/v1/admin/thong-ke/**,/api/v1/permitall/don-mua/**,/api/orders/**,/api/v1/seller/orders/**
+            - Path=/api/v1/admin/thong-ke/**,/api/v1/permitall/don-mua/**,/api/orders/**,/api/v1/seller/orders/**
         - id: cart-service
           uri: lb://cart-service
           predicates:

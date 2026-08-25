@@ -17,10 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class SellerService {
@@ -167,6 +169,36 @@ public class SellerService {
                 .orElseGet(Map::of);
     }
 
+    public Map<String, Map<String, Object>> byOwnerIds(List<String> ownerCustomerIds) {
+        if (ownerCustomerIds == null || ownerCustomerIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<String> ids = ownerCustomerIds.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(id -> !id.isBlank())
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, Seller> latestByOwner = new LinkedHashMap<>();
+        sellerRepository.findByOwnerCustomerIdIn(ids).stream()
+                .sorted(Comparator.comparing(Seller::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .forEach(seller -> latestByOwner.putIfAbsent(seller.getOwnerCustomerId(), seller));
+
+        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+        ids.forEach(id -> {
+            Seller seller = latestByOwner.get(id);
+            if (seller != null) {
+                result.put(id, toOwnerStatusMap(seller));
+            }
+        });
+        return result;
+    }
+
     public Map<String, Object> publicProfile(String id) {
         return sellerRepository.findById(id)
                 .filter(seller -> seller.getStatus() == SellerStatus.APPROVED)
@@ -275,6 +307,17 @@ public class SellerService {
         row.put("approvedAt", seller.getApprovedAt());
         row.put("createdAt", seller.getCreatedAt());
         row.put("updatedAt", seller.getUpdatedAt());
+        return row;
+    }
+
+    private Map<String, Object> toOwnerStatusMap(Seller seller) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("sellerId", seller.getId());
+        row.put("shopName", seller.getShopName());
+        row.put("sellerSlug", seller.getSellerSlug());
+        row.put("status", seller.getStatus() == null ? null : seller.getStatus().name());
+        row.put("approvedAt", seller.getApprovedAt());
+        row.put("createdAt", seller.getCreatedAt());
         return row;
     }
 

@@ -1,6 +1,6 @@
 import type { AxiosResponse } from 'axios'
 import request from '@/services/request'
-import { PREFIX_API_KHACH_HANG_ADMIN} from '@/constants/url'
+import { PREFIX_API_KHACH_HANG_ADMIN, PREFIX_API_SELLER_ADMIN } from '@/constants/url'
 import type {
   PaginationParams,
   DefaultResponse,
@@ -19,6 +19,17 @@ export type KhachHangResponse = ResponseList & {
   ma: string,
   ten: string,
   status: string,
+  sellerStatus?: string | null,
+  sellerShopName?: string | null,
+}
+
+export type SellerOwnerStatus = {
+  sellerId: string,
+  shopName: string,
+  sellerSlug?: string,
+  status: string,
+  approvedAt?: string,
+  createdAt?: string,
 }
 
 export interface ADKhachHangRequest {
@@ -63,4 +74,17 @@ export const modifyStatusKhachHang = async (id: string) => {
   })) as AxiosResponse<DefaultResponse<KhachHangResponse>>
 
   return res.data;
+}
+
+export const getSellerStatusesByOwnerIds = async (ids: string[]) => {
+  const ownerIds = Array.from(new Set(ids.filter(Boolean)))
+  if (!ownerIds.length) return {}
+
+  const res = (await request({
+    url: `${PREFIX_API_SELLER_ADMIN}/by-owner-ids`,
+    method: 'GET',
+    params: { ids: ownerIds.join(',') }
+  })) as AxiosResponse<DefaultResponse<Record<string, SellerOwnerStatus>>>
+
+  return res.data?.data || {}
 }

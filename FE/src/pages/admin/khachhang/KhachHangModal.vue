@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="breadcrumb-section">
       <BreadcrumbDefault :pageTitle="pathName" :routes="[
-        { path: '/admin/khach-hang', name: 'Quản lý khách hàng' },
+        { path: '/admin/khach-hang', name: 'Người dùng' },
         { path: '/admin/them-khach-hang', name: pathName }
       ]" />
     </div>
@@ -24,8 +24,8 @@
               </a-upload>
             </a-form-item>
 
-            <a-form-item label="Tên khách hàng" name="ten" :label-col="{ span: 24 }" :rules="rules.name">
-              <a-input v-if="product" v-model:value="product.ten" placeholder="Nhập tên khách hàng"
+            <a-form-item label="Tên người dùng" name="ten" :label-col="{ span: 24 }" :rules="rules.name">
+              <a-input v-if="product" v-model:value="product.ten" placeholder="Nhập tên người dùng"
                 style="border-radius: 4px;" />
             </a-form-item>
           </a-col>
@@ -551,11 +551,11 @@ const handleSubmit = async () => {
 onMounted(() => {
   idSanPham.value = route.query.id as string;
   if (idSanPham.value) {
-    label.value = 'Sửa khách hàng';
-    pathName.value = 'Sửa khách hàng';
+    label.value = 'Sửa người dùng';
+    pathName.value = 'Sửa người dùng';
   } else {
-    pathName.value = 'Thêm khách hàng';
-    label.value = 'Thêm khách hàng';
+    pathName.value = 'Thêm người dùng hỗ trợ';
+    label.value = 'Thêm người dùng hỗ trợ';
   }
   fetchGHNProvinces();
   if (idSanPham.value) {

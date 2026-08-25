@@ -89,10 +89,6 @@ export const ROUTES_CONSTANTS = {
     path: '/admin',
     name: 'admin',
     children: {
-      MAUSAC: {
-        path: 'mau-sac',
-        name: 'mau-sac-admin'
-      },
       THONG_KE: {
         path: 'thong-ke',
         name: 'thong-ke-admin'
@@ -100,14 +96,6 @@ export const ROUTES_CONSTANTS = {
       NHAN_VIEN: {
         path: 'nhan-vien',
         name: 'nhan-vien-admin'
-      },
-      SIZE: {
-        path: 'size',
-        name: 'size-admin'
-      },
-      THUONG_HIEU: {
-        path: 'thuong-hieu',
-        name: 'thuong-hieu-admin'
       },
       XUAT_XU: {
         path: 'xuat-xu',
@@ -117,18 +105,6 @@ export const ROUTES_CONSTANTS = {
         path: 'khach-hang',
         name: 'khach-hang-admin'
       },
-      LOAI_DE: {
-        path: 'loai-de',
-        name: 'loai-de-admin'
-      },
-      LOAI_GIAY: {
-        path: 'loai-giay',
-        name: 'loai-giay-admin'
-      },
-      CHAT_LIEU: {
-        path: 'chat-lieu',
-        name: 'chat-lieu-admin'
-      },
       THEM_NHAN_VIEN: {
         path: 'them-nhan-vien',
         name: 'them-nhan-vien-admin'
@@ -136,10 +112,6 @@ export const ROUTES_CONSTANTS = {
       THEM_KHACH_HANG: {
         path: 'them-khach-hang',
         name: 'them-khach-hang-admin'
-      },
-      THEM_PHIEU_GIAM_GIA: {
-        path: 'them-phieu-giam-gia',
-        name: 'them-phieu-giam-gia-admin'
       },
       VOUCHER: {
         path: 'voucher',

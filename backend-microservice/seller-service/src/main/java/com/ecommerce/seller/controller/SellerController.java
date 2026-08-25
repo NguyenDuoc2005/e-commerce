@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -85,6 +86,13 @@ public class SellerController {
     @GetMapping("/api/v1/admin/sellers/pending")
     public ResponseEntity<?> pending() {
         return ResponseUtils.createResponseEntity(sellerService.list(SellerStatus.PENDING_APPROVAL));
+    }
+
+    @GetMapping("/api/v1/admin/sellers/by-owner-ids")
+    public ResponseEntity<?> byOwnerIds(@RequestParam List<String> ids) {
+        return ResponseUtils.createResponseEntity(
+                new com.ecommerce.common.base.ResponseObject<>(sellerService.byOwnerIds(ids), HttpStatus.OK, "Lay trang thai seller thanh cong")
+        );
     }
 
     @GetMapping("/api/v1/admin/sellers/{id}")

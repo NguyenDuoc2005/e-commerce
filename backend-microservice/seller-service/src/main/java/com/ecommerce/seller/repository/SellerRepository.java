@@ -17,6 +17,8 @@ public interface SellerRepository extends JpaRepository<Seller, String> {
 
     Optional<Seller> findFirstByOwnerCustomerIdAndStatusOrderByCreatedAtDesc(String ownerCustomerId, SellerStatus status);
 
+    List<Seller> findByOwnerCustomerIdIn(List<String> ownerCustomerIds);
+
     Optional<Seller> findBySellerSlugAndStatus(String sellerSlug, SellerStatus status);
 
     List<Seller> findByStatusOrderByCreatedAtDesc(SellerStatus status);

@@ -2,7 +2,7 @@
   <div class="page-container">
     <div class="breadcrumb-section">
       <BreadcrumbDefault :pageTitle="pathName" :routes="[
-        { path: '/admin/nhan-vien', name: 'Quản lý nhân viên' },
+        { path: '/admin/nhan-vien', name: 'Quản trị viên/Phân quyền' },
         { path: '/admin/them-nhan-vien', name: pathName }
       ]" />
     </div>
@@ -24,8 +24,8 @@
               </a-upload>
             </a-form-item>
 
-            <a-form-item label="Tên khách hàng" name="ten" :label-col="{ span: 24 }" :rules="rules.name">
-              <a-input v-if="product" v-model:value="product.ten" placeholder="Nhập tên khách hàng"
+            <a-form-item label="Tên nhân sự vận hành" name="ten" :label-col="{ span: 24 }" :rules="rules.name">
+              <a-input v-if="product" v-model:value="product.ten" placeholder="Nhập tên nhân sự vận hành"
                 style="border-radius: 4px;" />
             </a-form-item>
           </a-col>
@@ -554,11 +554,11 @@ const handleSubmit = async () => {
 onMounted(() => {
   idSanPham.value = route.query.id as string;
   if (idSanPham.value) {
-    label.value = 'Sửa nhân viên';
-    pathName.value = 'Sửa nhân viên';
+    label.value = 'Sửa nhân sự vận hành';
+    pathName.value = 'Sửa nhân sự vận hành';
   } else {
-    pathName.value = 'Thêm nhân viên';
-    label.value = 'Thêm nhân viên';
+    pathName.value = 'Thêm nhân sự vận hành';
+    label.value = 'Thêm nhân sự vận hành';
   }
   fetchGHNProvinces();
   if (idSanPham.value) {

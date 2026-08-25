@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -22,6 +23,11 @@ public class InternalSellerController {
     @GetMapping("/approved/by-owner")
     public Map<String, Object> approvedByOwner(@RequestParam String ownerCustomerId) {
         return sellerService.approvedByOwner(ownerCustomerId);
+    }
+
+    @GetMapping("/by-owner-ids")
+    public Map<String, Map<String, Object>> byOwnerIds(@RequestParam List<String> ids) {
+        return sellerService.byOwnerIds(ids);
     }
 
     @GetMapping("/{id}/public")

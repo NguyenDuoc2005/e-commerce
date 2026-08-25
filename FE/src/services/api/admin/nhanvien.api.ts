@@ -22,6 +22,7 @@ export type NhanVienResponse = ResponseList & {
   diaChi: string,
   email: string,
   status: string,
+  role?: 'ADMIN' | 'STAFF',
 }
 
 export interface ADNhanVienRequest  {
@@ -65,15 +66,6 @@ export const modifyMember = async (data: ADNhanVienRequest) => {
 export const modifyStatusMember = async (id: string) => {
   const res = (await request({
     url: `${PREFIX_API_NHAN_VIEN_ADMIN}/${id}/change-status`,
-    method: 'PUT'
-  })) as AxiosResponse<DefaultResponse<NhanVienResponse>>
-
-  return res.data;
-}
-
-export const changeStatusMember = async (id: string) => {
-  const res = (await request({
-    url: `${PREFIX_API_NHAN_VIEN_ADMIN}/${id}/change-role`,
     method: 'PUT'
   })) as AxiosResponse<DefaultResponse<NhanVienResponse>>
 

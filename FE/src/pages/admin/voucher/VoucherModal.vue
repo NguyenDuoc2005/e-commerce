@@ -1,8 +1,8 @@
 <template>
   <div class="breadcrumb-section">
     <BreadcrumbDefault :pageTitle="pathName" :routes="[
-      { path: '/admin/voucher', name: 'Quản lý phiếu giảm giá' },
-      { path: '/admin/them-phieu-giam-gia', name: pathName },
+      { path: '/admin/voucher', name: 'Voucher sàn' },
+      { path: '/admin/voucher', name: pathName },
     ]" />
   </div>
 
@@ -10,8 +10,8 @@
     <a-col :span="8">
       <div class="form-container">
         <a-form :model="product" ref="productForm" name="productForm" autocomplete="off">
-          <a-form-item label="Tên phiếu giảm giá" name="ten" :label-col="{ span: 24 }" :rules="rules.name">
-            <a-input v-if="product" v-model:value="product.ten" placeholder="Nhập tên phiếu giảm giá"
+          <a-form-item label="Tên voucher sàn" name="ten" :label-col="{ span: 24 }" :rules="rules.name">
+            <a-input v-if="product" v-model:value="product.ten" placeholder="Nhập tên voucher sàn"
               style="border-radius: 4px" />
           </a-form-item>
 
@@ -66,7 +66,7 @@
 
     <a-col :span="16">
       <div class="table-container">
-        <h6 class="fw-semibold mb-3">Danh sách khách hàng</h6>
+        <h6 class="fw-semibold mb-3">Danh sách người dùng nhận voucher</h6>
         <div class="flex items-center gap-3 mb-4" style="margin-bottom: 10px;">
           <a-input v-model:value="state.searchQuery" style="width: 600px; margin-right: 10px;"
             placeholder="Nhập mã/tên/số điện thoại/địa chỉ để tìm kiếm..."
@@ -235,8 +235,8 @@ const columns: TableColumnsType = [
     align: "center",
   },
   { title: "STT", key: "stt", width: 150, align: "center" },
-  { title: "Mã khách hàng", key: "ma", dataIndex: "ma", width: 150, align: "center" },
-  { title: "Tên khách hàng", key: "ten", dataIndex: "ten", width: 150, align: "center" },
+  { title: "Mã người dùng", key: "ma", dataIndex: "ma", width: 150, align: "center" },
+  { title: "Tên người dùng", key: "ten", dataIndex: "ten", width: 150, align: "center" },
   { title: "Số điện thoại", key: "sdt", dataIndex: "sdt", width: 150, align: "center" },
   { title: "Email", key: "email", dataIndex: "email", width: 150, align: "center" },
 ];
@@ -270,8 +270,8 @@ const fetchProductDetails = async (id: string) => {
     if (error?.response?.data?.message) {
       toast.error(error.response.data.message);
     } else {
-      console.error("Lỗi khi lấy chi tiết phiếu giảm giá:", error);
-      toast.error("Đã xảy ra lỗi khi lấy chi tiết phiếu giảm giá.");
+      console.error("Lỗi khi lấy chi tiết voucher sàn:", error);
+      toast.error("Đã xảy ra lỗi khi lấy chi tiết voucher sàn.");
     }
   }
 };
@@ -286,7 +286,7 @@ const fetchListKHDetails = async (id: string) => {
       toast.error(error.response.data.message);
     } else {
       console.error("Error fetching list of customer IDs:", error);
-      toast.error("Đã xảy ra lỗi khi lấy danh sách khách hàng liên kết.");
+      toast.error("Đã xảy ra lỗi khi lấy danh sách người dùng nhận voucher.");
     }
   }
 };
@@ -304,7 +304,7 @@ const fetchProducts = async () => {
     state.totalItems = response.data?.totalElements || 0;
   } catch (error) {
     console.error("Failed to fetch customers for table:", error);
-    toast.error("Đã xảy ra lỗi khi lấy danh sách khách hàng.");
+    toast.error("Đã xảy ra lỗi khi lấy danh sách người dùng.");
   }
 };
 
@@ -369,7 +369,7 @@ const handleSubmit = async () => {
 
     if (product.value.loaiGiam === true) {
       if (state.selectedRows.length === 0) {
-        toast.error("Vui lòng chọn ít nhất một khách hàng cho phiếu giảm giá cá nhân.");
+        toast.error("Vui lòng chọn ít nhất một người dùng cho voucher cá nhân.");
         return;
       }
       state.selectedRows.forEach((id) => {
@@ -380,7 +380,7 @@ const handleSubmit = async () => {
     console.log("Form data before submission:", Object.fromEntries(formData));
     const res = await modifySize(formData);
     if (res.message === "phiếu giảm giá này đã tồn tại") {
-      toast.error(res.message);
+      toast.error("Voucher sàn này đã tồn tại");
       return;
     }
     toast.success(res.message);
@@ -397,6 +397,10 @@ const handleSubmit = async () => {
 };
 
 const closeModal = () => {
+  if (props.open) {
+    emit("close");
+    return;
+  }
   router.push({ name: "voucher-admin" });
 };
 
@@ -421,13 +425,13 @@ watch(
       state.selectedRows = [];
 
       if (newId) {
-        label.value = "Sửa phiếu giảm giá";
+        label.value = "Sửa voucher sàn";
         await fetchProductDetails(newId);
         if (product.value.loaiGiam) {
           await fetchListKHDetails(newId);
         }
       } else {
-        label.value = "Thêm phiếu giảm giá";
+        label.value = "Thêm voucher sàn";
         product.value = {
           id: "",
           ten: "",
@@ -463,15 +467,19 @@ watch(
 );
 
 onMounted(() => {
+  if (props.open) {
+    pathName.value = props.title || (props.productId ? "Sửa voucher sàn" : "Thêm voucher sàn");
+    return;
+  }
   idSanPham.value = route.query.id as string;
   if (idSanPham.value) {
-    label.value = "Sửa phiếu giảm giá";
+    label.value = "Sửa voucher sàn";
     fetchProductDetails(idSanPham.value);
     fetchListKHDetails(idSanPham.value);
-    pathName.value = "Sửa phiếu giảm giá";
+    pathName.value = "Sửa voucher sàn";
   } else {
-    pathName.value = "Thêm phiếu giảm giá";
-    label.value = "Thêm phiếu giảm giá";
+    pathName.value = "Thêm voucher sàn";
+    label.value = "Thêm voucher sàn";
   }
   fetchProducts();
 });

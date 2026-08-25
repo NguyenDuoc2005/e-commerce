@@ -19,6 +19,8 @@
         <template v-if="column.key === 'gross'">{{ currency(record.grossAmount) }}</template>
         <template v-if="column.key === 'commission'">{{ currency(record.commissionAmount) }} ({{ record.commissionRate }}%)</template>
         <template v-if="column.key === 'net'">{{ currency(record.netAmount) }}</template>
+        <template v-if="column.key === 'availableAt'">{{ dateTime(record.availableAt) }}</template>
+        <template v-if="column.key === 'status'"><a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag></template>
       </template>
     </a-table>
   </div>
@@ -37,7 +39,8 @@ const columns = [
   { title: 'Doanh thu gộp', key: 'gross' },
   { title: 'Hoa hồng sàn', key: 'commission' },
   { title: 'Thực nhận', key: 'net' },
-  { title: 'Trạng thái', dataIndex: 'status' }
+  { title: 'Ngày khả dụng', key: 'availableAt' },
+  { title: 'Trạng thái', key: 'status' }
 ]
 
 const fetchData = async () => {
@@ -52,6 +55,8 @@ const fetchData = async () => {
 }
 
 const currency = (value?: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0)
+const dateTime = (value?: string) => value ? new Date(value).toLocaleString('vi-VN') : '—'
+const statusColor = (status: string) => ({ PENDING: 'gold', AVAILABLE: 'blue', PAID: 'green' }[status] || 'default')
 
 onMounted(fetchData)
 </script>

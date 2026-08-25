@@ -41,6 +41,18 @@ public class SellerReceivable {
     @Column(name = "status", nullable = false, length = 30)
     private String status = "PENDING";
 
+    @Column(name = "available_at")
+    private Instant availableAt;
+
+    @Column(name = "released_amount", nullable = false)
+    private Double releasedAmount = 0D;
+
+    @Column(name = "paid_at")
+    private Instant paidAt;
+
+    @Column(name = "payout_batch_id", length = 36)
+    private String payoutBatchId;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -74,4 +86,12 @@ public class SellerReceivable {
     public void setStatus(String status) { this.status = status; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public Instant getAvailableAt() { return availableAt; }
+    public void setAvailableAt(Instant availableAt) { this.availableAt = availableAt; }
+    public Double getReleasedAmount() { return releasedAmount; }
+    public void setReleasedAmount(Double releasedAmount) { this.releasedAmount = releasedAmount; }
+    public Instant getPaidAt() { return paidAt; }
+    public void setPaidAt(Instant paidAt) { this.paidAt = paidAt; }
+    public String getPayoutBatchId() { return payoutBatchId; }
+    public void setPayoutBatchId(String payoutBatchId) { this.payoutBatchId = payoutBatchId; }
 }

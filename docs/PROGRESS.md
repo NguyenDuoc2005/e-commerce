@@ -1,9 +1,9 @@
 # PROGRESS.md - Nhat ky tien do chuyen doi Marketplace
 
 ## Trang thai tong quan hien tai
-- Giai doan: Rollout theo prompt marketplace moi, da hoan tat PR NHOM 10 va san sang sang PR NHOM 11.
-- Task dang lam do (neu co): Khong. PR NHOM 10 da PASS backend test/compile, FE typecheck va production build.
-- Viec tiep theo can lam ngay: Bat dau PR NHOM 11: hoan thien payout workflow va audit soldCount theo event/outbox.
+- Giai doan: Rollout theo prompt marketplace moi, da hoan tat PR NHOM 11 — nhom PR cuoi cung duoc dinh nghia trong Muc 6 cua prompt.
+- Task dang lam do (neu co): Khong. Payout lifecycle va soldCount that da PASS backend test, FE typecheck va production build.
+- Viec tiep theo can lam ngay: Ap dung migration `m11_payout_lifecycle_up.sql`, restart runtime va smoke test 1 sub-order COMPLETE qua du chu ky payout; sau do chon backlog tiep theo vi prompt khong dinh nghia PR NHOM 12.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
@@ -33,6 +33,7 @@
 - [x] PR NHOM 4: Tach layout/sidebar Admin va Seller
 - [x] PR NHOM 5: Category Management UI, tree CRUD/status va attribute suggestions
 - [x] PR NHOM 6: Admin hau kiem thuoc tinh day du 5 tab
+- [x] PR NHOM 11: Payout pending -> available -> paid theo batch, lich su chi tra va soldCount that
 - [ ] Chuan hoa san pham: schema target + reset seed demo da nganh, xoa 6 bang hard-code
 - [x] Thuoc tinh dong: Seller suggestion/autocomplete/tu them tren form san pham
 - [x] Thuoc tinh dong: Buyer filter theo danh muc va product detail
@@ -43,6 +44,56 @@
 - [ ] Flash sale toan san
 
 ## Nhat ky chi tiet
+
+### [2026-08-25 19:20] Phien #42
+**Da lam:**
+- Doc `docs/PROGRESS.md`, hien trang order/payout/seller trong `HE_THONG_HIEN_TAI_MARKETPLACE.md` va dung Muc 6/PR NHOM 11 trong `docs/Prompt chuyen doi marketplace.md`.
+- Audit xac nhan order-service da goi internal payout API khi `order_seller` sang `HOAN_THANH`, payout-service tao receivable idempotent theo `orderSellerId` va cong `seller_wallet.pending_amount`; bo swallow loi payout de transaction complete rollback khi dich vu payout loi, tranh mat receivable am tham va cho phep retry an toan.
+- Bo sung `categoryId` vao internal catalog variant snapshot; order-service nhom cac dong `order_item` theo category, phan bo gross sau discount theo ty trong va payout-service tinh tong commission tung category. Sub-order co nhieu category khong con roi toan bo ve commission mac dinh; `commissionRate` tren receivable la ty le hieu dung.
+- Them chu ky doi soat cau hinh bang `PAYOUT_SETTLEMENT_HOLD_DAYS` (mac dinh 7 ngay), gan `availableAt` khi tao receivable va job hourly cau hinh bang `PAYOUT_RELEASE_CRON` de chuyen khoan du dieu kien tu `PENDING` sang `AVAILABLE`.
+- Khi release, chuyen dung so tien tu wallet pending sang available va ghi `releasedAmount`; dong thoi ton trong so du pending am cua dispute da paid de no cu duoc bu vao receivable tuong lai.
+- Them xu ly dispute cho receivable `AVAILABLE`: giam net/released/available tuong ung, phan con thieu tiep tuc ghi vao pending am; giu nguyen flow PENDING va PAID da co.
+- Tao `payout_batch`, `payout_batch_item` va API admin release/list/create batch. Chi receivable `AVAILABLE` moi duoc chi; batch chuyen wallet `available_amount -> paid_amount`, gan `paidAt`/`payoutBatchId` va luu lich su thanh toan.
+- Nang cap trang Admin Payout: tong hop pending/available/paid, chon nhieu receivable AVAILABLE, thanh toan batch, tab lich su batch va nut cap nhat khoan kha dung. Trang Seller Payout hien ngay kha dung va tag trang thai.
+- Audit `soldCount`: phuong an (a) duoc prompt cho phep da hoan tat o PR NHOM 8 qua internal batch order-service, cong `order_item.quantity` cua sub-order `HOAN_THANH`; seller-service public shop/profile dang dung gia tri nay va test `SellerOrderSoldCountTest` da bao ve ket qua. Khong viet lai thanh event/outbox khi acceptance hien tai da dat.
+- Them migration thu cong cho cot lifecycle, index release va bang lich su batch; query release co fallback cho receivable cu co `available_at IS NULL` neu chi dung Hibernate schema update.
+- Them test tao receivable + pending wallet, release pending -> available, batch available -> paid va giu test dispute adjustment.
+
+**File da tao/sua chinh:**
+- `backend-microservice/payout-service/src/main/java/com/ecommerce/payout/{PayoutServiceApplication.java,service/PayoutService.java,controller/PayoutController.java}`
+- `backend-microservice/payout-service/src/main/java/com/ecommerce/payout/entity/{SellerReceivable.java,PayoutBatch.java,PayoutBatchItem.java}`
+- `backend-microservice/payout-service/src/main/java/com/ecommerce/payout/{model/PayoutBatchRequest.java,repository/SellerReceivableRepository.java,repository/PayoutBatchRepository.java,repository/PayoutBatchItemRepository.java}`
+- `backend-microservice/payout-service/src/main/java/com/ecommerce/payout/model/{ReceivableRequest.java,CommissionLineRequest.java}`
+- `backend-microservice/payout-service/src/main/resources/{application.yml,db/migration/manual/m11_payout_lifecycle_up.sql}`
+- `backend-microservice/payout-service/src/test/java/com/ecommerce/payout/service/{PayoutServiceLifecycleTest.java,PayoutServiceDisputeAdjustmentTest.java}`
+- `backend-microservice/order-service/src/main/java/com/ecommerce/order/service/impl/SellerOrderServiceImpl.java`
+- `backend-microservice/common-lib/src/main/java/com/ecommerce/common/catalog/CatalogVariantSnapshot.java`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/CatalogProductService.java`
+- `FE/src/services/api/admin/payout.api.ts`, `FE/src/services/api/seller/payout.api.ts`
+- `FE/src/pages/admin/payout/AdminPayout.vue`, `FE/src/pages/seller/payout/SellerPayout.vue`
+
+**Ket qua:** DONE PR NHOM 11 ve source/API/UI contract. Mot sub-order COMPLETE tao receivable va pending wallet; sau hold period tien sang available, admin chi theo batch co lich su; public shop tiep tuc hien soldCount that theo aggregate order-service.
+
+**Kiem chung:**
+- `gradlew :catalog-service:test :cart-service:test :order-service:test :payout-service:test --no-daemon --max-workers=1`: PASS, 18 task.
+- `PayoutServiceLifecycleTest`: PASS 3 nhanh tao pending voi commission da category, release available va batch paid; `PayoutServiceDisputeAdjustmentTest`: PASS.
+- `SellerOrderSoldCountTest` trong order-service: PASS trong bo test order-service.
+- `FE/node_modules/.bin/vue-tsc.cmd --noEmit`: PASS.
+- `C:\nvm4w\nodejs\npm.cmd run build`: PASS, Vite build 3558 modules.
+- `git diff --check`: PASS, chi warning LF/CRLF cua worktree.
+
+**Ghi chu/vuong mac:**
+- Runtime stack dang chay chua restart va migration chua duoc ap dung trong phien nay; khong tu dong sua du lieu DB local. Can apply migration/restart truoc smoke test end-to-end.
+- Gross payout dung `order_seller.total_after_discount`, la tong sub-order sau voucher/discount; gross duoc phan bo theo ty trong gia tri `order_item` cua tung category de ap dung config rieng. Category khong co config dung muc mac dinh (5% neu chua cau hinh).
+- Flow complete -> payout hien dung internal API dong bo co idempotency thay vi event/outbox. Neu payout-service tam loi, complete rollback de retry; notification van best-effort va khong rollback nghiep vu.
+- FE build van co warning font Inter khong resolve tai build-time va chunk lon hon 500 kB; khong lam build fail.
+- Prompt chi dinh nghia den PR NHOM 11, khong co PR NHOM 12 de tu dong lam tiep.
+
+**Viec tiep theo can lam ngay:**
+- Apply `m11_payout_lifecycle_up.sql`, restart payout/order/gateway/FE va smoke test 1 sub-order HOAN_THANH -> PENDING -> AVAILABLE -> PAID batch tren DB/runtime that.
+- Sau runtime acceptance, chon backlog tiep theo trong checklist audit (chat, flash sale hoac don route/security legacy) vi thu tu PR hien tai da ket thuc.
+
+---
 
 ### [2026-08-25 18:45] Phien #41
 **Da lam:**

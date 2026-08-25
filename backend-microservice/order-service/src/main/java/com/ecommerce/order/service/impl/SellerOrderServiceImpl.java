@@ -2,6 +2,8 @@ package com.ecommerce.order.service.impl;
 
 import com.ecommerce.order.client.PayoutClient;
 import com.ecommerce.order.client.NotificationClient;
+import com.ecommerce.order.client.CatalogClient;
+import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import com.ecommerce.order.constant.OrderStatusConstant;
 import com.ecommerce.order.repository.OrderSellerRepository;
 import com.ecommerce.order.service.SellerOrderService;
@@ -23,13 +25,16 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     private final OrderSellerRepository orderSellerRepository;
     private final PayoutClient payoutClient;
     private final NotificationClient notificationClient;
+    private final CatalogClient catalogClient;
 
     public SellerOrderServiceImpl(JdbcTemplate jdbcTemplate, OrderSellerRepository orderSellerRepository,
-                                  PayoutClient payoutClient, NotificationClient notificationClient) {
+                                  PayoutClient payoutClient, NotificationClient notificationClient,
+                                  CatalogClient catalogClient) {
         this.jdbcTemplate = jdbcTemplate;
         this.orderSellerRepository = orderSellerRepository;
         this.payoutClient = payoutClient;
         this.notificationClient = notificationClient;
+        this.catalogClient = catalogClient;
     }
 
     @Override
@@ -184,17 +189,49 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     }
 
     private void createPayoutReceivable(Map<String, Object> order, int status) {
-        try {
-            payoutClient.createReceivable(Map.of(
-                    "orderSellerId", order.get("id"),
-                    "orderId", order.get("order_id"),
-                    "sellerId", order.get("seller_id"),
-                    "grossAmount", order.get("total_after_discount"),
-                    "orderStatus", status
-            ));
-        } catch (Exception ignored) {
-            // Seller order completion must not fail because payout-service is temporarily unavailable.
+        double gross = ((Number) order.get("total_after_discount")).doubleValue();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("orderSellerId", order.get("id"));
+        payload.put("orderId", order.get("order_id"));
+        payload.put("sellerId", order.get("seller_id"));
+        payload.put("grossAmount", gross);
+        payload.put("commissionLines", commissionLines(String.valueOf(order.get("id")), gross));
+        payload.put("orderStatus", status);
+        payoutClient.createReceivable(payload);
+    }
+
+    private List<Map<String, Object>> commissionLines(String orderSellerId, double gross) {
+        List<Map<String, Object>> items = jdbcTemplate.queryForList("""
+                SELECT product_variant_id, quantity, sale_price
+                FROM order_item
+                WHERE order_seller_id = ?
+                """, orderSellerId);
+        Map<String, Double> rawByCategory = new LinkedHashMap<>();
+        for (Map<String, Object> item : items) {
+            CatalogVariantSnapshot variant = catalogClient.getProductVariant(String.valueOf(item.get("product_variant_id")));
+            String categoryId = variant.categoryId();
+            double subtotal = ((Number) item.get("sale_price")).doubleValue()
+                    * ((Number) item.get("quantity")).intValue();
+            rawByCategory.merge(categoryId, subtotal, Double::sum);
         }
+        double rawTotal = rawByCategory.values().stream().mapToDouble(Double::doubleValue).sum();
+        if (rawTotal <= 0D) return List.of();
+
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        double allocated = 0D;
+        int index = 0;
+        for (Map.Entry<String, Double> entry : rawByCategory.entrySet()) {
+            index++;
+            double lineGross = index == rawByCategory.size()
+                    ? gross - allocated
+                    : Math.round(gross * entry.getValue() / rawTotal * 100D) / 100D;
+            allocated += lineGross;
+            Map<String, Object> line = new LinkedHashMap<>();
+            line.put("categoryId", entry.getKey());
+            line.put("grossAmount", lineGross);
+            result.add(line);
+        }
+        return result;
     }
 
     private void notifyBuyer(Map<String, Object> order, int status) {

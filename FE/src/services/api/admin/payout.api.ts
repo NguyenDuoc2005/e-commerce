@@ -20,7 +20,23 @@ export interface AdminReceivable {
   commissionAmount: number
   netAmount: number
   status: string
+  availableAt?: string
+  releasedAmount: number
+  paidAt?: string
+  payoutBatchId?: string
   createdAt: string
+}
+
+export interface PayoutBatch {
+  id: string
+  referenceCode: string
+  status: string
+  itemCount: number
+  totalAmount: number
+  createdByStaffId?: string
+  note?: string
+  createdAt: string
+  paidAt: string
 }
 
 const baseUrl = `${API_URL}/admin/payout`
@@ -42,5 +58,20 @@ export const getAdminReceivables = async () => {
 
 export const payAdminReceivable = async (id: string) => {
   const response = (await request({ url: `${baseUrl}/receivables/${id}/pay`, method: 'POST' })) as AxiosResponse<AdminReceivable>
+  return response.data
+}
+
+export const releaseEligibleReceivables = async () => {
+  const response = (await request({ url: `${baseUrl}/receivables/release-eligible`, method: 'POST' })) as AxiosResponse<AdminReceivable[]>
+  return response.data
+}
+
+export const getPayoutBatches = async () => {
+  const response = (await request({ url: `${baseUrl}/batches`, method: 'GET' })) as AxiosResponse<PayoutBatch[]>
+  return response.data
+}
+
+export const createPayoutBatch = async (data: { receivableIds: string[]; note?: string }) => {
+  const response = (await request({ url: `${baseUrl}/batches`, method: 'POST', data })) as AxiosResponse<PayoutBatch>
   return response.data
 }

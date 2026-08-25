@@ -784,7 +784,7 @@ public class CatalogProductService {
         String label = selections.isEmpty() ? "Mặc định" : selections.stream()
                 .map(item -> item.axisName() + ": " + item.value()).collect(Collectors.joining(" · "));
         return new CatalogVariantSnapshot(
-                variant.getId(), variant.getProduct().getId(), variant.getProduct().getSellerId(),
+                variant.getId(), variant.getProduct().getId(), variant.getProduct().getCategory().getId(), variant.getProduct().getSellerId(),
                 variant.getSku(), variant.getProduct().getName(), label, selections, variant.getSalePrice(),
                 variant.getQuantity(), variant.getImageUrl(), variant.getStatus().name());
     }

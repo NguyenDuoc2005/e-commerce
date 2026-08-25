@@ -1,6 +1,7 @@
 package com.ecommerce.payout.controller;
 
 import com.ecommerce.payout.model.CommissionConfigRequest;
+import com.ecommerce.payout.model.PayoutBatchRequest;
 import com.ecommerce.payout.service.PayoutService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +34,21 @@ public class PayoutController {
     @GetMapping("/api/v1/admin/payout/receivables")
     public ResponseEntity<?> allReceivables() {
         return ResponseEntity.ok(payoutService.allReceivables());
+    }
+
+    @PostMapping("/api/v1/admin/payout/receivables/release-eligible")
+    public ResponseEntity<?> releaseEligibleReceivables() {
+        return ResponseEntity.ok(payoutService.releaseEligibleReceivables());
+    }
+
+    @GetMapping("/api/v1/admin/payout/batches")
+    public ResponseEntity<?> payoutBatches() {
+        return ResponseEntity.ok(payoutService.payoutBatches());
+    }
+
+    @PostMapping("/api/v1/admin/payout/batches")
+    public ResponseEntity<?> createPayoutBatch(@RequestBody PayoutBatchRequest body, HttpServletRequest request) {
+        return ResponseEntity.ok(payoutService.createPayoutBatch(body, request.getHeader("X-Staff-Id")));
     }
 
     @PostMapping("/api/v1/admin/payout/receivables/{id}/pay")

@@ -5,31 +5,50 @@
         <h1>Đối soát marketplace</h1>
         <p>Kiểm soát hoa hồng và xác nhận chi trả cho từng sub-order đã hoàn thành.</p>
       </div>
-      <a-button :loading="loading" @click="loadData">Tải lại</a-button>
+      <div class="head-actions">
+        <a-button :loading="settling" @click="releaseEligible">Cập nhật khả dụng</a-button>
+        <a-button type="primary" :disabled="!selectedIds.length" :loading="batching" @click="payBatch">
+          Thanh toán batch ({{ selectedIds.length }})
+        </a-button>
+        <a-button :loading="loading" @click="loadData">Tải lại</a-button>
+      </div>
     </header>
 
     <div class="summary-grid">
-      <div class="metric"><span>Chờ chi trả</span><strong>{{ pendingRows.length }}</strong></div>
-      <div class="metric"><span>Giá trị chờ chi</span><strong>{{ currency(pendingAmount) }}</strong></div>
+      <div class="metric"><span>Đang đối soát</span><strong>{{ currency(pendingAmount) }}</strong></div>
+      <div class="metric"><span>Sẵn sàng chi</span><strong>{{ currency(availableAmount) }}</strong></div>
+      <div class="metric"><span>Số khoản khả dụng</span><strong>{{ availableRows.length }}</strong></div>
       <div class="metric"><span>Đã thanh toán</span><strong>{{ currency(paidAmount) }}</strong></div>
     </div>
 
     <a-tabs v-model:active-key="activeTab">
       <a-tab-pane key="receivables" tab="Khoản đối soát">
-        <a-table row-key="id" :columns="receivableColumns" :data-source="receivables" :loading="loading" :pagination="{ pageSize: 10 }">
+        <a-table row-key="id" :row-selection="rowSelection" :columns="receivableColumns" :data-source="receivables" :loading="loading" :pagination="{ pageSize: 10 }">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'gross'">{{ currency(record.grossAmount) }}</template>
             <template v-else-if="column.key === 'commission'">{{ currency(record.commissionAmount) }} ({{ record.commissionRate }}%)</template>
             <template v-else-if="column.key === 'net'">{{ currency(record.netAmount) }}</template>
+            <template v-else-if="column.key === 'released'">{{ currency(record.releasedAmount) }}</template>
+            <template v-else-if="column.key === 'availableAt'">{{ dateTime(record.availableAt) }}</template>
             <template v-else-if="column.key === 'status'">
-              <a-tag :color="record.status === 'PAID' ? 'green' : 'gold'">{{ record.status }}</a-tag>
+              <a-tag :color="statusColor(record.status)">{{ record.status }}</a-tag>
             </template>
             <template v-else-if="column.key === 'action'">
-              <a-popconfirm v-if="record.status !== 'PAID'" title="Xác nhận khoản này đã được chi trả?" ok-text="Xác nhận" cancel-text="Hủy" @confirm="pay(record.id)">
+              <a-popconfirm v-if="record.status === 'AVAILABLE'" title="Thanh toán riêng khoản này?" ok-text="Xác nhận" cancel-text="Hủy" @confirm="pay(record.id)">
                 <a-button type="primary" size="small" :loading="payingId === record.id">Ghi nhận đã trả</a-button>
               </a-popconfirm>
-              <span v-else class="text-muted">Hoàn tất</span>
+              <span v-else class="text-muted">{{ record.status === 'PAID' ? 'Hoàn tất' : 'Chưa khả dụng' }}</span>
             </template>
+          </template>
+        </a-table>
+      </a-tab-pane>
+
+      <a-tab-pane key="batches" tab="Lịch sử chi trả">
+        <a-table row-key="id" :columns="batchColumns" :data-source="batches" :loading="loading" :pagination="{ pageSize: 10 }">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'amount'">{{ currency(record.totalAmount) }}</template>
+            <template v-else-if="column.key === 'paidAt'">{{ dateTime(record.paidAt) }}</template>
+            <template v-else-if="column.key === 'status'"><a-tag color="green">{{ record.status }}</a-tag></template>
           </template>
         </a-table>
       </a-tab-pane>
@@ -57,19 +76,27 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   createCommissionConfig,
+  createPayoutBatch,
   getAdminReceivables,
   getCommissionConfigs,
+  getPayoutBatches,
   payAdminReceivable,
+  releaseEligibleReceivables,
   type AdminReceivable,
-  type CommissionConfig
+  type CommissionConfig,
+  type PayoutBatch
 } from '@/services/api/admin/payout.api'
 
 const activeTab = ref('receivables')
 const loading = ref(false)
 const savingConfig = ref(false)
 const payingId = ref('')
+const settling = ref(false)
+const batching = ref(false)
+const selectedIds = ref<string[]>([])
 const receivables = ref<AdminReceivable[]>([])
 const configs = ref<CommissionConfig[]>([])
+const batches = ref<PayoutBatch[]>([])
 const commissionForm = reactive<{ categoryId: string; ratePercent: number }>({ categoryId: '', ratePercent: 5 })
 
 const receivableColumns = [
@@ -78,8 +105,18 @@ const receivableColumns = [
   { title: 'Doanh thu gộp', key: 'gross' },
   { title: 'Hoa hồng', key: 'commission' },
   { title: 'Thực nhận', key: 'net' },
+  { title: 'Khả dụng', key: 'released' },
+  { title: 'Ngày khả dụng', key: 'availableAt' },
   { title: 'Trạng thái', key: 'status' },
   { title: 'Thao tác', key: 'action', width: 150 }
+]
+const batchColumns = [
+  { title: 'Mã batch', dataIndex: 'referenceCode' },
+  { title: 'Số khoản', dataIndex: 'itemCount' },
+  { title: 'Tổng chi', key: 'amount' },
+  { title: 'Nhân viên', dataIndex: 'createdByStaffId' },
+  { title: 'Trạng thái', key: 'status' },
+  { title: 'Thời gian chi', key: 'paidAt' }
 ]
 const commissionColumns = [
   { title: 'Phạm vi', key: 'scope' },
@@ -88,20 +125,55 @@ const commissionColumns = [
   { title: 'Ngày tạo', dataIndex: 'createdAt' }
 ]
 
-const pendingRows = computed(() => receivables.value.filter(item => item.status !== 'PAID'))
-const pendingAmount = computed(() => pendingRows.value.reduce((sum, item) => sum + (item.netAmount || 0), 0))
-const paidAmount = computed(() => receivables.value.filter(item => item.status === 'PAID').reduce((sum, item) => sum + (item.netAmount || 0), 0))
+const availableRows = computed(() => receivables.value.filter(item => item.status === 'AVAILABLE'))
+const pendingAmount = computed(() => receivables.value.filter(item => item.status === 'PENDING').reduce((sum, item) => sum + (item.netAmount || 0), 0))
+const availableAmount = computed(() => availableRows.value.reduce((sum, item) => sum + (item.releasedAmount || 0), 0))
+const paidAmount = computed(() => receivables.value.filter(item => item.status === 'PAID').reduce((sum, item) => sum + (item.releasedAmount || item.netAmount || 0), 0))
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedIds.value,
+  onChange: (keys: (string | number)[]) => { selectedIds.value = keys.map(String) },
+  getCheckboxProps: (record: AdminReceivable) => ({ disabled: record.status !== 'AVAILABLE' })
+}))
 
 const loadData = async () => {
   loading.value = true
   try {
-    const [receivableRows, configRows] = await Promise.all([getAdminReceivables(), getCommissionConfigs()])
+    const [receivableRows, configRows, batchRows] = await Promise.all([getAdminReceivables(), getCommissionConfigs(), getPayoutBatches()])
     receivables.value = receivableRows ?? []
     configs.value = configRows ?? []
+    batches.value = batchRows ?? []
+    selectedIds.value = selectedIds.value.filter(id => receivables.value.some(row => row.id === id && row.status === 'AVAILABLE'))
   } catch (error: any) {
     message.error(error?.response?.data?.message ?? 'Không tải được dữ liệu đối soát')
   } finally {
     loading.value = false
+  }
+}
+
+const releaseEligible = async () => {
+  settling.value = true
+  try {
+    const released = await releaseEligibleReceivables()
+    message.success(`Đã chuyển ${released.length} khoản sang khả dụng`)
+    await loadData()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message ?? 'Không thể cập nhật khoản khả dụng')
+  } finally {
+    settling.value = false
+  }
+}
+
+const payBatch = async () => {
+  batching.value = true
+  try {
+    await createPayoutBatch({ receivableIds: selectedIds.value })
+    message.success('Đã ghi nhận thanh toán batch')
+    selectedIds.value = []
+    await loadData()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message ?? 'Không thể thanh toán batch')
+  } finally {
+    batching.value = false
   }
 }
 
@@ -136,6 +208,8 @@ const saveCommission = async () => {
 }
 
 const currency = (value?: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0)
+const dateTime = (value?: string) => value ? new Date(value).toLocaleString('vi-VN') : '—'
+const statusColor = (status: string) => ({ PENDING: 'gold', AVAILABLE: 'blue', PAID: 'green' }[status] || 'default')
 
 onMounted(loadData)
 </script>
@@ -145,7 +219,8 @@ onMounted(loadData)
 .page-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 18px; }
 .page-head h1 { margin: 0; font-size: 24px; font-weight: 700; }
 .page-head p { margin: 5px 0 0; color: #64748b; }
-.summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.head-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
 .metric { padding: 14px; border: 1px solid #dbe3ef; border-radius: 8px; background: #fff; }
 .metric span { display: block; margin-bottom: 5px; color: #64748b; }
 .metric strong { font-size: 20px; }

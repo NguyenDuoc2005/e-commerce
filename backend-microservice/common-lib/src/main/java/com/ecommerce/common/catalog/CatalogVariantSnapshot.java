@@ -6,6 +6,7 @@ import java.util.List;
 public record CatalogVariantSnapshot(
         String id,
         String productId,
+        String categoryId,
         String sellerId,
         String sku,
         String productName,
@@ -16,6 +17,12 @@ public record CatalogVariantSnapshot(
         String imageUrl,
         String status
 ) {
+    public CatalogVariantSnapshot(String id, String productId, String sellerId, String sku, String productName,
+                                  String variantLabel, List<VariantSelection> selections, BigDecimal salePrice,
+                                  Integer quantity, String imageUrl, String status) {
+        this(id, productId, null, sellerId, sku, productName, variantLabel, selections, salePrice, quantity, imageUrl, status);
+    }
+
     public record VariantSelection(
             String axisId,
             String axisName,

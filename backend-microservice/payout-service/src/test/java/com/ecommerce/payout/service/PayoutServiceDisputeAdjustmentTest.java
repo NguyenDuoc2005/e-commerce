@@ -9,6 +9,8 @@ import com.ecommerce.payout.entity.SellerWallet;
 import com.ecommerce.payout.model.DisputeAdjustmentRequest;
 import com.ecommerce.payout.repository.CommissionConfigRepository;
 import com.ecommerce.payout.repository.PayoutAdjustmentRepository;
+import com.ecommerce.payout.repository.PayoutBatchRepository;
+import com.ecommerce.payout.repository.PayoutBatchItemRepository;
 import com.ecommerce.payout.repository.SellerReceivableRepository;
 import com.ecommerce.payout.repository.SellerWalletRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,12 +34,14 @@ class PayoutServiceDisputeAdjustmentTest {
     @Mock UserClient userClient;
     @Mock NotificationClient notificationClient;
     @Mock PayoutAdjustmentRepository adjustmentRepository;
+    @Mock PayoutBatchRepository batchRepository;
+    @Mock PayoutBatchItemRepository batchItemRepository;
     PayoutService service;
 
     @BeforeEach
     void setUp() {
         service = new PayoutService(commissionRepository, receivableRepository, walletRepository,
-                sellerClient, userClient, notificationClient, adjustmentRepository);
+                sellerClient, userClient, notificationClient, adjustmentRepository, batchRepository, batchItemRepository);
     }
 
     @Test
@@ -70,7 +74,7 @@ class PayoutServiceDisputeAdjustmentTest {
     private void stub(SellerReceivable receivable, SellerWallet wallet) {
         when(adjustmentRepository.findByDisputeId("d-1")).thenReturn(Optional.empty());
         when(receivableRepository.findByOrderSellerId("os-1")).thenReturn(Optional.of(receivable));
-        when(walletRepository.findBySellerId("seller-1")).thenReturn(Optional.of(wallet));
+        when(walletRepository.findBySellerIdForUpdate("seller-1")).thenReturn(Optional.of(wallet));
         when(adjustmentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 

@@ -32,3 +32,7 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+payout:
+  settlement-hold-days: ${PAYOUT_SETTLEMENT_HOLD_DAYS:7}
+  release-cron: ${PAYOUT_RELEASE_CRON:0 0 * * * *}

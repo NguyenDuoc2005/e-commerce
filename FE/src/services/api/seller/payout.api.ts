@@ -19,7 +19,11 @@ export interface SellerReceivable {
   commissionRate: number
   commissionAmount: number
   netAmount: number
+  releasedAmount: number
   status: string
+  availableAt?: string
+  paidAt?: string
+  payoutBatchId?: string
   createdAt: string
 }
 

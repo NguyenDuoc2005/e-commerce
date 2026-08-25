@@ -34,8 +34,8 @@
       </div>
     </div>
 
-    <a-tabs v-model:active-key="tab" class="admin-tabs">
-      <a-tab-pane key="definitions" tab="Thuộc tính mô tả">
+    <a-tabs v-model:active-key="tab" class="admin-tabs" @change="handleTabChange">
+      <a-tab-pane key="definitions" tab="Thuộc tính">
         <div class="toolbar">
           <a-input-search
             v-model:value="filters.q"
@@ -104,9 +104,17 @@
                 <span v-if="!record.categoryIds?.length" class="muted">Chưa gắn</span>
               </a-space>
             </template>
+            <template v-else-if="column.key === 'source'">
+              <a-tag :color="record.creatorSellerId ? 'orange' : 'blue'">
+                {{ record.creatorSellerId ? 'Seller' : 'Hệ thống/Admin' }}
+              </a-tag>
+            </template>
+            <template v-else-if="column.key === 'createdDate'">
+              {{ formatDate(record.createdDate) }}
+            </template>
             <template v-else-if="column.key === 'actions'">
               <a-space wrap>
-                <a-button size="small" @click="openOptions(record)">Option</a-button>
+                <a-button size="small" :disabled="!isSelectType(record.dataType)" @click="openOptions(record)">Option</a-button>
                 <a-button size="small" @click="openStandardize(record)">Chuẩn hóa</a-button>
                 <a-button size="small" :disabled="record.verified" @click="verifyAttribute(record)">Duyệt</a-button>
                 <a-button size="small" @click="openMerge(record)">Gộp</a-button>
@@ -121,6 +129,63 @@
                 </a-popconfirm>
               </a-space>
             </template>
+          </template>
+        </a-table>
+      </a-tab-pane>
+
+      <a-tab-pane key="options" tab="Option">
+        <div class="toolbar option-toolbar">
+          <a-select
+            v-model:value="optionDefinitionId"
+            show-search
+            option-filter-prop="label"
+            placeholder="Chọn thuộc tính SELECT_ONE/SELECT_MULTI"
+            :options="selectAttributeOptions"
+            @change="selectOptionDefinition"
+          />
+          <a-button :disabled="!optionDefinitionId" :loading="optionsLoading" @click="loadOptions">Tải lại</a-button>
+        </div>
+        <a-alert type="info" show-icon message="Option chỉ áp dụng cho thuộc tính kiểu một hoặc nhiều lựa chọn." class="context-alert" />
+        <a-table row-key="id" :columns="optionColumns" :data-source="options" :loading="optionsLoading" :pagination="false">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'status'"><a-tag :color="record.status === 'ACTIVE' ? 'green' : 'default'">{{ record.status === 'ACTIVE' ? 'Đang dùng' : 'Đã ẩn' }}</a-tag></template>
+            <template v-else-if="column.key === 'verified'"><a-tag :color="record.verified ? 'blue' : 'gold'">{{ record.verified ? 'Đã duyệt' : 'Chờ duyệt' }}</a-tag></template>
+            <template v-else-if="column.key === 'actions'">
+              <a-space>
+                <a-button size="small" :disabled="record.verified" @click="verifyOption(record.id)">Duyệt</a-button>
+                <a-button size="small" :disabled="options.length < 2" @click="openOptionMerge(record)">Gộp</a-button>
+              </a-space>
+            </template>
+          </template>
+        </a-table>
+      </a-tab-pane>
+
+      <a-tab-pane key="category-suggestions" tab="Danh mục gợi ý">
+        <div class="toolbar suggestion-toolbar">
+          <a-select v-model:value="suggestionCategoryId" show-search option-filter-prop="label" placeholder="Chọn danh mục" :options="categoryOptions" @change="loadCategorySuggestions" />
+          <a-select v-model:value="suggestionDefinitionId" allow-clear show-search option-filter-prop="label" placeholder="Thêm thuộc tính đã duyệt" :options="availableSuggestionDefinitions" />
+          <a-button :disabled="!suggestionDefinitionId" @click="addCategorySuggestion">Thêm</a-button>
+          <a-button type="primary" :disabled="!suggestionCategoryId" :loading="suggestionSaving" @click="saveCategorySuggestions">Lưu gán</a-button>
+        </div>
+        <a-table row-key="definitionId" :columns="categorySuggestionColumns" :data-source="categorySuggestions" :loading="suggestionLoading" :pagination="false">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'attribute'"><div class="primary-cell"><strong>{{ record.name }}</strong><span>{{ typeLabel(record.dataType) }}</span></div></template>
+            <template v-else-if="column.key === 'filterable'"><a-switch v-model:checked="record.filterable" /></template>
+            <template v-else-if="column.key === 'required'"><a-switch v-model:checked="record.required" /></template>
+            <template v-else-if="column.key === 'displayOrder'"><a-input-number v-model:value="record.displayOrder" :min="0" :precision="0" size="small" /></template>
+            <template v-else-if="column.key === 'actions'"><a-button size="small" danger @click="removeCategorySuggestion(record.definitionId)">Xóa</a-button></template>
+          </template>
+        </a-table>
+      </a-tab-pane>
+
+      <a-tab-pane key="history" tab="Gộp & Lịch sử">
+        <div class="section-split"><div><h3>Lịch sử hậu kiểm</h3><p>Nhật ký verify, chuẩn hóa, gộp và ẩn thuộc tính.</p></div><a-button :loading="historyLoading" @click="loadHistory">Tải lại</a-button></div>
+        <a-table row-key="id" :columns="historyColumns" :data-source="audits" :loading="historyLoading" :pagination="{ pageSize: 10 }" :scroll="{ x: 1000 }">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'action'"><a-tag :color="actionColor(record.action)">{{ actionLabel(record.action) }}</a-tag></template>
+            <template v-else-if="column.key === 'definitions'"><div class="primary-cell"><strong>{{ record.sourceDefinitionName }}</strong><span v-if="record.targetDefinitionName">→ {{ record.targetDefinitionName }}</span></div></template>
+            <template v-else-if="column.key === 'actor'">{{ record.actorUserId || 'Hệ thống' }}</template>
+            <template v-else-if="column.key === 'createdDate'">{{ formatDate(record.createdDate) }}</template>
           </template>
         </a-table>
       </a-tab-pane>
@@ -193,6 +258,7 @@
             <template v-else-if="column.key === 'actions'">
               <a-space>
                 <a-button size="small" :disabled="record.verified" @click="verifyAxis(record.id)">Duyệt</a-button>
+                <a-button size="small" :disabled="axisSuggestions.length < 2" @click="openAxisMerge(record)">Gộp</a-button>
                 <a-popconfirm title="Ẩn gợi ý trục này?" ok-text="Ẩn" cancel-text="Hủy" @confirm="hideAxis(record.id)">
                   <a-button size="small" danger>Ẩn</a-button>
                 </a-popconfirm>
@@ -235,6 +301,21 @@
         <a-form-item label="Lý do">
           <a-textarea v-model:value="standardizeForm.reason" :rows="3" />
         </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <a-modal v-model:open="optionMergeOpen" title="Gộp option" ok-text="Gộp" cancel-text="Hủy" :confirm-loading="saving" @ok="submitOptionMerge">
+      <a-form layout="vertical">
+        <a-form-item label="Option nguồn"><a-input :value="selectedOption?.value" disabled /></a-form-item>
+        <a-form-item label="Gộp vào" required><a-select v-model:value="optionMergeTargetId" :options="optionMergeTargets" placeholder="Chọn option đích" /></a-form-item>
+        <a-form-item label="Lý do"><a-textarea v-model:value="optionMergeReason" :rows="3" /></a-form-item>
+      </a-form>
+    </a-modal>
+
+    <a-modal v-model:open="axisMergeOpen" title="Gộp gợi ý trục biến thể" ok-text="Gộp" cancel-text="Hủy" :confirm-loading="axisSaving" @ok="submitAxisMerge">
+      <a-form layout="vertical">
+        <a-form-item label="Gợi ý nguồn"><a-input :value="selectedAxisSuggestion?.name" disabled /></a-form-item>
+        <a-form-item label="Gộp vào" required><a-select v-model:value="axisMergeTargetId" :options="axisMergeTargets" placeholder="Chọn gợi ý đích" /></a-form-item>
       </a-form>
     </a-modal>
 
@@ -335,15 +416,18 @@ import { ReloadOutlined } from '@ant-design/icons-vue'
 import { getCategoryTree } from '@/services/api/catalog/catalog.api'
 import {
   getAdminProductAttributes,
+  getProductAttributeModerationAudits,
   getProductAttributeOptions,
   hideProductAttribute,
   mergeProductAttribute,
+  mergeProductAttributeOption,
   reindexProductAttributes,
   standardizeProductAttribute,
   verifyProductAttributeOption,
   verifyProductAttribute,
   type AdminProductAttribute,
   type AdminProductAttributeOption,
+  type ProductAttributeModerationAudit,
   type AttributeDataType,
   type AttributeStatus
 } from '@/services/api/admin/product-attribute.api'
@@ -352,10 +436,16 @@ import {
   getAxisInsights,
   getAxisSuggestions,
   hideAxisSuggestion,
+  mergeAxisSuggestion,
   verifyAxisSuggestion,
   type AxisInsight,
   type AxisSuggestion
 } from '@/services/api/admin/variant-axis.api'
+import {
+  configureAdminCategorySuggestions,
+  getAdminCategorySuggestions,
+  type CategoryAttributeSuggestion
+} from '@/services/api/admin/category.api'
 
 const tab = ref('definitions')
 const loading = ref(false)
@@ -378,6 +468,19 @@ const mergeForm = reactive({ targetId: undefined as string | undefined, reason: 
 const optionsOpen = ref(false)
 const optionsLoading = ref(false)
 const options = ref<AdminProductAttributeOption[]>([])
+const optionDefinitionId = ref<string>()
+const selectedOption = ref<AdminProductAttributeOption>()
+const optionMergeOpen = ref(false)
+const optionMergeTargetId = ref<string>()
+const optionMergeReason = ref('')
+
+const suggestionCategoryId = ref<string>()
+const suggestionDefinitionId = ref<string>()
+const categorySuggestions = ref<CategoryAttributeSuggestion[]>([])
+const suggestionLoading = ref(false)
+const suggestionSaving = ref(false)
+const audits = ref<ProductAttributeModerationAudit[]>([])
+const historyLoading = ref(false)
 
 const axisQuery = ref('')
 const axisLoading = ref(false)
@@ -386,6 +489,9 @@ const axes = ref<AxisInsight[]>([])
 const axisSuggestions = ref<AxisSuggestion[]>([])
 const axisCreateOpen = ref(false)
 const axisForm = reactive({ name: '' })
+const selectedAxisSuggestion = ref<AxisSuggestion>()
+const axisMergeOpen = ref(false)
+const axisMergeTargetId = ref<string>()
 
 const statusOptions = [
   { value: 'ACTIVE', label: 'Đang dùng' },
@@ -401,7 +507,9 @@ const attributeColumns = [
   { title: 'Trạng thái', key: 'status', width: 130 },
   { title: 'Hậu kiểm', key: 'verified', width: 130 },
   { title: 'Danh mục gợi ý', key: 'categoryIds', width: 260 },
+  { title: 'Nguồn tạo', key: 'source', width: 150 },
   { title: 'Sản phẩm', dataIndex: 'productCount', width: 100 },
+  { title: 'Ngày tạo', key: 'createdDate', width: 170 },
   { title: 'Thao tác', key: 'actions', fixed: 'right', width: 330 }
 ]
 const axisColumns = [
@@ -420,7 +528,22 @@ const optionColumns = [
   { title: 'Giá trị', dataIndex: 'value', key: 'value' },
   { title: 'Trạng thái', key: 'status', width: 120 },
   { title: 'Hậu kiểm', key: 'verified', width: 120 },
-  { title: 'Thao tác', key: 'actions', width: 100 }
+  { title: 'Thao tác', key: 'actions', width: 170 }
+]
+const categorySuggestionColumns = [
+  { title: 'Thuộc tính', key: 'attribute' },
+  { title: 'Cho lọc', key: 'filterable', width: 100 },
+  { title: 'Bắt buộc', key: 'required', width: 100 },
+  { title: 'Thứ tự', key: 'displayOrder', width: 110 },
+  { title: 'Thao tác', key: 'actions', width: 90 }
+]
+const historyColumns = [
+  { title: 'Hành động', key: 'action', width: 130 },
+  { title: 'Thuộc tính', key: 'definitions', width: 260 },
+  { title: 'Người thực hiện', key: 'actor', width: 220 },
+  { title: 'Lý do', dataIndex: 'reason' },
+  { title: 'Sản phẩm ảnh hưởng', dataIndex: 'affectedProductCount', width: 150 },
+  { title: 'Thời gian', key: 'createdDate', width: 180 }
 ]
 
 const attributeStats = computed(() => ({
@@ -431,6 +554,20 @@ const attributeStats = computed(() => ({
 const mergeTargetOptions = computed(() => attributes.value
   .filter((item) => selectedAttribute.value && item.id !== selectedAttribute.value.id && item.status === 'ACTIVE' && item.dataType === selectedAttribute.value.dataType)
   .map((item) => ({ value: item.id, label: `${item.name} (${typeLabel(item.dataType)})` })))
+const selectAttributeOptions = computed(() => attributes.value
+  .filter((item) => isSelectType(item.dataType) && item.status === 'ACTIVE')
+  .map((item) => ({ value: item.id, label: `${item.name} (${typeLabel(item.dataType)})` })))
+const optionMergeTargets = computed(() => options.value
+  .filter((item) => item.id !== selectedOption.value?.id && item.status === 'ACTIVE')
+  .map((item) => ({ value: item.id, label: item.value })))
+const availableSuggestionDefinitions = computed(() => {
+  const assigned = new Set(categorySuggestions.value.map((item) => item.definitionId))
+  return attributes.value.filter((item) => item.verified && item.status === 'ACTIVE' && !assigned.has(item.id))
+    .map((item) => ({ value: item.id, label: `${item.name} (${typeLabel(item.dataType)})` }))
+})
+const axisMergeTargets = computed(() => axisSuggestions.value
+  .filter((item) => item.id !== selectedAxisSuggestion.value?.id && item.status === 'ACTIVE')
+  .map((item) => ({ value: item.id, label: item.name })))
 
 const typeLabel = (type: AttributeDataType) => ({
   TEXT: 'Văn bản',
@@ -444,8 +581,11 @@ const typeColor = (type: AttributeDataType) => ({
   SELECT_ONE: 'cyan',
   SELECT_MULTI: 'geekblue'
 }[type] ?? 'default')
-const shortCategoryId = (id: string) => id ? id.slice(0, 8).toUpperCase() : 'N/A'
-const categoryLabel = (id: string) => categoryOptions.value.find((item) => item.value === id)?.label ?? `Danh mục chưa tải (${shortCategoryId(id)})`
+const isSelectType = (type: AttributeDataType) => type === 'SELECT_ONE' || type === 'SELECT_MULTI'
+const formatDate = (value?: number) => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—'
+const actionLabel = (action: string) => ({ VERIFY: 'Duyệt', STANDARDIZE: 'Chuẩn hóa', MERGE: 'Gộp', HIDE: 'Ẩn' }[action] ?? action)
+const actionColor = (action: string) => ({ VERIFY: 'blue', STANDARDIZE: 'cyan', MERGE: 'purple', HIDE: 'red' }[action] ?? 'default')
+const categoryLabel = (id: string) => categoryOptions.value.find((item) => item.value === id)?.label ?? 'Danh mục không còn hiển thị'
 const errorMessage = (error: any, fallback: string) => error?.response?.data?.message ?? fallback
 const categoryName = (item: any) => item?.name ?? item?.ten ?? item?.label ?? item?.title ?? item?.code ?? item?.id
 const flattenCategories = (nodes: any[], parents: string[] = []): Array<{ value: string; label: string }> => {
@@ -580,19 +720,42 @@ const submitMerge = async () => {
 }
 const openOptions = async (record: AdminProductAttribute) => {
   selectedAttribute.value = record
-  optionsOpen.value = true
+  optionDefinitionId.value = record.id
+  tab.value = 'options'
+  await loadOptions()
+}
+const selectOptionDefinition = async (id: string) => {
+  selectedAttribute.value = attributes.value.find((item) => item.id === id)
   await loadOptions()
 }
 const loadOptions = async () => {
-  if (!selectedAttribute.value) return
+  const definitionId = optionDefinitionId.value ?? selectedAttribute.value?.id
+  if (!definitionId) return
   optionsLoading.value = true
   try {
-    options.value = await getProductAttributeOptions(selectedAttribute.value.id)
+    options.value = await getProductAttributeOptions(definitionId)
   } catch (error: any) {
     message.error(errorMessage(error, 'Không tải được giá trị lựa chọn'))
   } finally {
     optionsLoading.value = false
   }
+}
+const openOptionMerge = (record: AdminProductAttributeOption) => {
+  selectedOption.value = record
+  optionMergeTargetId.value = undefined
+  optionMergeReason.value = ''
+  optionMergeOpen.value = true
+}
+const submitOptionMerge = async () => {
+  if (!selectedOption.value || !optionMergeTargetId.value) return message.warning('Vui lòng chọn option đích')
+  saving.value = true
+  try {
+    await mergeProductAttributeOption(selectedOption.value.id, optionMergeTargetId.value, optionMergeReason.value.trim() || undefined)
+    optionMergeOpen.value = false
+    message.success('Đã gộp option')
+    await loadOptions()
+  } catch (error: any) { message.error(errorMessage(error, 'Không gộp được option')) }
+  finally { saving.value = false }
 }
 const verifyOption = async (optionId: string) => {
   try {
@@ -602,6 +765,44 @@ const verifyOption = async (optionId: string) => {
   } catch (error: any) {
     message.error(errorMessage(error, 'Không duyệt được giá trị'))
   }
+}
+const loadCategorySuggestions = async () => {
+  if (!suggestionCategoryId.value) { categorySuggestions.value = []; return }
+  suggestionLoading.value = true
+  try { categorySuggestions.value = await getAdminCategorySuggestions(suggestionCategoryId.value) }
+  catch (error: any) { message.error(errorMessage(error, 'Không tải được gợi ý theo danh mục')); categorySuggestions.value = [] }
+  finally { suggestionLoading.value = false }
+}
+const addCategorySuggestion = () => {
+  const attribute = attributes.value.find((item) => item.id === suggestionDefinitionId.value)
+  if (!attribute) return
+  categorySuggestions.value.push({ definitionId: attribute.id, name: attribute.name, dataType: attribute.dataType, defaultUnit: attribute.defaultUnit, verified: attribute.verified, required: false, filterable: false, displayOrder: categorySuggestions.value.length })
+  suggestionDefinitionId.value = undefined
+}
+const removeCategorySuggestion = (definitionId: string) => {
+  categorySuggestions.value = categorySuggestions.value.filter((item) => item.definitionId !== definitionId)
+  categorySuggestions.value.forEach((item, index) => { item.displayOrder = index })
+}
+const saveCategorySuggestions = async () => {
+  if (!suggestionCategoryId.value) return
+  suggestionSaving.value = true
+  try {
+    await configureAdminCategorySuggestions(suggestionCategoryId.value, categorySuggestions.value.map((item, index) => ({ definitionId: item.definitionId, required: item.required, filterable: item.filterable, displayOrder: item.displayOrder ?? index })))
+    message.success('Đã lưu danh mục gợi ý')
+    await Promise.all([loadCategorySuggestions(), loadAttributes()])
+  } catch (error: any) { message.error(errorMessage(error, 'Không lưu được danh mục gợi ý')) }
+  finally { suggestionSaving.value = false }
+}
+const loadHistory = async () => {
+  historyLoading.value = true
+  try { audits.value = await getProductAttributeModerationAudits() }
+  catch (error: any) { message.error(errorMessage(error, 'Không tải được lịch sử hậu kiểm')) }
+  finally { historyLoading.value = false }
+}
+const handleTabChange = async (key: string | number) => {
+  if (key === 'history') await loadHistory()
+  if (key === 'category-suggestions' && suggestionCategoryId.value) await loadCategorySuggestions()
+  if (key === 'options' && optionDefinitionId.value) await loadOptions()
 }
 const openAxisCreate = (name = '') => {
   axisForm.name = name
@@ -632,6 +833,22 @@ const verifyAxis = async (id: string) => {
   } catch (error: any) {
     message.error(errorMessage(error, 'Không duyệt được gợi ý trục'))
   }
+}
+const openAxisMerge = (record: AxisSuggestion) => {
+  selectedAxisSuggestion.value = record
+  axisMergeTargetId.value = undefined
+  axisMergeOpen.value = true
+}
+const submitAxisMerge = async () => {
+  if (!selectedAxisSuggestion.value || !axisMergeTargetId.value) return message.warning('Vui lòng chọn gợi ý trục đích')
+  axisSaving.value = true
+  try {
+    await mergeAxisSuggestion(selectedAxisSuggestion.value.id, axisMergeTargetId.value)
+    axisMergeOpen.value = false
+    message.success('Đã gộp gợi ý trục')
+    await loadAxes()
+  } catch (error: any) { message.error(errorMessage(error, 'Không gộp được gợi ý trục')) }
+  finally { axisSaving.value = false }
 }
 const hideAxis = async (id: string) => {
   try {
@@ -728,6 +945,18 @@ onMounted(async () => {
   grid-template-columns: minmax(260px, 1.6fr) minmax(160px, 0.8fr) minmax(160px, 0.8fr) minmax(220px, 1fr);
   gap: 12px;
   margin: 8px 0 16px;
+}
+
+.option-toolbar {
+  grid-template-columns: minmax(320px, 1fr) auto;
+}
+
+.suggestion-toolbar {
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.2fr) auto auto;
+}
+
+.context-alert {
+  margin-bottom: 16px;
 }
 
 .axis-toolbar {

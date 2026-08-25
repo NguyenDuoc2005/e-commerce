@@ -66,6 +66,9 @@ public class AdminProductAttributeController {
     @GetMapping("/{id}/options")
     public Object options(@PathVariable String id) { return adminService.options(id); }
 
+    @GetMapping("/moderation-audits")
+    public Object moderationAudits() { return adminService.moderationAudits(); }
+
     @PutMapping("/options/{optionId}/verify")
     public Object verifyOption(@PathVariable String optionId) { return adminService.verifyOption(optionId); }
 

@@ -49,6 +49,9 @@ export interface SellerResponse {
   createdAt?: string
   updatedAt?: string
   followerCount?: number
+  rating?: number
+  ratingCount?: number
+  soldCount?: number
 }
 
 export const registerShop = async (data: SellerRegistrationRequest) => {
@@ -94,6 +97,16 @@ export const getPublicShops = async () => {
     method: 'GET'
   })) as AxiosResponse<DefaultResponse<SellerResponse[]>>
 
+  return res.data
+}
+
+export const getPublicShopsByIds = async (sellerIds: string[]) => {
+  if (!sellerIds.length) return { data: [] as SellerResponse[] }
+  const res = (await request({
+    url: `${PREFIX_API_SHOP_PERMITALL}/by-ids`,
+    method: 'GET',
+    params: { ids: sellerIds.join(',') }
+  })) as AxiosResponse<DefaultResponse<SellerResponse[]>>
   return res.data
 }
 

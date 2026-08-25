@@ -92,5 +92,6 @@ public class Review {
     public Instant getSellerRepliedAt() { return sellerRepliedAt; }
     public void setSellerRepliedAt(Instant sellerRepliedAt) { this.sellerRepliedAt = sellerRepliedAt; }
     public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
     public Instant getCreatedAt() { return createdAt; }
 }

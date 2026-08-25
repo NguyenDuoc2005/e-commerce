@@ -1,19 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import { ref } from 'vue'
 import { useSidebarStore } from '@/stores/sidebar'
 import { ROUTES_CONSTANTS } from '@/constants/path'
-import { ROLES } from '@/constants/roles'
 import SidebarItem from './SidebarItem.vue'
 
 const sidebarStore = useSidebarStore()
-const authStore = useAuthStore()
 const isCollapsed = ref(false)
-
-const currentRoles = computed<string[]>(() => {
-  if (authStore.user?.roles?.length) return authStore.user.roles
-  return authStore.user?.role ? [authStore.user.role] : []
-})
 
 const icon = (path: string) => `
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
@@ -40,9 +32,19 @@ const menuGroups = ref([
         routeName: ROUTES_CONSTANTS.ADMIN.children.SELLER_APPROVAL.name,
       },
       {
-        label: 'Quản lý thuộc tính',
+        label: 'Danh mục & Thuộc tính',
         icon: icon('M4 7h10M4 12h16M4 17h7M17 5v4m-2-2h4'),
-        routeName: ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.name,
+        children: [
+          { label: 'Danh mục', routeName: ROUTES_CONSTANTS.ADMIN.children.CATEGORIES.name },
+          { label: 'Thuộc tính sản phẩm', routeName: ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.name },
+        ],
+      },
+      {
+        label: 'Sản phẩm & Nội dung',
+        icon: icon('M9 12h6m-6 4h6M5 4h14a2 2 0 012 2v14H3V6a2 2 0 012-2z'),
+        children: [
+          { label: 'Kiểm duyệt nội dung', routeName: ROUTES_CONSTANTS.ADMIN.children.REPORTS.name },
+        ],
       },
       {
         label: 'Banner trang chủ',
@@ -55,39 +57,11 @@ const menuGroups = ref([
         routeName: ROUTES_CONSTANTS.ADMIN.children.PAYOUT.name,
       },
       {
-        label: 'Tổng quan shop',
-        icon: icon('M3 12h4v8H3zM10 8h4v12h-4zM17 4h4v16h-4z'),
-        routeName: ROUTES_CONSTANTS.SELLER.children.DASHBOARD.name,
-      },
-      {
-        label: 'Đơn seller',
-        icon: icon('M9 12h6m-6 4h6M5 5h14v14H5z'),
-        routeName: ROUTES_CONSTANTS.SELLER.children.ORDERS.name,
-      },
-      {
-        label: 'Sản phẩm shop',
-        icon: icon('M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'),
-        routeName: ROUTES_CONSTANTS.SELLER.children.PRODUCTS.name,
-      },
-      {
-        label: 'Voucher shop',
-        icon: icon('M15 5v14M5 7a2 2 0 012-2h10a2 2 0 012 2v3a2 2 0 010 4v3a2 2 0 01-2 2H7a2 2 0 01-2-2v-3a2 2 0 010-4V7z'),
-        routeName: ROUTES_CONSTANTS.SELLER.children.VOUCHERS.name,
-      },
-      {
-        label: 'Ví đối soát',
-        icon: icon('M3 7h18v10H3zM16 12h2'),
-        routeName: ROUTES_CONSTANTS.SELLER.children.PAYOUT.name,
-      },
-      {
-        label: 'Đánh giá shop',
-        icon: icon('M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z'),
-        routeName: ROUTES_CONSTANTS.SELLER.children.REVIEWS.name,
-      },
-      {
-        label: 'Mua hàng',
-        icon: icon('M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1V10z'),
-        routeName: ROUTES_CONSTANTS.USERS.children.TRANGCHU.name,
+        label: 'Đơn hàng',
+        icon: icon('M3 6h18M5 6l1 14h12l1-14M9 10v6m6-6v6'),
+        children: [
+          { label: 'Xử lý tranh chấp', routeName: ROUTES_CONSTANTS.ADMIN.children.DISPUTES.name },
+        ],
       },
       {
         label: 'Quản trị viên/Phân quyền',
@@ -107,24 +81,6 @@ const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
 }
 
-const visibleMenuItems = (items: any[]) => {
-  const sellerRoutes = new Set([
-    ROUTES_CONSTANTS.SELLER.children.DASHBOARD.name,
-    ROUTES_CONSTANTS.SELLER.children.ORDERS.name,
-    ROUTES_CONSTANTS.SELLER.children.PRODUCTS.name,
-    ROUTES_CONSTANTS.SELLER.children.VOUCHERS.name,
-    ROUTES_CONSTANTS.SELLER.children.PAYOUT.name,
-    ROUTES_CONSTANTS.SELLER.children.REVIEWS.name,
-    ROUTES_CONSTANTS.USERS.children.TRANGCHU.name,
-  ])
-  if (currentRoles.value.includes(ROLES.ADMIN)) {
-    return items.filter((item) => !sellerRoutes.has(item.routeName))
-  }
-  if (currentRoles.value.includes(ROLES.SELLER)) {
-    return items.filter((item) => sellerRoutes.has(item.routeName))
-  }
-  return []
-}
 </script>
 
 <template>
@@ -174,7 +130,7 @@ const visibleMenuItems = (items: any[]) => {
       <template v-for="(menuGroup, groupIndex) in menuGroups" :key="groupIndex">
         <ul class="list-unstyled" role="menu">
           <SidebarItem
-            v-for="(menuItem, index) in visibleMenuItems(menuGroup.menuItems)"
+            v-for="(menuItem, index) in menuGroup.menuItems"
             :key="index"
             :item="menuItem"
             :index="index"

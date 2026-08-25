@@ -60,6 +60,13 @@ export interface AxisInput {
   values: AxisValueInput[]
 }
 
+export interface AxisNameSuggestion {
+  id: string
+  name: string
+  verified: boolean
+  resolvedSuggestionId: string
+}
+
 export interface VariantInput {
   id?: string
   sku: string
@@ -174,6 +181,6 @@ export const getSellerCategoryAttributes = async (categoryId: string, q = '') =>
 export const getAxisNameSuggestions = async (q = '') => {
   const response = (await request.get(`${PREFIX_API_SELLER_PRODUCTS}/variant-axis-name-suggestions`, {
     params: { q }
-  })) as AxiosResponse<Array<{ id: string; name: string; verified: boolean; resolvedSuggestionId: string }>>
+  })) as AxiosResponse<AxisNameSuggestion[]>
   return response.data
 }

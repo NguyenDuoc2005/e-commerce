@@ -32,10 +32,12 @@ import com.ecommerce.catalog.repository.ProductVariantAxisValueRepository;
 import com.ecommerce.catalog.repository.ProductVariantRepository;
 import com.ecommerce.catalog.repository.VariantAxisNameSuggestionRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import com.ecommerce.common.catalog.CatalogVariantSnapshot.VariantSelection;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -432,12 +434,109 @@ public class CatalogProductService {
 
     @Transactional(readOnly = true)
     public Page<Map<String, Object>> publicProducts(ProductSearchRequest request) {
-        if (request.getSellerId() != null && !request.getSellerId().isBlank()) {
-            return productRepository.findBySellerIdAndStatusAndNameContainingIgnoreCaseOrderByCreatedDateDesc(
-                    request.getSellerId(), EntityStatus.ACTIVE, safeQuery(request.getQ()), page(request)).map(this::buildSummary);
+        Map<String, AttributeCriterion> attributeFilters = parseAttributeFilters(request.getAttributeFilters());
+        String query = ProductAggregateValidator.normalize(safeQuery(request.getQ()));
+        List<Product> matches = productRepository.findByStatusOrderByCreatedDateDesc(EntityStatus.ACTIVE).stream()
+                .filter(product -> request.getSellerId() == null || request.getSellerId().isBlank()
+                        || request.getSellerId().equals(product.getSellerId()))
+                .filter(product -> request.getCategoryId() == null || request.getCategoryId().isBlank()
+                        || request.getCategoryId().equals(product.getCategory().getId()))
+                .filter(product -> query.isBlank() || ProductAggregateValidator.normalize(product.getName()).contains(query))
+                .filter(product -> matchesAttributeFilters(product.getId(), attributeFilters))
+                .filter(product -> matchesPrice(product.getId(), request.getMinPrice(), request.getMaxPrice()))
+                .sorted(productComparator(request.getSort()))
+                .toList();
+
+        PageRequest pageable = page(request);
+        int from = Math.min((int) pageable.getOffset(), matches.size());
+        int to = Math.min(from + pageable.getPageSize(), matches.size());
+        List<Map<String, Object>> content = matches.subList(from, to).stream().map(this::buildSummary).toList();
+        return new PageImpl<>(content, pageable, matches.size());
+    }
+
+    private Map<String, AttributeCriterion> parseAttributeFilters(String rawFilters) {
+        if (rawFilters == null || rawFilters.isBlank()) return Map.of();
+        try {
+            JsonNode root = objectMapper.readTree(rawFilters);
+            if (!root.isObject()) throw new IllegalArgumentException("ATTRIBUTE_FILTERS_INVALID");
+            Map<String, AttributeCriterion> result = new LinkedHashMap<>();
+            root.fields().forEachRemaining(entry -> {
+                JsonNode criterion = entry.getValue();
+                if (!criterion.isObject()) throw new IllegalArgumentException("ATTRIBUTE_FILTERS_INVALID");
+                List<String> values = new ArrayList<>();
+                JsonNode valueNode = criterion.get("values");
+                if (valueNode != null && valueNode.isArray()) {
+                    valueNode.forEach(value -> {
+                        if (value.isTextual() && !value.asText().isBlank()) values.add(value.asText().trim());
+                    });
+                }
+                BigDecimal min = decimalOrNull(criterion.get("min"));
+                BigDecimal max = decimalOrNull(criterion.get("max"));
+                if (!values.isEmpty() || min != null || max != null) {
+                    result.put(entry.getKey(), new AttributeCriterion(values, min, max));
+                }
+            });
+            return result;
+        } catch (JsonProcessingException | NumberFormatException exception) {
+            throw new IllegalArgumentException("ATTRIBUTE_FILTERS_INVALID", exception);
         }
-       return productRepository.findByStatusAndNameContainingIgnoreCaseOrderByCreatedDateDesc(
-                EntityStatus.ACTIVE, safeQuery(request.getQ()), page(request)).map(this::buildSummary);
+    }
+
+    private static BigDecimal decimalOrNull(JsonNode node) {
+        return node == null || node.isNull() || node.asText().isBlank() ? null : new BigDecimal(node.asText());
+    }
+
+    private boolean matchesAttributeFilters(String productId, Map<String, AttributeCriterion> filters) {
+        if (filters.isEmpty()) return true;
+        Map<String, List<ProductAttributeValue>> valuesByDefinition = attributeValueRepository
+                .findByProduct_IdOrderByDisplayOrderAsc(productId).stream()
+                .collect(Collectors.groupingBy(value -> value.getDefinition().getId()));
+        return filters.entrySet().stream().allMatch(entry -> {
+            List<ProductAttributeValue> values = valuesByDefinition.getOrDefault(entry.getKey(), List.of());
+            AttributeCriterion criterion = entry.getValue();
+            boolean valuesMatch = criterion.values().isEmpty() || values.stream().anyMatch(value -> {
+                ProductAttributeOption option = value.getOption();
+                if (option != null) {
+                    String resolvedId = option.getMergedIntoOptionId() == null ? option.getId() : option.getMergedIntoOptionId();
+                    return criterion.values().contains(option.getId()) || criterion.values().contains(resolvedId);
+                }
+                String text = ProductAggregateValidator.normalize(value.getValueText());
+                return !text.isBlank() && criterion.values().stream()
+                        .map(ProductAggregateValidator::normalize).anyMatch(text::contains);
+            });
+            boolean rangeMatches = criterion.min() == null && criterion.max() == null || values.stream()
+                    .map(ProductAttributeValue::getValueNumber).filter(Objects::nonNull)
+                    .anyMatch(value -> (criterion.min() == null || value.compareTo(criterion.min()) >= 0)
+                            && (criterion.max() == null || value.compareTo(criterion.max()) <= 0));
+            return valuesMatch && rangeMatches;
+        });
+    }
+
+    private boolean matchesPrice(String productId, BigDecimal minPrice, BigDecimal maxPrice) {
+        if (minPrice == null && maxPrice == null) return true;
+        return variantRepository.findByProduct_IdAndStatusOrderByCreatedDateDesc(productId, EntityStatus.ACTIVE).stream()
+                .map(ProductVariant::getSalePrice)
+                .anyMatch(price -> (minPrice == null || price.compareTo(minPrice) >= 0)
+                        && (maxPrice == null || price.compareTo(maxPrice) <= 0));
+    }
+
+    private Comparator<Product> productComparator(String sort) {
+        Comparator<Product> newest = Comparator.comparing(Product::getCreatedDate,
+                Comparator.nullsLast(Comparator.naturalOrder())).reversed();
+        return switch (sort == null ? "createdAt_desc" : sort) {
+            case "createdAt_asc" -> Comparator.comparing(Product::getCreatedDate,
+                    Comparator.nullsLast(Comparator.naturalOrder()));
+            case "price_asc" -> Comparator.comparing(this::minimumActivePrice,
+                    Comparator.nullsLast(Comparator.naturalOrder())).thenComparing(newest);
+            case "price_desc" -> Comparator.comparing(this::minimumActivePrice,
+                    Comparator.nullsLast(Comparator.reverseOrder())).thenComparing(newest);
+            default -> newest;
+        };
+    }
+
+    private BigDecimal minimumActivePrice(Product product) {
+        return variantRepository.findByProduct_IdAndStatusOrderByCreatedDateDesc(product.getId(), EntityStatus.ACTIVE)
+                .stream().map(ProductVariant::getSalePrice).min(BigDecimal::compareTo).orElse(null);
     }
 
     @Transactional(readOnly = true)
@@ -528,6 +627,25 @@ public class CatalogProductService {
         return detail;
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> internalProduct(String productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+        return buildDetail(product);
+    }
+
+    @Transactional
+    public Map<String, Object> adminDelist(String productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+        if (product.getStatus() != EntityStatus.INACTIVE) {
+            product.setStatus(EntityStatus.INACTIVE);
+            productRepository.save(product);
+            enqueue(productId, "ProductDeleted", null);
+        }
+        return buildDetail(product);
+    }
+
     @Transactional
     public Map<String, Object> reindexAll() {
         List<Product> products = productRepository.findByStatusOrderByCreatedDateDesc(EntityStatus.ACTIVE);
@@ -543,6 +661,8 @@ public class CatalogProductService {
         result.put("name", product.getName());
         result.put("description", product.getDescription());
         result.put("status", product.getStatus());
+        result.put("ratingAverage", product.getRatingAverage());
+        result.put("ratingCount", product.getRatingCount());
         result.put("category", categoryRef(product.getCategory()));
         result.put("productImages", imageRepository.findByProduct_IdAndStatusOrderByDisplayOrderAsc(product.getId(), EntityStatus.ACTIVE)
                 .stream().map(this::imageMap).toList());
@@ -697,6 +817,7 @@ public class CatalogProductService {
         map.put("id", axis.getId());
         map.put("name", axis.getName());
         map.put("normalizedName", axis.getNormalizedName());
+        map.put("nameSuggestionId", axis.getNameSuggestion() == null ? null : axis.getNameSuggestion().getId());
         map.put("displayOrder", axis.getDisplayOrder());
         map.put("values", axisValueRepository.findByAxis_IdAndStatusOrderByDisplayOrderAsc(axis.getId(), EntityStatus.ACTIVE)
                 .stream().map(value -> {
@@ -796,4 +917,6 @@ public class CatalogProductService {
     }
     private static <T> List<T> safe(List<T> values) { return values == null ? List.of() : values; }
     private static Map<String, Object> linkedMap() { return new LinkedHashMap<>(); }
+
+    private record AttributeCriterion(List<String> values, BigDecimal min, BigDecimal max) {}
 }

@@ -23,6 +23,8 @@ public interface SellerRepository extends JpaRepository<Seller, String> {
 
     List<Seller> findByStatusOrderByCreatedAtDesc(SellerStatus status);
 
+    List<Seller> findByIdInAndStatus(List<String> ids, SellerStatus status);
+
     List<Seller> findTop12ByStatusOrderByCreatedAtDesc(SellerStatus status);
 
     List<Seller> findAllByOrderByCreatedAtDesc();

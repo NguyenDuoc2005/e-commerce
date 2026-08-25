@@ -41,7 +41,7 @@
     </a-card>
 
     <a-modal v-model:open="modalOpen" :title="editingId ? 'Sửa sản phẩm' : 'Tạo sản phẩm'" width="1180px"
-      :confirm-loading="saving" ok-text="Lưu aggregate" @ok="submit">
+      :confirm-loading="saving" ok-text="Xem trước" @ok="openPreview">
       <div class="aggregate-form">
         <a-card size="small" title="1. Thông tin chung">
           <div class="grid three">
@@ -67,6 +67,11 @@
           <a-alert type="info" show-icon message="Không giới hạn 50 thông số. Giá trị mới của SELECT được dùng ngay và chờ hậu kiểm." />
           <a-empty v-if="!attributes.length" description="Chọn danh mục để nhận gợi ý" />
           <div v-for="(attribute, index) in attributes" :key="attribute.rowKey" class="attribute-row">
+            <div class="attribute-flags">
+              <a-tag v-if="attribute.required" color="red">Bắt buộc</a-tag>
+              <a-tag v-if="attribute.filterable" color="blue">Dùng để lọc</a-tag>
+              <a-tag v-if="!attribute.definitionId" color="gold">Seller tự thêm · Chờ hậu kiểm</a-tag>
+            </div>
             <div class="grid attribute-grid">
               <a-form-item :label="`Tên ${attribute.required ? '*' : ''}`">
                 <a-input v-model:value="attribute.name" :disabled="Boolean(attribute.definitionId)" />
@@ -95,7 +100,14 @@
           </template>
           <a-alert type="warning" show-icon message="Đổi tên/giá trị trục sẽ sinh lại ma trận. Kiểm tra SKU, giá và tồn trước khi lưu." />
           <div v-for="(axis, axisIndex) in axes" :key="axis.clientKey" class="axis-row">
-            <a-input v-model:value="axis.name" placeholder="Tên trục, ví dụ Màu sắc / Dung lượng" @change="markMatrixDirty" />
+            <a-auto-complete
+              v-model:value="axis.name"
+              :options="axisNameOptions"
+              placeholder="Tên trục, ví dụ Màu sắc / Dung lượng"
+              @search="searchAxisNames"
+              @select="(_value: string, option: any) => selectAxisSuggestion(axis, option)"
+              @change="() => changeAxisName(axis)"
+            />
             <a-select v-model:value="axis.valueLabels" mode="tags" placeholder="Nhập các giá trị" @change="markMatrixDirty" />
             <a-button danger @click="removeAxis(axisIndex)">Xóa trục</a-button>
           </div>
@@ -117,6 +129,27 @@
         </a-card>
       </div>
     </a-modal>
+
+    <a-modal v-model:open="previewOpen" title="4. Xem trước product aggregate" width="1050px"
+      :confirm-loading="saving" ok-text="Xác nhận lưu" cancel-text="Quay lại chỉnh sửa" @ok="submit">
+      <div v-if="previewPayload" class="preview-grid">
+        <a-descriptions bordered :column="2" size="small">
+          <a-descriptions-item label="Sản phẩm">{{ previewPayload.name }}</a-descriptions-item>
+          <a-descriptions-item label="Danh mục">{{ selectedCategoryLabel }}</a-descriptions-item>
+          <a-descriptions-item label="Thông số">{{ previewPayload.attributes.length }}</a-descriptions-item>
+          <a-descriptions-item label="Trục / biến thể">{{ previewPayload.variantAxes.length }} / {{ previewPayload.variants.length }}</a-descriptions-item>
+          <a-descriptions-item label="Mô tả" :span="2">{{ previewPayload.description || '—' }}</a-descriptions-item>
+        </a-descriptions>
+        <a-card size="small" title="Thông số sản phẩm">
+          <a-space wrap><a-tag v-for="item in previewAttributeLabels" :key="item">{{ item }}</a-tag><span v-if="!previewAttributeLabels.length">Không có</span></a-space>
+        </a-card>
+        <a-card size="small" title="Trục phân loại">
+          <div v-for="axis in previewPayload.variantAxes" :key="axis.clientKey"><strong>{{ axis.name }}:</strong> {{ axis.values.map(value => value.value).join(', ') }}</div>
+          <span v-if="!previewPayload.variantAxes.length">Sản phẩm không phân loại</span>
+        </a-card>
+        <a-table :columns="previewVariantColumns" :data-source="previewPayload.variants" row-key="sku" size="small" :pagination="false" />
+      </div>
+    </a-modal>
   </section>
 </template>
 
@@ -128,12 +161,14 @@ import {
   createSellerProduct,
   getSellerCategoryAttributes,
   getSellerCategoryTree,
+  getAxisNameSuggestions,
   getSellerProduct,
   getSellerProducts,
   updateSellerProduct,
   type AttributeDataType,
   type AttributeOption,
   type AxisInput,
+  type AxisNameSuggestion,
   type CategoryNode,
   type EntityStatus,
   type ProductAggregatePayload,
@@ -148,6 +183,7 @@ interface AttributeRow {
   dataType: AttributeDataType
   defaultUnit?: string
   required: boolean
+  filterable: boolean
   options: AttributeOption[]
   valueText?: string
   valueNumber?: number
@@ -175,6 +211,12 @@ const variantColumns = [
   { title: 'Tồn', key: 'stock', width: 120 },
   { title: 'Ảnh', key: 'image', width: 240 }
 ]
+const previewVariantColumns = [
+  { title: 'SKU', dataIndex: 'sku', key: 'sku' },
+  { title: 'Giá', dataIndex: 'salePrice', key: 'salePrice' },
+  { title: 'Tồn kho', dataIndex: 'quantity', key: 'quantity' },
+  { title: 'Ảnh riêng', dataIndex: 'imageUrl', key: 'imageUrl' }
+]
 const dataTypeOptions = [
   { value: 'TEXT', label: 'Văn bản' }, { value: 'NUMBER', label: 'Số' },
   { value: 'SELECT_ONE', label: 'Chọn một' }, { value: 'SELECT_MULTI', label: 'Chọn nhiều' }
@@ -188,11 +230,14 @@ const variants = ref<VariantRow[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const modalOpen = ref(false)
+const previewOpen = ref(false)
+const previewPayload = ref<ProductAggregatePayload>()
 const editingId = ref<string>()
 const keyword = ref('')
 const matrixDirty = ref(false)
 const bulkPrice = ref<number>()
 const bulkStock = ref<number>()
+const axisSuggestions = ref<AxisNameSuggestion[]>([])
 const page = reactive({ current: 1, size: 10, total: 0 })
 const form = reactive<ProductAggregatePayload>({
   categoryId: '', name: '', code: '', description: '', productImages: [], attributes: [], variantAxes: [], variants: []
@@ -209,6 +254,15 @@ const categoryOptions = computed(() => {
   walk(categoryTree.value)
   return result
 })
+const selectedCategoryLabel = computed(() => categoryOptions.value.find(item => item.value === form.categoryId)?.label ?? '—')
+const axisNameOptions = computed(() => axisSuggestions.value.map(item => ({ value: item.name, label: item.verified ? `${item.name} · Đã chuẩn hóa` : item.name, suggestionId: item.resolvedSuggestionId || item.id })))
+const previewAttributeLabels = computed(() => (previewPayload.value?.attributes ?? []).map(item => {
+  const value = item.dataType === 'TEXT' ? item.valueText
+    : item.dataType === 'NUMBER' ? `${item.valueNumber ?? ''}${item.unit ? ` ${item.unit}` : ''}`
+      : [...item.selectedOptionIds, ...item.selectedOptionValues].join(', ')
+  const name = item.name || attributes.value.find(row => row.definitionId === item.definitionId)?.name || 'Thuộc tính'
+  return `${name}: ${value}`
+}))
 
 const uid = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`
 const priceRange = (record: ProductSummary) => {
@@ -233,6 +287,8 @@ const resetForm = () => {
   variants.value = []
   editingId.value = undefined
   matrixDirty.value = false
+  previewPayload.value = undefined
+  previewOpen.value = false
 }
 
 const openCreate = () => {
@@ -245,7 +301,7 @@ const loadSuggestions = async (categoryId: string) => {
   const suggestions = await getSellerCategoryAttributes(categoryId)
   attributes.value = suggestions.map(item => ({
     rowKey: uid(), definitionId: item.definitionId, name: item.name, dataType: item.dataType,
-    defaultUnit: item.defaultUnit, required: item.required, options: item.options || [], unit: item.defaultUnit,
+    defaultUnit: item.defaultUnit, required: item.required, filterable: item.filterable, options: item.options || [], unit: item.defaultUnit,
     selectedTokens: [], displayOrder: item.displayOrder
   }))
 }
@@ -266,7 +322,7 @@ const changeCategory = (categoryId: string) => {
 
 const addImage = () => form.productImages.push({ url: '', displayOrder: form.productImages.length, status: 'ACTIVE' })
 const addCustomAttribute = () => attributes.value.push({
-  rowKey: uid(), name: '', dataType: 'TEXT', required: false, options: [], selectedTokens: [], displayOrder: attributes.value.length + 1
+  rowKey: uid(), name: '', dataType: 'TEXT', required: false, filterable: false, options: [], selectedTokens: [], displayOrder: attributes.value.length + 1
 })
 const addAxis = () => {
   if (axes.value.length >= 2) return
@@ -279,6 +335,20 @@ const removeAxis = (index: number) => {
   markMatrixDirty()
 }
 const markMatrixDirty = () => { matrixDirty.value = true }
+const searchAxisNames = async (query: string) => {
+  try { axisSuggestions.value = await getAxisNameSuggestions(query) }
+  catch { axisSuggestions.value = [] }
+}
+const selectAxisSuggestion = (axis: AxisRow, option: { suggestionId?: string; value: string }) => {
+  axis.name = option.value
+  axis.nameSuggestionId = option.suggestionId
+  markMatrixDirty()
+}
+const changeAxisName = (axis: AxisRow) => {
+  const match = axisSuggestions.value.find(item => item.name.toLocaleLowerCase('vi') === axis.name.trim().toLocaleLowerCase('vi'))
+  axis.nameSuggestionId = match?.resolvedSuggestionId || match?.id
+  markMatrixDirty()
+}
 
 const defaultVariant = (): VariantRow => ({
   localKey: 'DEFAULT', label: 'Mặc định', sku: '', salePrice: 0, quantity: 0,
@@ -302,7 +372,7 @@ const generateMatrix = () => {
   variants.value = combinations.map(combination => {
     const label = combination.map(item => item.value).join(' / ')
     return previous.get(label) || {
-      localKey: combination.map(item => item.key).join('|'), label, sku: '', salePrice: bulkPrice.value || 0,
+      localKey: combination.map(item => item.key).join('|'), label, sku: suggestSku(combination.map(item => item.value)), salePrice: bulkPrice.value || 0,
       quantity: bulkStock.value || 0, defaultVariant: false, status: 'ACTIVE',
       selectionValueKeys: combination.map(item => item.key), enabled: true
     }
@@ -311,6 +381,11 @@ const generateMatrix = () => {
     axis.values = prepared[axisIndex].map((item, valueIndex) => ({ clientKey: item.key, value: item.value, displayOrder: valueIndex + 1 }))
   })
   matrixDirty.value = false
+}
+const suggestSku = (values: string[]) => {
+  const base = (form.code || form.name || 'SKU').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toUpperCase()
+  const suffix = values.map(value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toUpperCase()).join('-')
+  return [base || 'SKU', suffix].filter(Boolean).join('-')
 }
 
 const applyBulk = () => variants.value.forEach(variant => {
@@ -332,16 +407,16 @@ const openEdit = async (id: string) => {
     const suggestion = suggestionMap.get(item.definitionId || '')
     return {
       rowKey: uid(), definitionId: item.definitionId, name: suggestion?.name || item.name || '', dataType: item.dataType,
-      defaultUnit: suggestion?.defaultUnit, required: suggestion?.required || false, options: suggestion?.options || [],
+      defaultUnit: suggestion?.defaultUnit, required: suggestion?.required || false, filterable: suggestion?.filterable || false, options: suggestion?.options || [],
       valueText: item.valueText, valueNumber: item.valueNumber, unit: item.unit || suggestion?.defaultUnit,
       selectedTokens: item.selectedOptions?.map(option => option.resolvedOptionId || option.id) || [], displayOrder: item.displayOrder || index + 1
     }
   })
-  suggestions.filter(item => item.required && !attributes.value.some(row => row.definitionId === item.definitionId)).forEach(item =>
+  suggestions.filter(item => !attributes.value.some(row => row.definitionId === item.definitionId)).forEach(item =>
     attributes.value.push({ rowKey: uid(), definitionId: item.definitionId, name: item.name, dataType: item.dataType,
-      defaultUnit: item.defaultUnit, required: true, options: item.options, unit: item.defaultUnit, selectedTokens: [], displayOrder: item.displayOrder }))
+      defaultUnit: item.defaultUnit, required: item.required, filterable: item.filterable, options: item.options, unit: item.defaultUnit, selectedTokens: [], displayOrder: item.displayOrder }))
   axes.value = detail.variantAxes.map((axis, axisIndex) => ({
-    id: axis.id, clientKey: axis.id || `axis-${axisIndex}`, name: axis.name, displayOrder: axis.displayOrder,
+    id: axis.id, clientKey: axis.id || `axis-${axisIndex}`, name: axis.name, nameSuggestionId: axis.nameSuggestionId, displayOrder: axis.displayOrder,
     values: axis.values.map((value, valueIndex) => ({ id: value.id, clientKey: value.id || `value-${axisIndex}-${valueIndex}`, value: value.value, displayOrder: value.displayOrder })),
     valueLabels: axis.values.map(value => value.value)
   }))
@@ -371,7 +446,7 @@ const buildPayload = (): ProductAggregatePayload => {
       selectedOptionValues: row.selectedTokens.filter(token => !optionIds(row).has(token)), displayOrder: index + 1
     })),
     variantAxes: axes.value.map((axis, axisIndex) => ({
-      id: axis.id, clientKey: axis.clientKey, name: axis.name.trim(), displayOrder: axisIndex + 1,
+      id: axis.id, clientKey: axis.clientKey, name: axis.name.trim(), nameSuggestionId: axis.nameSuggestionId, displayOrder: axisIndex + 1,
       values: axis.values.map((value, valueIndex) => ({ ...value, value: value.value.trim(), displayOrder: valueIndex + 1 }))
     })),
     variants: variants.value.filter(item => item.enabled).map(item => ({
@@ -381,21 +456,50 @@ const buildPayload = (): ProductAggregatePayload => {
   }
 }
 
-const submit = async () => {
+const normalizeValue = (value: string) => value.trim().toLocaleLowerCase('vi')
+const validateAggregate = () => {
   if (!form.categoryId || !form.name.trim()) return void message.warning('Danh mục và tên sản phẩm là bắt buộc')
   const missingRequired = attributes.value.find(row => row.required && !hasAttributeValue(row))
   if (missingRequired) return void message.warning(`Thiếu thông số bắt buộc: ${missingRequired.name}`)
+  const invalidCustom = attributes.value.find(row => !row.definitionId && hasAttributeValue(row) && !row.name.trim())
+  if (invalidCustom) return void message.warning('Thuộc tính Seller tự thêm phải có tên')
+  if (axes.value.length > 2) return void message.warning('Sản phẩm chỉ được có tối đa 2 trục biến thể')
+  const axisNames = axes.value.map(axis => normalizeValue(axis.name))
+  if (axisNames.some(name => !name) || new Set(axisNames).size !== axisNames.length) return void message.warning('Tên trục biến thể không được trống hoặc trùng nhau')
+  const invalidAxis = axes.value.find(axis => {
+    const values = axis.valueLabels.map(normalizeValue)
+    return !values.length || values.some(value => !value) || new Set(values).size !== values.length
+  })
+  if (invalidAxis) return void message.warning(`Trục ${invalidAxis.name || 'chưa đặt tên'} cần giá trị không trống và không trùng`)
   if (matrixDirty.value) generateMatrix()
+  if (matrixDirty.value) return false
   const enabled = variants.value.filter(item => item.enabled)
   if (!enabled.length || enabled.some(item => !item.sku.trim())) return void message.warning('Cần ít nhất một variant và mọi SKU phải có giá trị')
+  const normalizedSkus = enabled.map(item => normalizeValue(item.sku))
+  if (new Set(normalizedSkus).size !== normalizedSkus.length) return void message.warning('SKU phải duy nhất trong phạm vi sản phẩm')
+  if (enabled.some(item => item.salePrice == null || item.salePrice < 0 || item.quantity == null || item.quantity < 0)) return void message.warning('Giá và tồn kho của variant phải lớn hơn hoặc bằng 0')
+  return true
+}
+
+const openPreview = () => {
+  if (!validateAggregate()) return
+  previewPayload.value = buildPayload()
+  previewOpen.value = true
+}
+
+const submit = async () => {
+  if (!validateAggregate()) return
   saving.value = true
   try {
-    const payload = buildPayload()
+    const payload = previewPayload.value ?? buildPayload()
     if (editingId.value) await updateSellerProduct(editingId.value, payload)
     else await createSellerProduct(payload)
     message.success('Đã lưu product aggregate')
+    previewOpen.value = false
     modalOpen.value = false
     await loadProducts()
+  } catch (error: any) {
+    message.error(error?.response?.data?.message ?? 'Không lưu được product aggregate')
   } finally { saving.value = false }
 }
 
@@ -411,7 +515,8 @@ const changePage = (next: { current: number; pageSize: number }) => {
 }
 
 onMounted(async () => {
-  categoryTree.value = await getSellerCategoryTree()
+  const [tree] = await Promise.all([getSellerCategoryTree(), searchAxisNames('')])
+  categoryTree.value = tree
   await loadProducts()
 })
 </script>
@@ -433,10 +538,12 @@ onMounted(async () => {
 .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .attribute-grid { grid-template-columns: 1.2fr 160px minmax(280px, 2fr) 56px; align-items: end; }
 .attribute-row, .axis-row { padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 12px; }
+.attribute-flags { display: flex; gap: 6px; margin-bottom: 8px; }
 .axis-row { display: grid; grid-template-columns: 220px 1fr 70px; gap: 12px; }
 .inline-row { display: grid; grid-template-columns: 1fr 70px; gap: 10px; margin-top: 10px; }
 .matrix-actions { justify-content: flex-start; flex-wrap: wrap; margin: 14px 0; }
 .remove-button { margin-bottom: 24px; }
+.preview-grid { display: grid; gap: 14px; max-height: 70vh; overflow-y: auto; }
 @media (max-width: 900px) {
   .seller-products { padding: 12px; }
   .grid.three, .attribute-grid, .axis-row { grid-template-columns: 1fr; }

@@ -15,6 +15,7 @@
               <a-button v-if="authStore.isAuthenticated" :loading="followLoading" @click="toggleFollow">
                 {{ following ? 'Bo theo doi' : 'Theo doi shop' }}
               </a-button>
+              <ReportButton target-type="SHOP" :target-id="shop.id" />
             </a-space>
           </div>
         </div>
@@ -64,6 +65,7 @@
               <a-rate :value="item.shopRating" disabled />
               <p>{{ item.comment || 'Khach hang khong de lai binh luan.' }}</p>
               <a-alert v-if="item.sellerReply" type="info" :message="`Phan hoi cua shop: ${item.sellerReply}`" />
+              <ReportButton target-type="REVIEW" :target-id="item.id" label="Báo cáo đánh giá" />
             </a-list-item>
           </template>
         </a-list>
@@ -81,6 +83,7 @@ import { followShop, getPublicShop, getShopFollowState, unfollowShop, type Selle
 import { getPublicReviews, type Review } from '@/services/api/seller/review.api'
 import { getCatalogProducts, type CatalogSummary } from '@/services/api/catalog/catalog.api'
 import { useAuthStore } from '@/stores/auth'
+import ReportButton from '@/components/report/ReportButton.vue'
 
 type PublicSellerResponse = SellerResponse & {
   rating?: number

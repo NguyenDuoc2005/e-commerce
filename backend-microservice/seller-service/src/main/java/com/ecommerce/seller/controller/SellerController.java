@@ -63,6 +63,11 @@ public class SellerController {
         return ResponseUtils.createResponseEntity(sellerService.publicShops());
     }
 
+    @GetMapping("/api/v1/permitall/shops/by-ids")
+    public ResponseEntity<?> publicShopsByIds(@RequestParam List<String> ids) {
+        return ResponseUtils.createResponseEntity(sellerService.publicProfiles(ids));
+    }
+
     @GetMapping("/api/v1/permitall/shops/{sellerId}/follow")
     public ResponseEntity<?> followState(@PathVariable String sellerId, HttpServletRequest request) {
         return ResponseEntity.ok(Map.of("data", sellerService.followState(sellerId, principalResolver.customerId(request))));

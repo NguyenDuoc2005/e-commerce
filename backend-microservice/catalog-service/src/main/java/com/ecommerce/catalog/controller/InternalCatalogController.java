@@ -20,6 +20,12 @@ public class InternalCatalogController {
     @GetMapping("/products")
     public Object products() { return service.activeProductSummaries(); }
 
+    @GetMapping("/products/{productId}")
+    public Object product(@PathVariable String productId) { return service.internalProduct(productId); }
+
+    @PostMapping("/products/{productId}/delist")
+    public Object delist(@PathVariable String productId) { return service.adminDelist(productId); }
+
     @GetMapping("/products/{productId}/variants")
     public Object variants(@PathVariable String productId) { return service.productVariantSnapshots(productId); }
 

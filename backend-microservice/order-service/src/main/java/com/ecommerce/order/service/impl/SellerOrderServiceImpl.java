@@ -3,6 +3,7 @@ package com.ecommerce.order.service.impl;
 import com.ecommerce.order.client.PayoutClient;
 import com.ecommerce.order.client.NotificationClient;
 import com.ecommerce.order.constant.OrderStatusConstant;
+import com.ecommerce.order.repository.OrderSellerRepository;
 import com.ecommerce.order.service.SellerOrderService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
@@ -18,11 +20,14 @@ import java.time.ZoneId;
 public class SellerOrderServiceImpl implements SellerOrderService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final OrderSellerRepository orderSellerRepository;
     private final PayoutClient payoutClient;
     private final NotificationClient notificationClient;
 
-    public SellerOrderServiceImpl(JdbcTemplate jdbcTemplate, PayoutClient payoutClient, NotificationClient notificationClient) {
+    public SellerOrderServiceImpl(JdbcTemplate jdbcTemplate, OrderSellerRepository orderSellerRepository,
+                                  PayoutClient payoutClient, NotificationClient notificationClient) {
         this.jdbcTemplate = jdbcTemplate;
+        this.orderSellerRepository = orderSellerRepository;
         this.payoutClient = payoutClient;
         this.notificationClient = notificationClient;
     }
@@ -97,6 +102,19 @@ public class SellerOrderServiceImpl implements SellerOrderService {
                 GROUP BY DATE_FORMAT(FROM_UNIXTIME(created_date / 1000), '%Y-%m-%d')
                 ORDER BY date
                 """, sellerId, OrderStatusConstant.HOAN_THANH.ordinal(), today.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()));
+        return result;
+    }
+
+    @Override
+    public Map<String, Long> soldCounts(List<String> sellerIds) {
+        if (sellerIds == null || sellerIds.isEmpty()) return Map.of();
+        List<String> ids = sellerIds.stream().filter(Objects::nonNull).map(String::trim)
+                .filter(id -> !id.isBlank()).distinct().toList();
+        if (ids.isEmpty()) return Map.of();
+        Map<String, Long> result = new LinkedHashMap<>();
+        ids.forEach(id -> result.put(id, 0L));
+        orderSellerRepository.findSoldCounts(ids, OrderStatusConstant.HOAN_THANH.ordinal())
+                .forEach(row -> result.put(row.getSellerId(), row.getSoldCount() == null ? 0L : row.getSoldCount()));
         return result;
     }
 

@@ -54,6 +54,10 @@ export const ROUTES_CONSTANTS = {
         path: 'don-mua-detail/:maHoaDon/:id',
         name: 'don-mua-detail'
       },
+      DISPUTES: {
+        path: 'khieu-nai',
+        name: 'buyer-disputes'
+      },
       THONGTINCANHAN: {
         path: 'thong-tin-ca-nhan',
         name: 'thong-tin-ca-nhan'
@@ -129,9 +133,21 @@ export const ROUTES_CONSTANTS = {
         path: 'payout',
         name: 'payout-admin'
       },
+      DISPUTES: {
+        path: 'disputes',
+        name: 'disputes-admin'
+      },
+      REPORTS: {
+        path: 'reports',
+        name: 'reports-admin'
+      },
       PRODUCT_ATTRIBUTES: {
         path: 'product-attributes',
         name: 'product-attributes-admin'
+      },
+      CATEGORIES: {
+        path: 'categories',
+        name: 'categories-admin'
       },
       DOT_GIAM_GIA: {
         path: 'dot-giam-gia',
@@ -175,6 +191,14 @@ export const ROUTES_CONSTANTS = {
       REVIEWS: {
         path: 'reviews',
         name: 'seller-reviews'
+      },
+      DISPUTES: {
+        path: 'disputes',
+        name: 'seller-disputes'
+      },
+      PROFILE: {
+        path: 'profile',
+        name: 'seller-profile'
       },
     }
   },

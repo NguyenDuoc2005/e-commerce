@@ -3,11 +3,14 @@ package com.ecommerce.payout.service;
 import com.ecommerce.payout.entity.CommissionConfig;
 import com.ecommerce.payout.entity.SellerReceivable;
 import com.ecommerce.payout.entity.SellerWallet;
+import com.ecommerce.payout.entity.PayoutAdjustment;
 import com.ecommerce.payout.model.CommissionConfigRequest;
+import com.ecommerce.payout.model.DisputeAdjustmentRequest;
 import com.ecommerce.payout.model.ReceivableRequest;
 import com.ecommerce.payout.repository.CommissionConfigRepository;
 import com.ecommerce.payout.repository.SellerReceivableRepository;
 import com.ecommerce.payout.repository.SellerWalletRepository;
+import com.ecommerce.payout.repository.PayoutAdjustmentRepository;
 import com.ecommerce.payout.client.NotificationClient;
 import com.ecommerce.payout.client.SellerClient;
 import com.ecommerce.payout.client.UserClient;
@@ -28,6 +31,7 @@ public class PayoutService {
     private final SellerClient sellerClient;
     private final UserClient userClient;
     private final NotificationClient notificationClient;
+    private final PayoutAdjustmentRepository adjustmentRepository;
 
     public PayoutService(
             CommissionConfigRepository commissionConfigRepository,
@@ -35,7 +39,8 @@ public class PayoutService {
             SellerWalletRepository walletRepository,
             SellerClient sellerClient,
             UserClient userClient,
-            NotificationClient notificationClient
+            NotificationClient notificationClient,
+            PayoutAdjustmentRepository adjustmentRepository
     ) {
         this.commissionConfigRepository = commissionConfigRepository;
         this.receivableRepository = receivableRepository;
@@ -43,6 +48,7 @@ public class PayoutService {
         this.sellerClient = sellerClient;
         this.userClient = userClient;
         this.notificationClient = notificationClient;
+        this.adjustmentRepository = adjustmentRepository;
     }
 
     public List<CommissionConfig> commissionConfigs() {
@@ -99,6 +105,60 @@ public class PayoutService {
         walletRepository.save(wallet);
         notifyPaid(saved);
         return saved;
+    }
+
+    @Transactional
+    public PayoutAdjustment applyDisputeAdjustment(DisputeAdjustmentRequest request) {
+        if (request.getDisputeId() == null || request.getDisputeId().isBlank()
+                || request.getRefundAmount() == null || request.getRefundAmount() <= 0) {
+            throw new IllegalArgumentException("Thong tin dieu chinh tranh chap khong hop le");
+        }
+        return adjustmentRepository.findByDisputeId(request.getDisputeId())
+                .orElseGet(() -> applyNewDisputeAdjustment(request));
+    }
+
+    private PayoutAdjustment applyNewDisputeAdjustment(DisputeAdjustmentRequest request) {
+        SellerReceivable receivable = receivableRepository.findByOrderSellerId(request.getOrderSellerId())
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay khoan doi soat cua don hang"));
+        if (!receivable.getSellerId().equals(request.getSellerId())) {
+            throw new IllegalArgumentException("Khoan doi soat khong thuoc nha ban");
+        }
+        double refund = request.getRefundAmount();
+        double gross = receivable.getGrossAmount() == null ? 0D : receivable.getGrossAmount();
+        if (refund > gross) {
+            throw new IllegalArgumentException("So tien hoan vuot qua gia tri don hang");
+        }
+
+        SellerWallet wallet = sellerWallet(receivable.getSellerId());
+        if ("PENDING".equals(receivable.getStatus())) {
+            double oldNet = receivable.getNetAmount() == null ? 0D : receivable.getNetAmount();
+            double newGross = gross - refund;
+            double rate = receivable.getCommissionRate() == null ? 0D : receivable.getCommissionRate();
+            double newCommission = Math.round(newGross * rate) / 100D;
+            double newNet = newGross - newCommission;
+            receivable.setGrossAmount(newGross);
+            receivable.setCommissionAmount(newCommission);
+            receivable.setNetAmount(newNet);
+            if (newGross == 0D) receivable.setStatus("CANCELLED_BY_DISPUTE");
+            receivableRepository.save(receivable);
+            wallet.setPendingAmount(wallet.getPendingAmount() - (oldNet - newNet));
+        } else if ("PAID".equals(receivable.getStatus())) {
+            // A negative pending balance is intentional: future receivables offset a refund
+            // that was granted after this seller had already been paid.
+            wallet.setPendingAmount(wallet.getPendingAmount() - refund);
+        } else {
+            throw new IllegalArgumentException("Trang thai khoan doi soat khong cho phep dieu chinh");
+        }
+        wallet.setUpdatedAt(Instant.now());
+        walletRepository.save(wallet);
+
+        PayoutAdjustment adjustment = new PayoutAdjustment();
+        adjustment.setDisputeId(request.getDisputeId());
+        adjustment.setOrderSellerId(request.getOrderSellerId());
+        adjustment.setSellerId(request.getSellerId());
+        adjustment.setAmount(-refund);
+        adjustment.setReason(request.getReason());
+        return adjustmentRepository.save(adjustment);
     }
 
     private SellerReceivable createNewReceivable(ReceivableRequest request) {

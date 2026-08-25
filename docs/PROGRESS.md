@@ -1,9 +1,9 @@
 # PROGRESS.md - Nhat ky tien do chuyen doi Marketplace
 
 ## Trang thai tong quan hien tai
-- Giai doan: Rollout theo prompt marketplace moi, da hoan tat PR NHOM 3 va san sang sang PR NHOM 4.
-- Task dang lam do (neu co): Khong. PR NHOM 3 da PASS source audit, backend compile/test, FE build/typecheck, API runtime va browser smoke Admin.
-- Viec tiep theo can lam ngay: Bat dau PR NHOM 4 theo dung thu tu: tao `PlatformAdminLayout.vue`, `SellerCenterLayout.vue`, tach `AdminSidebar.vue`/`SellerSidebar.vue`, cap nhat router va browser smoke role/layout.
+- Giai doan: Rollout theo prompt marketplace moi, da hoan tat PR NHOM 10 va san sang sang PR NHOM 11.
+- Task dang lam do (neu co): Khong. PR NHOM 10 da PASS backend test/compile, FE typecheck va production build.
+- Viec tiep theo can lam ngay: Bat dau PR NHOM 11: hoan thien payout workflow va audit soldCount theo event/outbox.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
@@ -30,15 +30,344 @@
 - [x] PR NHOM 2 runtime gateway/API: Jar moi restart, route POS tra 404, route order/admin con dung tra 200
 - [x] PR NHOM 2 browser: Login buyer that, gio hang 2 shop/2 san pham, vao `/thanh-toan` va hien du 2 san pham
 - [x] PR NHOM 3: Doi ten menu Admin va hoan tat Nguoi dung/Quan tri vien/Voucher san
-- [ ] PR NHOM 4: Tach layout/sidebar Admin va Seller
+- [x] PR NHOM 4: Tach layout/sidebar Admin va Seller
+- [x] PR NHOM 5: Category Management UI, tree CRUD/status va attribute suggestions
+- [x] PR NHOM 6: Admin hau kiem thuoc tinh day du 5 tab
 - [ ] Chuan hoa san pham: schema target + reset seed demo da nganh, xoa 6 bang hard-code
-- [ ] Thuoc tinh dong: Seller suggestion/autocomplete/tu them tren form san pham
-- [ ] Thuoc tinh dong: Buyer filter theo danh muc va product detail
-- [ ] Thuoc tinh dong: Platform Admin hau kiem/chuan hoa/gop/an
+- [x] Thuoc tinh dong: Seller suggestion/autocomplete/tu them tren form san pham
+- [x] Thuoc tinh dong: Buyer filter theo danh muc va product detail
+- [x] Thuoc tinh dong: Platform Admin hau kiem/chuan hoa/gop/an
+- [x] Dispute: Buyer tao/trao doi, Seller phan hoi, Admin resolve/dong va payout adjustment
+- [x] Report: Buyer/Seller bao cao product/shop/review, Admin kiem duyet va thi hanh action
 - [ ] Chat buyer-seller
 - [ ] Flash sale toan san
 
 ## Nhat ky chi tiet
+
+### [2026-08-25 18:45] Phien #41
+**Da lam:**
+- Doc `docs/PROGRESS.md`, hien trang seller/catalog/review trong `HE_THONG_HIEN_TAI_MARKETPLACE.md` va dung Muc 5 + Muc 6/PR NHOM 10 trong `docs/Prompt chuyen doi marketplace.md`.
+- Audit xac nhan `danh_gia.status` da ton tai trong entity va public query da chi doc `VISIBLE`; khong them trung cot, chi bo sung setter/action an va tinh lai rating product sau khi an.
+- Tao entity/repository/schema `report` trong seller-service, dung ID `VARCHAR(36)` theo convention service that; ho tro PRODUCT/SHOP/REVIEW/USER, JSON evidence, PENDING/REVIEWING/ACTION_TAKEN/DISMISSED va ghi note/staff/time xu ly.
+- Implement `POST /api/v1/buyer/reports` va `POST /api/v1/seller/reports`; validate target ton tai, target/reason enum va ngan trung bao cao dang cho xu ly cua cung reporter.
+- Implement Admin list/filter/detail, tiep nhan `PENDING -> REVIEWING` va resolve voi kiem tra action phu hop target.
+- `PRODUCT_DELISTED`: them internal catalog API an product `INACTIVE` va ghi outbox `ProductDeleted`; public catalog tu dong khong con doc product.
+- `SHOP_SUSPENDED`: dung lai SellerService suspend, tao status history va notification nhu flow admin seller co san; public shop chi doc APPROVED nen shop bi an.
+- `REVIEW_HIDDEN`: set review HIDDEN, public review khong con hien va cap nhat lai rating average/count sang catalog.
+- `WARNING_SENT`: tim owner/customer vi pham theo target va gui email qua notification-service; `NO_ACTION` chuyen report sang DISMISSED.
+- Gateway them buyer/admin report route; seller report da nam trong route protected `/api/v1/seller/**`; filter role generic hien tai enforce USERS/SELLER/ADMIN.
+- Tao component report modal dung chung; them nut bao cao tai product detail, shop card/trang shop va tung review; Seller Center co nut report review gia.
+- Tao trang `/admin/reports`, menu `San pham & Noi dung -> Kiem duyet noi dung`, filter/detail/tiep nhan/chon action/ghi chu xu ly.
+- Bo sung unit test tao report tu du 3 nguon, resolve delist/suspend/hide, review rating recalculation va catalog product delist/outbox.
+
+**File da tao/sua chinh:**
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/entity/Report.java`
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/{repository/ReportRepository.java,model/CreateReportRequest.java,model/ResolveReportRequest.java}`
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/{service/ReportService.java,controller/ReportController.java}`
+- `backend-microservice/seller-service/src/main/resources/db/migration/manual/m10_report_up.sql`
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/{entity/Review.java,service/ReviewService.java,client/CatalogClient.java}`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/{controller/InternalCatalogController.java,service/CatalogProductService.java}`
+- `backend-microservice/seller-service/src/test/java/com/ecommerce/seller/service/{ReportServiceTest.java,ReviewModerationTest.java}`
+- `backend-microservice/catalog-service/src/test/java/com/ecommerce/catalog/service/CatalogProductAttributeRulesTest.java`
+- `backend-microservice/api-gateway/src/main/resources/application.yml`
+- `FE/src/services/api/report/report.api.ts`, `FE/src/components/report/ReportButton.vue`
+- `FE/src/pages/admin/reports/AdminReports.vue`
+- `FE/src/pages/users/products/ProductDetail.vue`, `FE/src/pages/users/seller/ShopDetail.vue`, `FE/src/pages/seller/reviews/SellerReviews.vue`
+- `FE/src/constants/path.ts`, `FE/src/routes/router.ts`, `FE/src/components/custom/Sidebar/AdminSidebar.vue`
+
+**Ket qua:** DONE PR NHOM 10 ve source/API/UI contract. Report tao duoc tu product/shop/review; Admin action tac dong dung service so huu va status report duoc chot theo ket qua.
+
+**Kiem chung:**
+- `gradlew :catalog-service:test :seller-service:test :api-gateway:compileJava --no-daemon --max-workers=1`: PASS.
+- `ReportServiceTest`: PASS 6 test, gom tao du 3 target, delist/suspend/hide, warning va dismiss.
+- `ReviewModerationTest`: PASS, review thanh HIDDEN va rating aggregate duoc cap nhat.
+- `CatalogProductAttributeRulesTest.adminDelistMakesProductInactive`: PASS, product INACTIVE va outbox duoc ghi.
+- `FE/node_modules/.bin/vue-tsc.cmd --noEmit`: PASS.
+- `C:\nvm4w\nodejs\npm.cmd run build`: PASS, Vite build 3558 modules.
+- `git diff --check`: PASS, chi warning LF/CRLF cua worktree.
+
+**Ghi chu/vuong mac:**
+- Runtime stack dang chay la artifact cu va chua restart/migrate trong phien nay; acceptance duoc kiem chung bang unit test cac action that, compile va FE production build, khong ghi report/suspend/an du lieu vao DB local.
+- Manual schema co `resolution_note` bo sung de khong lam mat field `note` cua API resolve, ngoai cac cot bat buoc trong Muc 5.2.
+- FE build van co warning font Inter khong resolve tai build-time va chunk lon hon 500 kB; khong lam build fail.
+- Gradle test cap nhat generated build metadata tracked; khong dung git restore/reset de tranh ghi de thay doi co san.
+
+**Viec tiep theo can lam ngay:**
+- PR NHOM 11: audit va hoan thien payout lifecycle pending -> available -> paid, payout history va soldCount/event theo dung Muc 6.
+
+---
+
+### [2026-08-25 18:10] Phien #40
+**Da lam:**
+- Doc `docs/PROGRESS.md`, hien trang order/payout/gateway/FE trong `HE_THONG_HIEN_TAI_MARKETPLACE.md` va dung Muc 4 + Muc 6/PR NHOM 9 trong `docs/Prompt chuyen doi marketplace.md`.
+- Tao domain `dispute`, `dispute_message` trong order-service bang JPA va SQL migration thu cong, dung ID `VARCHAR(36)` theo schema that cua he thong; co JSON evidence/attachment, index ownership/status/date va day du timestamp/ket qua xu ly.
+- Implement API Buyer: tao dispute chi khi `order_seller.order_status=HOAN_THANH`, validate ownership/type/so tien, list/detail theo customer va gui message khi ho so chua ket thuc.
+- Implement API Seller: list/detail dung seller ownership, phan hoi va chuyen `OPEN -> SELLER_RESPONDED`.
+- Implement API Admin: list/filter status/seller/date voi uu tien ho so moi, detail kem sub-order/items/messages, `take-review`, resolve full/partial/reject va close theo state machine.
+- Tich hop payout idempotent theo `disputeId`: receivable `PENDING` duoc giam gross/commission/net va wallet pending; receivable `PAID` tao `DISPUTE_ADJUSTMENT` am va ghi no vao pending de bu ky sau.
+- Them gateway route buyer/seller/admin disputes va enforce JWT role `USERS`/`SELLER`/`ADMIN`; gateway tiep tuc truyen `X-User-Id`, `X-Seller-Id` tu claim.
+- FE Buyer: them form khieu nai theo tung sub-order/shop tai chi tiet don da hoan thanh, route `/khieu-nai`, danh sach/chi tiet/message.
+- FE Seller: thay placeholder `/seller/disputes` bang workspace list/detail/respond.
+- FE Admin: them `/admin/disputes`, menu `Don hang -> Xu ly tranh chap`, filter/tiep nhan/resolve/dong ho so.
+- Bo sung du lieu `orderSellerId`, seller/shop va tong sub-order vao API chi tiet don buyer de form chon dung shop.
+- Them unit test eligibility, seller ownership, partial refund -> payout; them test payout cho ca receivable PENDING va PAID.
+
+**File da tao/sua chinh:**
+- `backend-microservice/order-service/src/main/java/com/ecommerce/order/{entity,repository,model/request,service,controller}` (Dispute)
+- `backend-microservice/order-service/src/main/resources/db/migration/manual/m9_dispute_up.sql`
+- `backend-microservice/order-service/src/test/java/com/ecommerce/order/service/DisputeServiceTest.java`
+- `backend-microservice/payout-service/src/main/java/com/ecommerce/payout/{entity,model,repository,service,controller}` (PayoutAdjustment)
+- `backend-microservice/payout-service/src/main/resources/db/migration/manual/m9_payout_adjustment_up.sql`
+- `backend-microservice/payout-service/src/test/java/com/ecommerce/payout/service/PayoutServiceDisputeAdjustmentTest.java`
+- `backend-microservice/api-gateway/src/main/java/com/ecommerce/gateway/security/AdminAuthorizationFilter.java`
+- `backend-microservice/api-gateway/src/main/resources/application.yml`
+- `FE/src/services/api/dispute/dispute.api.ts`
+- `FE/src/components/dispute/DisputeWorkspace.vue`
+- `FE/src/pages/users/disputes/BuyerDisputes.vue`
+- `FE/src/pages/seller/disputes/SellerDisputes.vue`
+- `FE/src/pages/admin/disputes/AdminDisputes.vue`
+- `FE/src/pages/users/orderhistory/OrderDetail.vue`
+- `FE/src/constants/path.ts`, `FE/src/routes/router.ts`, `FE/src/components/custom/Sidebar/AdminSidebar.vue`
+
+**Ket qua:** DONE PR NHOM 9 ve source/API/UI contract. State machine va ownership duoc validate o backend; refund co tac dong tai chinh idempotent len receivable/wallet.
+
+**Kiem chung:**
+- `gradlew :order-service:compileJava :payout-service:compileJava :api-gateway:compileJava --no-daemon --max-workers=1`: PASS.
+- `gradlew :order-service:test --tests com.ecommerce.order.service.DisputeServiceTest`: PASS, 3 test.
+- `gradlew :payout-service:test --tests com.ecommerce.payout.service.PayoutServiceDisputeAdjustmentTest`: PASS, 2 test.
+- `FE/node_modules/.bin/vue-tsc.cmd --noEmit`: PASS.
+- `C:\nvm4w\nodejs\npm.cmd run build`: PASS, Vite build 3552 modules.
+- `git diff --check`: PASS, chi warning LF/CRLF cua worktree.
+
+**Ghi chu/vuong mac:**
+- Order hien tai khong co status `DELIVERED` rieng; theo enum va workflow that, `HOAN_THANH=4` la trang thai da giao/hoan tat duoc dung de mo dispute.
+- He thong chua co payment refund provider/API; PR nay phan anh so tien hoan vao so doi soat seller theo dung pham vi Muc 4.6. Viec chuyen tien nguoc ve buyer can payment provider neu duoc bo sung sau.
+- Runtime stack dang chay la artifact cu va chua duoc restart/migrate trong phien nay; acceptance duoc kiem chung bang compile, unit test state/financial branches va FE production build, khong ghi du lieu smoke vao DB local.
+- Gradle compile/test cap nhat mot so generated build metadata tracked; khong dung git restore/reset de tranh ghi de thay doi co san.
+
+**Viec tiep theo can lam ngay:**
+- PR NHOM 10: Module Report theo Muc 5 cho product/shop/review, action admin va FE bao cao/xu ly.
+
+---
+
+### [2026-08-25 16:32] Phien #39
+**Da lam:**
+- Doc `docs/PROGRESS.md`, hien trang Buyer catalog/product detail trong `HE_THONG_HIEN_TAI_MARKETPLACE.md` va dung Muc 6/PR NHOM 8 trong `docs/Prompt chuyen doi marketplace.md`.
+- Audit phat hien FE da co khung filter dong nhung backend `publicProducts` bo qua `categoryId`, `attributeFilters`, min/max price va sort; sua backend de loc that theo category, TEXT/SELECT/NUMBER attribute, price cua active variant va 4 kieu sort.
+- Trang `/san-pham` chi hien category leaf theo path cay; sau khi chon category chi render suggestion co `filterable=true`, ho tro text, numeric range va option canonical `resolvedOptionId`; khong con filter giay hard-code.
+- Card san pham hien shop name, product rating/rating count va sold count; them API batch public shop theo seller IDs de khong goi N+1 tu FE.
+- Them internal batch `GET /internal/orders/sellers/sold-counts`: cong `order_item.quantity` chi tren `order_seller.order_status=HOAN_THANH`; seller-service dung ket qua that thay cho `soldCount=0` hard-code.
+- Trang `/san-pham-chi-tiet/:idsp` tach block `Thong so san pham`, `Chon phan loai`, shop card va review; hien dung selected option/number unit va seller reply.
+- Sua logic variant: khoi tao default combination con hang, bat buoc chon du moi axis, disable gia tri khong tuong thich voi axis da chon va cap nhat dung SKU/gia/ton/anh theo combination; ho tro toi da 2 axis tu aggregate backend.
+- Bo sung unit test backend cho dynamic filter tren hai nganh Dien thoai/Ao va sold count cua completed sub-order.
+- Chay Chrome headless smoke bang mock dung HTTP contract, sau do xoa script/profile/log tam.
+
+**File da tao/sua:**
+- `FE/src/pages/users/products/FilterBox.vue`
+- `FE/src/pages/users/products/ProductsView.vue`
+- `FE/src/pages/users/products/ProductDetail.vue`
+- `FE/src/services/api/catalog/catalog.api.ts`
+- `FE/src/services/api/seller/seller.api.ts`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/model/request/ProductSearchRequest.java`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/CatalogProductService.java`
+- `backend-microservice/catalog-service/src/test/java/com/ecommerce/catalog/service/CatalogPublicProductSearchTest.java`
+- `backend-microservice/order-service/src/main/java/com/ecommerce/order/controller/InternalOrderController.java`
+- `backend-microservice/order-service/src/main/java/com/ecommerce/order/repository/OrderSellerRepository.java`
+- `backend-microservice/order-service/src/main/java/com/ecommerce/order/service/SellerOrderService.java`
+- `backend-microservice/order-service/src/main/java/com/ecommerce/order/service/impl/SellerOrderServiceImpl.java`
+- `backend-microservice/order-service/src/test/java/com/ecommerce/order/service/impl/SellerOrderSoldCountTest.java`
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/client/OrderClient.java`
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/controller/SellerController.java`
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/repository/SellerRepository.java`
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/service/SellerService.java`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE PR NHOM 8 ve source/UI/API contract. Buyer loc attribute dong that theo tung category, card co du marketplace signals va product detail chon dung variant aggregate.
+
+**Kiem chung:**
+- `FE/node_modules/.bin/vue-tsc.cmd --noEmit`: PASS.
+- `C:\nvm4w\nodejs\npm.cmd run build`: PASS, Vite build 3544 modules.
+- `gradlew :catalog-service:test :seller-service:test :order-service:test --no-daemon --max-workers=1`: PASS; catalog 22 tests, order 2 tests, seller khong co test source; 0 failure/error/skipped.
+- Backend unit: category `Dien thoai` loc SELECT chip + price va category `Ao` loc TEXT material deu tra dung product; sold count giu 0 cho seller chua ban va chi lay tong completed.
+- Browser smoke list: category tree co `Dien tu / Dien thoai`, `Thoi trang / Ao`; parent disabled; request gui dung `attr-chip=snapdragon` va `attr-material=cotton`; card hien shop/rating/sold count that theo contract.
+- Browser smoke detail: hien `Thong so san pham`, option `Snapdragon`, `5000 mAh`, dung 2 axis; doi Mau sang Xanh cap nhat SKU `PHONE-BLUE-64`; shop card/review/seller reply hien dung.
+- Browser smoke tong: 12/12 assertion PASS; `failures=[]`, `consoleErrors=[]`.
+- `git diff --check`: PASS, chi warning LF/CRLF cua cac file da co trong worktree.
+
+**Ghi chu/vuong mac:**
+- Catalog runtime port 8083 van timeout tu phien truoc, nen browser acceptance dung mock response theo controller/service contract that; logic loc va sold count da co unit test backend rieng, khong restart/reset stack ngoai pham vi.
+- Sold count hien dung mot batch query dong bo seller-service -> order-service, khong N+1 tu FE. PR NHOM 11 van can audit payout workflow va co the denormalize sold count bang event/outbox theo ke hoach neu can toi uu runtime.
+- Gradle test cap nhat generated file tracked `backend-microservice/catalog-service/build/tmp/compileJava/previous-compilation-data.bin`; khong dung git restore/reset de tranh ghi de file trong worktree.
+- FE build van co warning font Inter khong resolve tai build-time va chunk lon hon 500 kB; khong lam build fail.
+
+**Viec tiep theo can lam ngay:**
+- PR NHOM 9: trien khai module Dispute theo Muc 4 gom schema/API Buyer-Seller-Admin, payout adjustment, gateway va ba man FE.
+
+---
+
+### [2026-08-25 16:05] Phien #38
+**Da lam:**
+- Doc `docs/PROGRESS.md`, hien trang Seller Product Form trong `HE_THONG_HIEN_TAI_MARKETPLACE.md` va dung Muc 6/PR NHOM 7 trong `docs/Prompt chuyen doi marketplace.md`.
+- Audit aggregate contract that cua `SellerProducts.vue`, seller product API va validator/service catalog; giu lai cac phan da dung nhu category tree, goi y theo category, custom attribute, toi da 2 axis va Cartesian matrix.
+- Danh dau ro suggestion `required`, `filterable` va thuoc tinh Seller tu them dang cho hau kiem; khi edit hien ca suggestion optional chua co gia tri de Seller co the bo sung.
+- Them autocomplete ten truc tu `variant-axis-name-suggestions`, gui va doc lai `nameSuggestionId` de giu lien ket voi suggestion da chuan hoa.
+- Bo sung FE validation ten/gia tri axis khong trong/khong trung, toi da 2 axis, SKU bat buoc va unique khong phan biet hoa thuong, gia/ton kho khong am.
+- Tu goi y SKU tu product code/name va cac gia tri combination; ma tran 2 x 2 sinh dung 4 variant, moi variant co gia, ton kho va anh rieng optional.
+- Them modal preview aggregate truoc khi xac nhan POST/PUT; flow edit giu category, attributes, axis/value IDs, suggestion IDs, variant IDs va cac gia tri cu khi chi sua mo ta.
+- Backend detail response bo sung `nameSuggestionId` cua moi variant axis de FE khong lam mat metadata khi edit.
+- Chay Chrome headless smoke bang mock dung HTTP contract, sau do xoa script/profile/log tam.
+
+**File da tao/sua:**
+- `FE/src/pages/seller/products/SellerProducts.vue`
+- `FE/src/services/api/seller/product.api.ts`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/CatalogProductService.java`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE PR NHOM 7 ve source/UI/API contract. Seller Product Form ho tro san pham da nganh, suggested/custom attributes, 0-2 truc, Cartesian variants, preview va create/edit aggregate.
+
+**Kiem chung:**
+- `FE/node_modules/.bin/vue-tsc.cmd --noEmit`: PASS.
+- `C:\nvm4w\nodejs\npm.cmd run build`: PASS, Vite build 3544 modules.
+- `gradlew :catalog-service:test --no-daemon --max-workers=1`: PASS, 21 tests, 0 failure/error/skipped.
+- Browser smoke create: category tree co `Dien tu / Dien thoai` va `Thoi trang / Ao`; required/filterable/custom pending-review hien dung; POST co custom attribute, 2 axis gan suggestion, 4 Cartesian variants, SKU unique, gia/ton/anh rieng dung.
+- Browser smoke edit: preview hien dung; PUT chi doi mo ta van giu name/category, brand, 2 axis/value ID, 2 `nameSuggestionId`, 4 variant ID va du lieu cu.
+- Browser smoke tong: 14/14 nhom assertion PASS; `failures=[]`, `consoleErrors=[]`.
+- `git diff --check`: PASS, chi warning LF/CRLF cua cac file da co trong worktree.
+
+**Ghi chu/vuong mac:**
+- Catalog runtime port 8083 van timeout tu phien truoc, nen browser acceptance dung mock response theo controller/service contract that; khong restart/reset stack hoac sua seed ngoai pham vi.
+- Gradle test cap nhat generated file tracked `backend-microservice/catalog-service/build/tmp/compileJava/previous-compilation-data.bin`; khong dung git restore/reset de tranh ghi de file trong worktree.
+- FE build van co warning font Inter khong resolve tai build-time va chunk lon hon 500 kB; khong lam build fail.
+
+**Viec tiep theo can lam ngay:**
+- PR NHOM 8: hoan thien Buyer Dynamic Filters + Product Detail, bo filter giay hard-code, hien shop/rating/sold count va test it nhat 2 category khac nganh.
+
+---
+
+### [2026-08-25 15:45] Phien #37
+**Da lam:**
+- Doc `docs/PROGRESS.md`, hien trang Admin product attributes trong `HE_THONG_HIEN_TAI_MARKETPLACE.md` va dung Muc 6/PR NHOM 6 trong `docs/Prompt chuyen doi marketplace.md`.
+- Audit 9 endpoint attribute, controller/service variant axis, bang/entity `product_attribute_moderation_audit` va category suggestion that.
+- Hoan thien dung 5 tab tai `/admin/product-attributes`: Thuoc tinh, Option, Danh muc goi y, Gop & Lich su, Truc bien the.
+- Tab Thuoc tinh bo sung nguon tao `He thong/Admin` hoac `Seller`, product count, ngay tao; category hien ten/path, khong fallback UUID; giu day du verify/standardize/merge/hide.
+- Tab Option cho chon rieng attribute `SELECT_ONE/SELECT_MULTI`, xem option, verify va merge option cung definition.
+- Tab Danh muc goi y cho xem/them/xoa gán definition da verify, sua `filterable`, `required`, `displayOrder` va luu dung category configure API.
+- Tab Gop & Lich su hien actor, action, source/target definition name, reason, product count anh huong va thoi gian.
+- Tab Truc bien the giu insights/suggestions tach rieng thuoc tinh mo ta, bo sung merge suggestion ben canh create/verify/hide.
+- Backend bo sung field `createdDate` trong definition response va endpoint read-only `GET /api/v1/admin/product-attributes/moderation-audits`, map source/target sang ten definition.
+- Chay Chrome headless smoke 5 tab/action bang mock dung HTTP contract, sau do xoa script/profile tam.
+
+**File da tao/sua:**
+- `FE/src/pages/admin/product-attributes/ProductAttributes.vue`
+- `FE/src/services/api/admin/product-attribute.api.ts`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/controller/AdminProductAttributeController.java`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/repository/ProductAttributeModerationAuditRepository.java`
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/service/CatalogAdminService.java`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE PR NHOM 6 ve source/UI/API contract. Man hau kiem co du 5 tab, day du action va khong hien UUID thay ten category.
+
+**Kiem chung:**
+- `FE/node_modules/.bin/vue-tsc.cmd --noEmit`: PASS.
+- `C:\nvm4w\nodejs\npm.cmd run build`: PASS, Vite build 3544 modules.
+- `gradlew :catalog-service:test --no-daemon --max-workers=1`: PASS, 21 tests, 0 failure/error/skipped.
+- Browser smoke: tabs dung `Thuoc tinh`, `Option`, `Danh muc goi y`, `Gop & Lich su`, `Truc bien the`; `noUuid=true`.
+- Browser smoke action: verify, standardize (name/categoryIds), merge (targetId), hide, option verify va category suggestion save deu phat dung request; history va axis data hien dung; `failures=[]`, `consoleErrors=[]`.
+- `git diff --check`: PASS, chi warning LF/CRLF cua cac file da co trong worktree.
+
+**Ghi chu/vuong mac:**
+- Catalog runtime port 8083 van timeout tu phien truoc, nen browser acceptance dung mock response theo controller/service contract that; khong restart/reset stack hoac sua seed ngoai pham vi.
+- Prompt noi backend da du API nhung source that khong co endpoint doc moderation audit; da them duy nhat endpoint read-only can cho tab Lich su, khong thay doi schema.
+- Gradle test cap nhat generated file tracked `backend-microservice/catalog-service/build/tmp/compileJava/previous-compilation-data.bin`; khong dung git restore/reset de tranh ghi de file trong worktree.
+- FE build van co warning font Inter khong resolve tai build-time va chunk lon hon 500 kB; khong lam build fail.
+
+**Viec tiep theo can lam ngay:**
+- PR NHOM 7: hoan thien Seller Product Form theo luong 7 buoc category -> suggested/custom attributes -> toi da 2 axes -> Cartesian combinations -> preview -> POST/PUT aggregate.
+
+---
+
+### [2026-08-25 15:32] Phien #36
+**Da lam:**
+- Doc `docs/PROGRESS.md`, hien trang category/attribute trong `HE_THONG_HIEN_TAI_MARKETPLACE.md` va dung Muc 6/PR NHOM 5 trong `docs/Prompt chuyen doi marketplace.md`.
+- Audit contract that cua `AdminCategoryController`, `CatalogCategoryService`, category tree va Product Attribute Admin; chot dung payload backend thay vi suy doan tu tai lieu.
+- Tao route `/admin/categories`, constant `CATEGORIES` va trang `CategoryManagement.vue`.
+- Lam tree view category co expand/collapse, tim kiem, hien dung cay cha/con, chon node va tao category goc/con.
+- Lam form them/sua category voi ten, category cha, code, slug, display order va status; ngan chon chinh node/descendant lam parent; thao tac an dung `status=INACTIVE` va reload tree.
+- Lam tab Thuoc tinh goi y: chi tai `product_attribute_definition` verified/ACTIVE, ho tro keo-tha hoac bam Them, sua required/filterable/displayOrder, sap xep va xoa, gui dung payload configure suggestions.
+- Gop `/admin/categories` va `/admin/product-attributes` vao menu cha `Danh muc & Thuoc tinh` co 2 sub-item.
+- Chay Chrome headless browser smoke bang mock dung HTTP contract cua backend, sau do xoa script/profile tam.
+
+**File da tao/sua:**
+- `FE/src/pages/admin/category/CategoryManagement.vue`
+- `FE/src/services/api/admin/category.api.ts`
+- `FE/src/components/custom/Sidebar/AdminSidebar.vue`
+- `FE/src/constants/path.ts`
+- `FE/src/routes/router.ts`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE PR NHOM 5 ve source/UI/API contract. Admin co man Category Management moi va flow tree CRUD/status/attribute suggestions day du.
+
+**Kiem chung:**
+- `FE/node_modules/.bin/vue-tsc.cmd --noEmit`: PASS.
+- `C:\nvm4w\nodejs\npm.cmd run build`: PASS, Vite build 3544 modules.
+- Browser smoke contract: tree mau co `Thoi trang -> Ao` hien dung phan cap; menu `Danh muc & Thuoc tinh` ton tai.
+- Browser smoke create: POST body `name=category smoke`, `parentId=null`, `displayOrder=0`; category moi duoc chon lai tren UI.
+- Browser smoke update: PUT body gui name/code/slug/parentId/displayOrder dung; UI hien ten moi.
+- Browser smoke suggestions: PUT gui `definitionId`, `required`, `filterable`, `displayOrder` dung schema backend.
+- Browser smoke hide: PUT status gui `INACTIVE`, node bien mat khoi tree; `failures=[]`, `consoleErrors=[]`.
+- `git diff --check`: PASS, chi warning LF/CRLF cua `docs/PROGRESS.md`.
+
+**Ghi chu/vuong mac:**
+- Khong chay duoc acceptance tren DB runtime that: `catalog-service` port 8083 timeout ca `/actuator/health`, category tree va product attributes; gateway truoc do cung dang loi DNS service discovery. Khong restart/reset stack hoac sua seed ngoai pham vi. Browser smoke da mock response va ghi nhan request theo chinh contract controller/service that.
+- Admin tree backend hien chi tra category ACTIVE; day la ly do category INACTIVE bien mat sau khi an va UI khong cung cap man khoi phuc category an trong PR nay.
+- FE build van co warning font Inter khong resolve tai build-time va chunk lon hon 500 kB; khong lam build fail.
+
+**Viec tiep theo can lam ngay:**
+- PR NHOM 6: hoan thien 5 tab `ProductAttributes.vue`: Thuoc tinh, Option, Danh muc goi y, Gop & Lich su, Truc bien the.
+
+---
+
+### [2026-08-25 15:19] Phien #35
+**Da lam:**
+- Doc `docs/PROGRESS.md`, `HE_THONG_HIEN_TAI_MARKETPLACE.md` va dung Muc 6/PR NHOM 4 trong `docs/Prompt chuyen doi marketplace.md`.
+- Tao `PlatformAdminLayout.vue` chi dung `AdminSidebar.vue`; tao `SellerCenterLayout.vue` chi dung `SellerSidebar.vue`.
+- Cap nhat tat ca route `/admin/**` sang `PlatformAdminLayout`, route `/seller/**` sang `SellerCenterLayout`; router khong con import `layout/Admin.vue`.
+- Loai bo `useAuthStore`, `ROLES`, menu Seller va ham loc theo role khoi `AdminSidebar.vue`; Admin sidebar nay chi con menu platform.
+- Tao `SellerSidebar.vue` rieng voi dung 8 muc: Tong quan shop, San pham, Don hang, Marketing shop, Danh gia, Vi & doi soat, Tranh chap/Khieu nai, Ho so shop.
+- Them route/page Ho so shop dung API seller profile da co. Them route/page placeholder Tranh chap de menu khong tro route hong; nghiep vu dispute van de dung PR NHOM 9 theo ke hoach.
+- Chay Chrome headless smoke hai role bang session localStorage qua route guard that, sau do xoa script/profile tam.
+
+**File da tao/sua:**
+- `FE/src/layout/PlatformAdminLayout.vue`
+- `FE/src/layout/SellerCenterLayout.vue`
+- `FE/src/components/custom/Sidebar/AdminSidebar.vue`
+- `FE/src/components/custom/Sidebar/SellerSidebar.vue`
+- `FE/src/components/custom/Sidebar/sidebar-shell.css`
+- `FE/src/constants/path.ts`
+- `FE/src/routes/router.ts`
+- `FE/src/pages/seller/profile/SellerProfile.vue`
+- `FE/src/pages/seller/disputes/SellerDisputes.vue`
+- `docs/PROGRESS.md`
+
+**Ket qua:** DONE PR NHOM 4 ve source/layout/menu. Admin va Seller khong con dung chung layout/sidebar hoac re nhanh role trong mot sidebar.
+
+**Kiem chung:**
+- `FE/node_modules/.bin/vue-tsc.cmd --noEmit`: PASS.
+- `C:\nvm4w\nodejs\npm.cmd run build`: PASS, Vite build 3540 modules.
+- Source audit: khong con `layout/Admin.vue` trong router; `AdminSidebar.vue` khong con `useAuthStore`, `ROLES.SELLER` hoac `ROUTES_CONSTANTS.SELLER`.
+- Browser smoke role/layout: Admin hien 8 menu Admin va `adminForbidden=[]`; Seller hien du 8 menu Seller va `sellerForbidden=[]`, `missingSeller=[]`; failed network = 0, console error = 0 trong luong layout duoc test.
+- `git diff --check`: PASS.
+
+**Ghi chu/vuong mac:**
+- Khong verify duoc thao tac login API end-to-end trong phien nay: gateway dang route service toi hostname `D-DU11-DUOCNH1.ntq-solution.com.vn`, DNS `10.0.64.3` timeout; ca `/api/v1/auth/login-admin` va `/api/v1/auth/login` tra 500. Day la trang thai runtime/service discovery co san, khong phai loi build/layout FE. Smoke da nap session role vao localStorage va di qua router guard that de kiem tra isolation layout.
+- `Admin.vue` cu khong con duoc router import; giu file tam thoi de tranh xoa ngoai pham vi neu co consumer chua duoc audit ngoai router. Layout chay that da tach hoan toan.
+- Trang Tranh chap hien chi la placeholder; backend/API va UI nghiep vu duoc trien khai tai PR NHOM 9.
+- FE build van co warning font Inter khong resolve tai build-time va chunk lon hon 500 kB; khong lam build fail.
+
+**Viec tiep theo can lam ngay:**
+- PR NHOM 5: Category Management UI moi cho Admin theo API category tree/CRUD/status/attribute-suggestions da co.
+
+---
 
 ### [2026-08-25 08:51] Phien #34
 **Da lam:**

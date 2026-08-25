@@ -358,13 +358,39 @@
         <button v-if="orderDetail.trangThaiHoaDon === '4'" class="btn-reorder" @click="reorder">
           Mua lại
         </button>
+        <button v-if="orderDetail.trangThaiHoaDon === '4'" class="btn-contact" @click="openDisputeModal">
+          Yêu cầu hỗ trợ / Khiếu nại
+        </button>
+        <button class="btn-contact" @click="router.push({ name: 'buyer-disputes' })">
+          Khiếu nại của tôi
+        </button>
         <button class="btn-contact" @click="contactSupport">
           Liên hệ hỗ trợ
         </button>
       </div>
     </div>
+    <a-modal v-model:open="disputeModalVisible" title="Tạo yêu cầu hỗ trợ / khiếu nại" :confirm-loading="submittingDispute" @ok="submitDispute">
+      <a-form layout="vertical">
+        <a-form-item label="Đơn của shop" required>
+          <a-select v-model:value="disputeForm.orderSellerId" placeholder="Chọn shop cần khiếu nại">
+            <a-select-option v-for="shop in disputeShopOptions" :key="shop.id" :value="shop.id">{{ shop.name }} · {{ formatCurrency(shop.amount) }}</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="Loại vấn đề" required>
+          <a-select v-model:value="disputeForm.disputeType">
+            <a-select-option value="ITEM_NOT_RECEIVED">Chưa nhận được hàng</a-select-option><a-select-option value="ITEM_DAMAGED">Hàng hư hỏng</a-select-option>
+            <a-select-option value="WRONG_ITEM">Sai sản phẩm</a-select-option><a-select-option value="NOT_AS_DESCRIBED">Không đúng mô tả</a-select-option>
+            <a-select-option value="REFUND_REQUEST">Yêu cầu hoàn tiền</a-select-option><a-select-option value="OTHER">Khác</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="Tiêu đề" required><a-input v-model:value="disputeForm.reason" maxlength="255" /></a-form-item>
+        <a-form-item label="Mô tả"><a-textarea v-model:value="disputeForm.description" :rows="4" /></a-form-item>
+        <a-form-item label="Số tiền đề nghị hoàn"><a-input-number v-model:value="disputeForm.requestedAmount" :min="1" style="width:100%" /></a-form-item>
+        <a-form-item label="URL bằng chứng (mỗi dòng một URL)"><a-textarea v-model:value="disputeForm.evidenceText" :rows="3" /></a-form-item>
+      </a-form>
+    </a-modal>
     <!-- Error state -->
-    <div v-else class="error-state">
+    <div v-if="!loading && !orderDetail" class="error-state">
       <div class="error-icon">❌</div>
       <h3>Không tìm thấy đơn hàng</h3>
       <p>Đơn hàng có thể đã bị xóa hoặc không tồn tại.</p>
@@ -405,6 +431,7 @@ import {
 import axios from "axios";
 import type { TableColumnsType } from "ant-design-vue";
 import { toast } from "vue3-toastify";
+import { createBuyerDispute } from "@/services/api/dispute/dispute.api";
 
 const localSearchQuery = ref("");
 const localColor = ref<string | null>(null);
@@ -465,6 +492,10 @@ interface ProductItem {
   giaBan: number;
   anhSanPham?: string;
   xuatSu?: string;
+  orderSellerId?: string;
+  sellerId?: string;
+  shopName?: string;
+  orderSellerAmount?: number;
 }
 
 interface TimelineStep {
@@ -575,6 +606,9 @@ const districts = ref<District[]>([]);
 const wards = ref<Ward[]>([]);
 const showProductModal = ref(false);
 const lichSuThanhToan = ref<any[]>([]);
+const disputeModalVisible = ref(false);
+const submittingDispute = ref(false);
+const disputeForm = reactive({ orderSellerId: '', disputeType: 'OTHER', reason: '', description: '', requestedAmount: undefined as number | undefined, evidenceText: '' });
 
 // Computed
 const isNotPending = computed(() => orderDetail.value?.trangThaiHoaDon !== "0");
@@ -588,6 +622,30 @@ const voucherValue = computed(() => {
   }
   return 0;
 });
+const disputeShopOptions = computed(() => {
+  const shops = new Map<string, { id: string; name: string; amount: number }>();
+  for (const item of orderDetail.value?.products || []) {
+    if (item.orderSellerId && !shops.has(item.orderSellerId)) shops.set(item.orderSellerId, { id: item.orderSellerId, name: item.shopName || `Shop ${item.sellerId || ''}`, amount: item.orderSellerAmount || 0 });
+  }
+  return [...shops.values()];
+});
+
+const openDisputeModal = () => {
+  disputeForm.orderSellerId = disputeShopOptions.value[0]?.id || '';
+  disputeModalVisible.value = true;
+};
+
+const submitDispute = async () => {
+  if (!disputeForm.orderSellerId || !disputeForm.reason.trim()) return message.warning('Vui lòng chọn shop và nhập tiêu đề');
+  submittingDispute.value = true;
+  try {
+    await createBuyerDispute({ orderSellerId: disputeForm.orderSellerId, disputeType: disputeForm.disputeType, reason: disputeForm.reason, description: disputeForm.description, requestedAmount: disputeForm.requestedAmount, evidenceUrls: disputeForm.evidenceText.split('\n').map(v => v.trim()).filter(Boolean) });
+    disputeModalVisible.value = false;
+    message.success('Đã tạo khiếu nại. Bộ phận hỗ trợ sẽ theo dõi cùng bạn.');
+    router.push({ name: 'buyer-disputes' });
+  } catch (error: any) { message.error(error?.response?.data?.message || 'Không thể tạo khiếu nại'); }
+  finally { submittingDispute.value = false; }
+};
 
 const orderTimeline = computed<TimelineStep[]>(() => {
   if (!orderDetail.value) return [];
@@ -873,6 +931,10 @@ const fetchOrderDetail = async (orderId: string) => {
         giaBan: item.giaBan,
         anhSanPham: item.anhSanPham,
         xuatSu: item.xuatSu,
+        orderSellerId: item.orderSellerId,
+        sellerId: item.sellerId,
+        shopName: item.shopName,
+        orderSellerAmount: Number(item.orderSellerAmount || 0),
       }));
       orderDetail.value = {
         maHoaDon: firstItem.maHoaDon,

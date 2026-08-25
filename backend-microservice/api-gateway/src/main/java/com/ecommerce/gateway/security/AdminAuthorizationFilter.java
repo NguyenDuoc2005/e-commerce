@@ -22,6 +22,7 @@ public class AdminAuthorizationFilter implements WebFilter {
 
     private static final String ADMIN_PREFIX = "/api/v1/admin/";
     private static final String SELLER_PREFIX = "/api/v1/seller/";
+    private static final String BUYER_PREFIX = "/api/v1/buyer/";
     private static final List<String> BUYER_AUTH_PATHS = List.of(
             "/api/v1/permitall/reviews",
             "/api/v1/permitall/don-mua",
@@ -30,6 +31,7 @@ public class AdminAuthorizationFilter implements WebFilter {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String ADMIN_ROLE = "ADMIN";
     private static final String SELLER_ROLE = "SELLER";
+    private static final String BUYER_ROLE = "USERS";
 
     @Value("${jwt.secret}")
     private String tokenSecret;
@@ -63,6 +65,10 @@ public class AdminAuthorizationFilter implements WebFilter {
                 exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
                 return exchange.getResponse().setComplete();
             }
+            if (buyerRoute && !hasRole(claims, BUYER_ROLE)) {
+                exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                return exchange.getResponse().setComplete();
+            }
             ServerWebExchange mutatedExchange = mutateWithMarketplaceHeaders(exchange, claims);
             return chain.filter(mutatedExchange);
         } catch (JwtException | IllegalArgumentException ex) {
@@ -92,6 +98,9 @@ public class AdminAuthorizationFilter implements WebFilter {
             return false;
         }
         String path = exchange.getRequest().getURI().getPath();
+        if (path.equals("/api/v1/buyer") || path.startsWith(BUYER_PREFIX)) {
+            return true;
+        }
         if (path.matches("/api/v1/permitall/shops/[^/]+/follow")) {
             return true;
         }

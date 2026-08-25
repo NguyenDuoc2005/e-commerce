@@ -8,4 +8,5 @@ public interface SellerOrderService {
     Map<String, Object> detail(String sellerId, String orderSellerId);
     Map<String, Object> changeStatus(String sellerId, String orderSellerId, String action);
     Map<String, Object> dashboard(String sellerId);
+    Map<String, Long> soldCounts(List<String> sellerIds);
 }

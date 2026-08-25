@@ -29,7 +29,7 @@ spring:
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/api/v1/admin/thong-ke/**,/api/v1/permitall/don-mua/**,/api/orders/**,/api/v1/seller/orders/**
+            - Path=/api/v1/admin/thong-ke/**,/api/v1/admin/disputes/**,/api/v1/permitall/don-mua/**,/api/orders/**,/api/v1/seller/orders/**,/api/v1/seller/disputes/**,/api/v1/buyer/disputes/**
         - id: cart-service
           uri: lb://cart-service
           predicates:
@@ -45,7 +45,7 @@ spring:
         - id: seller-service
           uri: lb://seller-service
           predicates:
-            - Path=/api/v1/sellers/**,/api/v1/seller/**,/api/v1/admin/sellers/**,/api/v1/admin/banners/**,/api/v1/permitall/shops/**,/api/v1/permitall/banners/**,/api/v1/permitall/reviews/**
+            - Path=/api/v1/sellers/**,/api/v1/seller/**,/api/v1/buyer/reports/**,/api/v1/admin/sellers/**,/api/v1/admin/banners/**,/api/v1/admin/reports/**,/api/v1/permitall/shops/**,/api/v1/permitall/banners/**,/api/v1/permitall/reviews/**
 
 server:
   port: ${SERVER_PORT:8080}

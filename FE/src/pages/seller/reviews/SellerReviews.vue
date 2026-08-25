@@ -26,6 +26,7 @@
         </template>
         <template v-else-if="column.key === 'action'">
           <a-button type="primary" @click="openReply(record)">{{ record.sellerReply ? 'Sua phan hoi' : 'Phan hoi' }}</a-button>
+          <ReportButton target-type="REVIEW" :target-id="record.id" reporter-type="seller" label="Báo cáo" />
         </template>
       </template>
     </a-table>
@@ -40,13 +41,14 @@
 import { onMounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { getSellerReviews, replyReview, type Review } from '@/services/api/seller/review.api'
+import ReportButton from '@/components/report/ReportButton.vue'
 
 const columns = [
   { title: 'Danh gia', key: 'rating', width: 260 },
   { title: 'Nhan xet', key: 'comment' },
   { title: 'Phan hoi cua shop', key: 'reply' },
   { title: 'Ngay tao', key: 'createdAt', width: 130 },
-  { title: 'Thao tac', key: 'action', width: 120, fixed: 'right' as const }
+  { title: 'Thao tac', key: 'action', width: 190, fixed: 'right' as const }
 ]
 const reviews = ref<Review[]>([])
 const loading = ref(false)

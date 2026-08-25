@@ -54,6 +54,12 @@ export const routes: RouteRecordRaw[] = [
 
       },
       {
+        path: ROUTES_CONSTANTS.USERS.children.DISPUTES.path,
+        name: ROUTES_CONSTANTS.USERS.children.DISPUTES.name,
+        component: () => import("@/pages/users/disputes/BuyerDisputes.vue"),
+        meta: { requiresAuth: true },
+      },
+      {
         path: ROUTES_CONSTANTS.USERS.children.LIENHE.path,
         name: ROUTES_CONSTANTS.USERS.children.LIENHE.name,
 
@@ -144,7 +150,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.SELLER.path,
     redirect: `${ROUTES_CONSTANTS.SELLER.path}/${ROUTES_CONSTANTS.SELLER.children.DASHBOARD.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/SellerCenterLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.SELLER.children.DASHBOARD.path,
@@ -191,13 +197,25 @@ export const routes: RouteRecordRaw[] = [
         component: () => import("@/pages/seller/reviews/SellerReviews.vue"),
         meta: { requiresRole: 'SELLER', requiresAuth: true },
       },
+      {
+        path: ROUTES_CONSTANTS.SELLER.children.PROFILE.path,
+        name: ROUTES_CONSTANTS.SELLER.children.PROFILE.name,
+        component: () => import("@/pages/seller/profile/SellerProfile.vue"),
+        meta: { requiresRole: 'SELLER', requiresAuth: true },
+      },
+      {
+        path: ROUTES_CONSTANTS.SELLER.children.DISPUTES.path,
+        name: ROUTES_CONSTANTS.SELLER.children.DISPUTES.name,
+        component: () => import("@/pages/seller/disputes/SellerDisputes.vue"),
+        meta: { requiresRole: 'SELLER', requiresAuth: true },
+      },
     ],
   },
 
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.THONG_KE.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.THONG_KE.path,
@@ -210,7 +228,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.DOT_GIAM_GIA.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.DOT_GIAM_GIA.path,
@@ -227,7 +245,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.ADD_DOT_GIAM_GIA.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.ADD_DOT_GIAM_GIA.path,
@@ -244,7 +262,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.UPDATE_DOT_GIAM_GIA.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.UPDATE_DOT_GIAM_GIA.path,
@@ -260,7 +278,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.KHACH_HANG.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.KHACH_HANG.path,
@@ -276,7 +294,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.NHAN_VIEN.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.NHAN_VIEN.path,
@@ -292,7 +310,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.THEM_NHAN_VIEN.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.THEM_NHAN_VIEN.path,
@@ -308,7 +326,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.THEM_KHACH_HANG.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.THEM_KHACH_HANG.path,
@@ -324,7 +342,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.VOUCHER.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.VOUCHER.path,
@@ -340,7 +358,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.SELLER_APPROVAL.path}`,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.SELLER_APPROVAL.path,
@@ -355,7 +373,7 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.BANNERS.path,
@@ -367,7 +385,7 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.PAYOUT.path,
@@ -379,7 +397,43 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
-    component: () => import("@/layout/Admin.vue"),
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
+    children: [
+      {
+        path: ROUTES_CONSTANTS.ADMIN.children.REPORTS.path,
+        name: ROUTES_CONSTANTS.ADMIN.children.REPORTS.name,
+        component: () => import("@/pages/admin/reports/AdminReports.vue"),
+        meta: { requiresRole: ROLES.ADMIN, requiresAuth: true },
+      },
+    ],
+  },
+  {
+    path: ROUTES_CONSTANTS.ADMIN.path,
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
+    children: [
+      {
+        path: ROUTES_CONSTANTS.ADMIN.children.DISPUTES.path,
+        name: ROUTES_CONSTANTS.ADMIN.children.DISPUTES.name,
+        component: () => import("@/pages/admin/disputes/AdminDisputes.vue"),
+        meta: { requiresRole: ROLES.ADMIN, requiresAuth: true },
+      },
+    ],
+  },
+  {
+    path: ROUTES_CONSTANTS.ADMIN.path,
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
+    children: [
+      {
+        path: ROUTES_CONSTANTS.ADMIN.children.CATEGORIES.path,
+        name: ROUTES_CONSTANTS.ADMIN.children.CATEGORIES.name,
+        component: () => import("@/pages/admin/category/CategoryManagement.vue"),
+        meta: { requiresRole: ROLES.ADMIN, requiresAuth: true },
+      },
+    ],
+  },
+  {
+    path: ROUTES_CONSTANTS.ADMIN.path,
+    component: () => import("@/layout/PlatformAdminLayout.vue"),
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path,

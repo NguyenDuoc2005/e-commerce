@@ -167,6 +167,27 @@ public class CatalogAdminService {
                 .stream().map(this::optionMap).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> moderationAudits() {
+        Map<String, String> definitionNames = definitionRepository.findAll().stream()
+                .collect(Collectors.toMap(ProductAttributeDefinition::getId, ProductAttributeDefinition::getName));
+        return auditRepository.findAllByOrderByCreatedDateDesc().stream().map(audit -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", audit.getId());
+            map.put("action", audit.getAction());
+            map.put("actorUserId", audit.getActorUserId());
+            map.put("sourceDefinitionId", audit.getSourceDefinitionId());
+            map.put("sourceDefinitionName", definitionNames.getOrDefault(audit.getSourceDefinitionId(), "Thuoc tinh da xoa"));
+            map.put("targetDefinitionId", audit.getTargetDefinitionId());
+            map.put("targetDefinitionName", audit.getTargetDefinitionId() == null ? null
+                    : definitionNames.getOrDefault(audit.getTargetDefinitionId(), "Thuoc tinh da xoa"));
+            map.put("reason", audit.getReason());
+            map.put("affectedProductCount", audit.getAffectedProductCount());
+            map.put("createdDate", audit.getCreatedDate());
+            return map;
+        }).toList();
+    }
+
     @Transactional
     public Map<String, Object> verifyOption(String optionId) {
         ProductAttributeOption option = optionRepository.findById(optionId)
@@ -278,6 +299,7 @@ public class CatalogAdminService {
         map.put("status", definition.getStatus());
         map.put("resolvedDefinitionId", definition.getMergedIntoDefinitionId() == null ? definition.getId() : definition.getMergedIntoDefinitionId());
         map.put("productCount", valueRepository.countByDefinition_Id(definition.getId()));
+        map.put("createdDate", definition.getCreatedDate());
         map.put("categoryIds", categorySuggestionRepository.findByDefinition_IdOrderByDisplayOrderAsc(definition.getId())
                 .stream().map(link -> link.getCategory().getId()).toList());
         return map;

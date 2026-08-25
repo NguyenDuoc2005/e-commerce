@@ -17,4 +17,10 @@ public interface CatalogClient {
     void updateRating(@PathVariable("id") String id,
                       @RequestParam("average") double average,
                       @RequestParam("count") long count);
+
+    @GetMapping("/products/{id}")
+    Map<String, Object> getProduct(@PathVariable("id") String id);
+
+    @PostMapping("/products/{id}/delist")
+    Map<String, Object> delistProduct(@PathVariable("id") String id);
 }

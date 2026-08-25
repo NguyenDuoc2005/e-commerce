@@ -1,6 +1,7 @@
 package com.ecommerce.payout.controller;
 
 import com.ecommerce.payout.model.ReceivableRequest;
+import com.ecommerce.payout.model.DisputeAdjustmentRequest;
 import com.ecommerce.payout.service.PayoutService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,5 +22,10 @@ public class InternalPayoutController {
     @PostMapping("/receivables")
     public ResponseEntity<?> createReceivable(@RequestBody ReceivableRequest request) {
         return ResponseEntity.ok(payoutService.createReceivable(request));
+    }
+
+    @PostMapping("/dispute-adjustments")
+    public ResponseEntity<?> applyDisputeAdjustment(@RequestBody DisputeAdjustmentRequest request) {
+        return ResponseEntity.ok(payoutService.applyDisputeAdjustment(request));
     }
 }

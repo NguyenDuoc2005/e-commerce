@@ -111,6 +111,10 @@ public class DonMuaServiceImpl implements DonMuaService {
                        hd.code AS tenOrder,
                        hdct.code AS maOrderItem,
                        hdct.product_variant_id AS idSPCT,
+                       hdct.order_seller_id AS orderSellerId,
+                       hdct.seller_id AS sellerId,
+                       os.shop_name AS shopName,
+                       os.total_after_discount AS orderSellerAmount,
                        hdct.quantity AS quantity,
                        hdct.sale_price AS salePrice,
                        (hdct.sale_price * hdct.quantity) AS thanhTienSP,
@@ -133,6 +137,7 @@ public class DonMuaServiceImpl implements DonMuaService {
                        hd.refund_amount AS hoanPhi
                 FROM order_item hdct
                 JOIN orders hd ON hdct.order_id = hd.id
+                LEFT JOIN order_seller os ON os.id = hdct.order_seller_id
                 WHERE hd.code = ?
                   AND hd.order_type = ?
                   AND hd.order_status != ?

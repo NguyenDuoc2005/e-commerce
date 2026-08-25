@@ -122,6 +122,22 @@ public class ReviewService {
         return repository.countBySellerIdAndStatus(sellerId, VISIBLE);
     }
 
+    @Transactional
+    public Map<String, Object> hideByAdmin(String reviewId) {
+        Review review = repository.findById(reviewId)
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay danh gia"));
+        if (!"HIDDEN".equals(review.getStatus())) {
+            review.setStatus("HIDDEN");
+            repository.save(review);
+            if (review.getProductId() != null) {
+                Double average = repository.averageProductRating(review.getProductId());
+                catalogClient.updateRating(review.getProductId(), average == null ? 0D : average,
+                        repository.countByProductIdAndStatus(review.getProductId(), VISIBLE));
+            }
+        }
+        return toMap(review);
+    }
+
     private Map<String, Object> toMap(Review review) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", review.getId());

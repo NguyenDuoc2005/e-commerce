@@ -82,6 +82,18 @@ class CatalogProductAttributeRulesTest {
     }
 
     @Test
+    void adminDelistMakesProductInactive() {
+        product.setStatus(EntityStatus.ACTIVE);
+        when(productRepository.findById("product-1")).thenReturn(Optional.of(product));
+
+        service.adminDelist("product-1");
+
+        assertEquals(EntityStatus.INACTIVE, product.getStatus());
+        verify(productRepository).save(product);
+        verify(outboxRepository).save(any());
+    }
+
+    @Test
     void savesTextAndNormalizesDefaultNumberUnit() {
         ProductAttributeDefinition text = definition("text", AttributeDataType.TEXT);
         ProductAttributeDefinition number = definition("number", AttributeDataType.NUMBER);

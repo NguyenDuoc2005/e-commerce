@@ -6,6 +6,7 @@ import com.ecommerce.seller.entity.SellerStatus;
 import com.ecommerce.seller.entity.SellerStatusHistory;
 import com.ecommerce.seller.entity.ShopFollow;
 import com.ecommerce.seller.client.NotificationClient;
+import com.ecommerce.seller.client.OrderClient;
 import com.ecommerce.seller.client.UserClient;
 import com.ecommerce.seller.model.SellerRegistrationRequest;
 import com.ecommerce.seller.repository.SellerRepository;
@@ -33,6 +34,7 @@ public class SellerService {
     private final ReviewService reviewService;
     private final UserClient userClient;
     private final NotificationClient notificationClient;
+    private final OrderClient orderClient;
 
     public SellerService(
             SellerRepository sellerRepository,
@@ -40,7 +42,8 @@ public class SellerService {
             ShopFollowRepository followRepository,
             ReviewService reviewService,
             UserClient userClient,
-            NotificationClient notificationClient
+            NotificationClient notificationClient,
+            OrderClient orderClient
     ) {
         this.sellerRepository = sellerRepository;
         this.historyRepository = historyRepository;
@@ -48,6 +51,7 @@ public class SellerService {
         this.reviewService = reviewService;
         this.userClient = userClient;
         this.notificationClient = notificationClient;
+        this.orderClient = orderClient;
     }
 
     @Transactional
@@ -96,11 +100,24 @@ public class SellerService {
     }
 
     public ResponseObject<?> publicShops() {
-        List<Map<String, Object>> rows = sellerRepository.findTop12ByStatusOrderByCreatedAtDesc(SellerStatus.APPROVED)
-                .stream()
-                .map(this::toPublicMap)
-                .toList();
+        List<Seller> sellers = sellerRepository.findTop12ByStatusOrderByCreatedAtDesc(SellerStatus.APPROVED);
+        Map<String, Long> soldCounts = safeSoldCounts(sellers.stream().map(Seller::getId).toList());
+        List<Map<String, Object>> rows = sellers.stream()
+                .map(seller -> toPublicMap(seller, soldCounts.getOrDefault(seller.getId(), 0L))).toList();
         return new ResponseObject<>(rows, HttpStatus.OK, "Lay danh sach shop thanh cong");
+    }
+
+    public ResponseObject<?> publicProfiles(List<String> sellerIds) {
+        if (sellerIds == null || sellerIds.isEmpty()) {
+            return new ResponseObject<>(List.of(), HttpStatus.OK, "Lay thong tin shop thanh cong");
+        }
+        List<String> ids = sellerIds.stream().filter(Objects::nonNull).map(String::trim)
+                .filter(id -> !id.isBlank()).distinct().toList();
+        List<Seller> sellers = sellerRepository.findByIdInAndStatus(ids, SellerStatus.APPROVED);
+        Map<String, Long> soldCounts = safeSoldCounts(ids);
+        List<Map<String, Object>> rows = sellers.stream()
+                .map(seller -> toPublicMap(seller, soldCounts.getOrDefault(seller.getId(), 0L))).toList();
+        return new ResponseObject<>(rows, HttpStatus.OK, "Lay thong tin shop thanh cong");
     }
 
     public ResponseObject<?> detail(String id) {
@@ -202,13 +219,13 @@ public class SellerService {
     public Map<String, Object> publicProfile(String id) {
         return sellerRepository.findById(id)
                 .filter(seller -> seller.getStatus() == SellerStatus.APPROVED)
-                .map(this::toPublicMap)
+                .map(seller -> toPublicMap(seller, safeSoldCounts(List.of(id)).getOrDefault(id, 0L)))
                 .orElseGet(Map::of);
     }
 
     public Map<String, Object> publicProfileBySlug(String slug) {
         return sellerRepository.findBySellerSlugAndStatus(slug, SellerStatus.APPROVED)
-                .map(this::toPublicMap)
+                .map(seller -> toPublicMap(seller, safeSoldCounts(List.of(seller.getId())).getOrDefault(seller.getId(), 0L)))
                 .orElseGet(Map::of);
     }
 
@@ -292,7 +309,7 @@ public class SellerService {
     }
 
     private Map<String, Object> toMap(Seller seller) {
-        Map<String, Object> row = toPublicMap(seller);
+        Map<String, Object> row = toPublicMap(seller, 0L);
         row.put("ownerCustomerId", seller.getOwnerCustomerId());
         row.put("pickupAddress", seller.getPickupAddress());
         row.put("contactPhone", seller.getContactPhone());
@@ -321,7 +338,7 @@ public class SellerService {
         return row;
     }
 
-    private Map<String, Object> toPublicMap(Seller seller) {
+    private Map<String, Object> toPublicMap(Seller seller, long soldCount) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", seller.getId());
         row.put("shopName", seller.getShopName());
@@ -333,8 +350,17 @@ public class SellerService {
         row.put("followerCount", followRepository.countBySellerId(seller.getId()));
         row.put("rating", reviewService.averageShopRating(seller.getId()));
         row.put("ratingCount", reviewService.shopRatingCount(seller.getId()));
-        row.put("soldCount", 0L);
+        row.put("soldCount", soldCount);
         return row;
+    }
+
+    private Map<String, Long> safeSoldCounts(List<String> sellerIds) {
+        try {
+            Map<String, Long> result = orderClient.sellerSoldCounts(sellerIds);
+            return result == null ? Map.of() : result;
+        } catch (Exception ignored) {
+            return Map.of();
+        }
     }
 
     private String normalizeRequired(String value, String message) {

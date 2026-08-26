@@ -2,8 +2,8 @@
 
 ## Trang thai tong quan hien tai
 - Giai doan: Da hoan tat toan bo checklist marketplace, gom 11 backlog nghiep vu, 3 audit bo sung va chuan hoa product canonical theo migration an toan.
-- Task dang lam do (neu co): Khong. Live catalog co 14 bang canonical, khong con bang/cot/FK hard-code giay; schema script additive, seed da nganh idempotent va deprecation audit read-only.
-- Viec tiep theo can lam ngay: Khong con backlog bat buoc trong prompt hien tai; chi thuc hien regression/mo rong moi khi co yeu cau tiep theo.
+- Task dang lam do (neu co): Da fix xong FE cho loi cot rong tren toan bo danh sach Admin co the kiem chung; `/admin/disputes` va `/admin/reports` dang bi chan boi schema live BE thieu bang.
+- Viec tiep theo can lam ngay: Apply/repair migration tao `ecommerce_order.dispute` va `ecommerce_seller.report`, sau do runtime smoke lai hai trang Admin tuong ung.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
@@ -49,8 +49,42 @@
 - [x] Report: Buyer/Seller bao cao product/shop/review, Admin kiem duyet va thi hanh action
 - [x] Chat buyer-seller
 - [x] Flash sale toan san
+- [x] Audit/fix mapping va render cot cho toan bo table/list Platform Admin
 
 ## Nhat ky chi tiet
+
+### [2026-08-26 13:54] Phien #51
+**Da lam:**
+- Liet ke va audit toan bo route Admin co table/list: thong ke, flash sale, campaign, nguoi dung, quan tri vien, voucher san, seller approval, banner, payout, report, dispute, category va product attributes.
+- Doi chieu column/dataIndex/bodyCell, service FE, DTO/repository BE va payload runtime. Nguyen nhan he thong la slot Ant Design Vue `#bodyCell` chi render cac nhanh custom, lam cac cot dataIndex con lai bi rong du response co du field.
+- Them fallback render cho moi table bi anh huong, dong thoi giu cac nhanh format/status/action rieng de khong doi hanh vi sort, filter, pagination hay thao tac.
+- Them adapter tai bien API cho nguoi dung, quan tri vien, voucher va campaign: map field canonical BE (`code/name/phoneNumber/...`) sang model legacy cua UI (`ma/ten/sdt/...`); map filter voucher/campaign sang dung query contract BE.
+- Xac nhan Category Management va cac bang con da render toan bo cot bang nhanh custom; khong sua khi mapping dang dung.
+- Khong sua BE/DB: runtime cho thay report va dispute loi do bang live chua ton tai, can migration BE rieng.
+
+**File da tao/sua:**
+- `FE/src/services/api/admin/{khachhang.api.ts,nhanvien.api.ts,voucher.api.ts,campaign.api.ts}`.
+- `FE/src/pages/admin/{khachhang/KhachHangTable.vue,nhanvien/NhanVIenTable.vue,voucher/VoucherTable.vue,voucher/VoucherModal.vue,campaign/Campaigns.vue,campaign/CampaignFilter.vue,campaign/CampaignTable.vue}`.
+- `FE/src/pages/admin/{thongke/MarketplaceStatistics.vue,seller/SellerApproval.vue,banner/PlatformBanners.vue,payout/AdminPayout.vue,flash-sale/AdminFlashSales.vue,product-attributes/ProductAttributes.vue}`.
+- `docs/PROGRESS.md`.
+
+**Ket qua:** DONE phan FE cho tat ca route Admin co payload hoat dong. HAI BLOCKER BE con lai: `/api/v1/admin/disputes` va `/api/v1/admin/reports` tra HTTP 500 do bang live thieu.
+
+**Kiem chung:**
+- Runtime API payload audit qua gateway: user/staff/seller/category/product-attributes/banner/payout/voucher/campaign/flash-sale/statistics tra shape va field da doi chieu.
+- `vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS, 3569 modules.
+- `git diff --check`: PASS.
+
+**Ghi chu/vuong mac:**
+- `/api/v1/admin/disputes`: MySQL thieu `ecommerce_order.dispute`; co script manual `order-service/src/main/resources/db/migration/manual/m9_dispute_up.sql` nhung chua duoc ap dung tren live DB.
+- `/api/v1/admin/reports`: Hibernate DDL tao `report` loi syntax do generated SQL quote type `TEXT`/`JSON`, sau do MySQL thieu `ecommerce_seller.report`; co script manual `seller-service/src/main/resources/db/migration/manual/m10_report_up.sql`.
+- Build con warning Inter font resolve va chunk > 500 kB da co tu truoc; khong lien quan thay doi nay.
+
+**Viec tiep theo can lam ngay:**
+- Phia BE apply/repair hai migration report/dispute trong moi truong live, restart service neu can, sau do smoke `/admin/reports` va `/admin/disputes`.
+
+---
 
 ### [2026-08-26 13:24] Phien #50
 **Da lam:**

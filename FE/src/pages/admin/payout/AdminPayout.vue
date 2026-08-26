@@ -39,6 +39,7 @@
               </a-popconfirm>
               <span v-else class="text-muted">{{ record.status === 'PAID' ? 'Hoàn tất' : 'Chưa khả dụng' }}</span>
             </template>
+            <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
           </template>
         </a-table>
       </a-tab-pane>
@@ -49,6 +50,7 @@
             <template v-if="column.key === 'amount'">{{ currency(record.totalAmount) }}</template>
             <template v-else-if="column.key === 'paidAt'">{{ dateTime(record.paidAt) }}</template>
             <template v-else-if="column.key === 'status'"><a-tag color="green">{{ record.status }}</a-tag></template>
+            <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
           </template>
         </a-table>
       </a-tab-pane>
@@ -64,6 +66,7 @@
             <template v-if="column.key === 'scope'">{{ record.categoryId || 'Mặc định toàn sàn' }}</template>
             <template v-else-if="column.key === 'rate'">{{ record.ratePercent }}%</template>
             <template v-else-if="column.key === 'active'"><a-tag :color="record.active ? 'green' : 'default'">{{ record.active ? 'Đang áp dụng' : 'Ngừng áp dụng' }}</a-tag></template>
+            <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
           </template>
         </a-table>
       </a-tab-pane>

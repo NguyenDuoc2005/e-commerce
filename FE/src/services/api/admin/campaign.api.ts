@@ -14,14 +14,27 @@ export interface AdminCampaignParams extends PaginationParams {
   phanTramGiam?: string | "";
   ngayBatDau?: number | null;
   ngayKetThuc?: number | null;
-  trangThai?: number | null;
+  trangThai?: string | null;
 }
 
 export type AdminCampaignResponse = ResponseList & {
   ma: string;
   ten: string;
-  status: string;
+  phanTramGiam: number;
+  ngayBatDau: number;
+  ngayKetThuc: number;
+  trangThai: string;
 };
+
+const normalizeCampaign = (row: any): AdminCampaignResponse => ({
+  ...row,
+  ma: row?.ma ?? row?.code ?? '',
+  ten: row?.ten ?? row?.name ?? '',
+  phanTramGiam: Number(row?.phanTramGiam ?? row?.discountValue ?? 0),
+  ngayBatDau: Number(row?.ngayBatDau ?? row?.startDate ?? 0),
+  ngayKetThuc: Number(row?.ngayKetThuc ?? row?.endDate ?? 0),
+  trangThai: row?.trangThai ?? row?.status ?? '',
+});
 
 export interface IdProductDetail {
   id: string;
@@ -38,13 +51,32 @@ export interface AdminCampaignRequest {
 }
 
 export const getAdminCampaigns = async (params: AdminCampaignParams) => {
+  const canonicalParams = {
+    page: params.page,
+    size: params.size,
+    orderBy: params.orderBy,
+    sortBy: params.sortBy,
+    code: params.ma,
+    name: params.ten,
+    discountValue: params.phanTramGiam === undefined || params.phanTramGiam === ''
+      ? undefined
+      : Number(params.phanTramGiam),
+    startDate: params.ngayBatDau,
+    endDate: params.ngayKetThuc,
+    trangThai: params.trangThai,
+  };
   const res = (await request({
     url: `${PREFIX_API_CAMPAIGNS_ADMIN}`,
     method: "GET",
-    params: params,
+    params: canonicalParams,
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<AdminCampaignResponse>>>>;
 
-  return res.data;
+  return {
+    ...res.data,
+    data: res.data?.data
+      ? { ...res.data.data, data: (res.data.data.data ?? []).map(normalizeCampaign) }
+      : res.data?.data,
+  };
 };
 
 export const getCampaignProducts = async () => {

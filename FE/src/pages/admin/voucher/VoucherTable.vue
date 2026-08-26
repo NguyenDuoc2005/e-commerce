@@ -34,19 +34,28 @@
               {{ record.status === 'ACTIVE' ? 'Đang hoạt động' : 'Ngừng hoạt động' }}
             </a-tag>
           </template>
-          <template v-if="column.key === 'loaiGiam'">
+          <template v-else-if="column.key === 'loaiGiam'">
             <a-tag :color="record.loaiGiam === false ? 'green' : 'blue'">
               {{ record.loaiGiam === false ? 'Công khai' : 'Cá nhân' }}
             </a-tag>
           </template>
-          <template v-if="column.key === 'phanTramGiam'">
+          <template v-else-if="column.key === 'dieuKien'">
+            {{ formatCurrencyVND(record.dieuKien) }}
+          </template>
+          <template v-else-if="column.key === 'phanTramGiam'">
             {{ record.kieuGiam === true ? record.phanTramGiam + '%' : formatCurrencyVND(record.phanTramGiam) }}
           </template>
+          <template v-else-if="column.key === 'ngayBatDau'">
+            {{ formatDate(record.ngayBatDau) }}
+          </template>
+          <template v-else-if="column.key === 'ngayKetThuc'">
+            {{ formatDate(record.ngayKetThuc) }}
+          </template>
 
-          <div v-if="column.key === 'stt'">
+          <template v-else-if="column.key === 'stt'">
             {{ products.indexOf(record) + 1 }}
-          </div>
-          <template v-if="column.key === 'operation'">
+          </template>
+          <template v-else-if="column.key === 'operation'">
             <div class="d-flex justify-content-center align-items-center gap-1 w-100 h-100">
               <a-tooltip v-if="record.status === 'INACTIVE' && record.loaiGiam === false" title="Chỉnh sửa voucher sàn">
                 <a-button
@@ -76,6 +85,9 @@
                 </a-popconfirm>
               </a-tooltip>
             </div>
+          </template>
+          <template v-else-if="column.dataIndex">
+            {{ record[column.dataIndex] ?? '—' }}
           </template>
         </template>
       </a-table>

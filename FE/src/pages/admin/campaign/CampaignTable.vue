@@ -33,23 +33,23 @@
             </a-tag>
           </template>
 
-          <template v-if="column.key === 'stt'">
+          <template v-else-if="column.key === 'stt'">
             {{ products.indexOf(record) + 1 }}
           </template>
 
-          <template v-if="column.key === 'phanTramGiam'">
+          <template v-else-if="column.key === 'phanTramGiam'">
             {{ record.phanTramGiam }}%
           </template>
 
-          <template v-if="column.key === 'ngayBatDau'">
+          <template v-else-if="column.key === 'ngayBatDau'">
             {{ formatDate(record.ngayBatDau) }}
           </template>
 
-          <template v-if="column.key === 'ngayKetThuc'">
+          <template v-else-if="column.key === 'ngayKetThuc'">
             {{ formatDate(record.ngayKetThuc) }}
           </template>
 
-          <template v-if="column.key === 'operation'">
+          <template v-else-if="column.key === 'operation'">
             <div class="d-flex gap-1 justify-content-center align-items-center w-100 h-100">
               <template v-if="record.trangThai !== 'HET_HAN_KICH_HOAT'">
                 <a-tooltip title="Cập nhật Campaign sàn">
@@ -61,6 +61,10 @@
                 </a-tooltip>
               </template>
             </div>
+          </template>
+
+          <template v-else-if="column.dataIndex">
+            {{ record[column.dataIndex] ?? '—' }}
           </template>
 
         </template>

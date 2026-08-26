@@ -29,27 +29,27 @@
         @change="handlePageChange"
       >
         <template #bodyCell="{ column, record }">
-          <div v-if="column.key === 'stt'">
+          <template v-if="column.key === 'stt'">
             {{ products.indexOf(record) + 1 }}
-          </div>
+          </template>
 
-          <template v-if="column.key === 'avatar'">
+          <template v-else-if="column.key === 'avatar'">
             <div class="center-cell">
               <img :src="record.avatar" class="avatar" />
             </div>
           </template>
 
-          <template v-if="column.key === 'createdDate'">
+          <template v-else-if="column.key === 'createdDate'">
             {{ formatDate(record.createdDate) }}
           </template>
 
-          <template v-if="column.key === 'status'">
+          <template v-else-if="column.key === 'status'">
             <a-tag :color="record.status === 'ACTIVE' ? 'green' : 'red'">
               {{ record.status === 'ACTIVE' ? 'Kích hoạt' : 'Ngừng kích hoạt' }}
             </a-tag>
           </template>
 
-          <template v-if="column.key === 'sellerStatus'">
+          <template v-else-if="column.key === 'sellerStatus'">
             <div class="seller-status-cell">
               <a-tag :color="sellerStatusColor(record.sellerStatus)">
                 {{ sellerStatusText(record.sellerStatus) }}
@@ -58,7 +58,7 @@
             </div>
           </template>
 
-          <template v-if="column.key === 'operation'">
+          <template v-else-if="column.key === 'operation'">
             <div class="d-flex gap-1 justify-center">
               <a-tooltip title="Chỉnh sửa người dùng">
                 <a-button
@@ -87,6 +87,9 @@
                 </a-popconfirm>
               </a-tooltip>
             </div>
+          </template>
+          <template v-else-if="column.dataIndex">
+            {{ record[column.dataIndex] ?? '—' }}
           </template>
         </template>
       </a-table>

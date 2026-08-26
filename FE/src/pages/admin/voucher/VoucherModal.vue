@@ -98,8 +98,11 @@
               <a-checkbox :checked="state.selectedRows.includes(record.id)"
                 @change="onCheckboxChange(record.id, $event.target.checked)" :disabled="!product.loaiGiam" />
             </template>
-            <template v-if="column.key === 'stt'">
+            <template v-else-if="column.key === 'stt'">
               {{ (state.paginationParams.page - 1) * state.paginationParams.size + state.products.indexOf(record) + 1 }}
+            </template>
+            <template v-else-if="column.dataIndex">
+              {{ record[column.dataIndex] ?? '—' }}
             </template>
           </template>
         </a-table>

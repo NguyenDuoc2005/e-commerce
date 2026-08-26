@@ -35,27 +35,27 @@
             </a-tag>
           </template>
 
-          <template v-if="column.key === 'avatar'">
+          <template v-else-if="column.key === 'avatar'">
             <div class="center-cell">
               <img :src="record.avatar" class="avatar" />
             </div>
           </template>
 
-          <div v-if="column.key === 'stt'">
+          <template v-else-if="column.key === 'stt'">
             {{ products.indexOf(record) + 1 }}
-          </div>
+          </template>
 
-          <template v-if="column.key === 'createdDate'">
+          <template v-else-if="column.key === 'createdDate'">
             {{ formatDate(record.createdDate) }}
           </template>
 
-          <template v-if="column.key === 'role'">
+          <template v-else-if="column.key === 'role'">
             <a-tag :color="record.role === 'ADMIN' ? 'blue' : 'cyan'">
               {{ roleLabel(record.role) }}
             </a-tag>
           </template>
 
-          <template v-if="column.key === 'operation'">
+          <template v-else-if="column.key === 'operation'">
             <div class="d-flex gap-1 justify-content-center align-items-center w-100 h-100">
               <a-tooltip title="Chỉnh sửa quản trị viên">
                 <a-button
@@ -85,6 +85,9 @@
                 </a-popconfirm>
               </a-tooltip>
             </div>
+          </template>
+          <template v-else-if="column.dataIndex">
+            {{ record[column.dataIndex] ?? '—' }}
           </template>
         </template>
       </a-table>

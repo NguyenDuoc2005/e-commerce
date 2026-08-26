@@ -55,6 +55,7 @@
             </a-space>
             <span v-else class="muted">Đã xử lý</span>
           </template>
+          <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
         </template>
       </a-table>
     </section>

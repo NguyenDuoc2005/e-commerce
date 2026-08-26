@@ -129,6 +129,7 @@
                 </a-popconfirm>
               </a-space>
             </template>
+            <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
           </template>
         </a-table>
       </a-tab-pane>
@@ -156,6 +157,7 @@
                 <a-button size="small" :disabled="options.length < 2" @click="openOptionMerge(record)">Gộp</a-button>
               </a-space>
             </template>
+            <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
           </template>
         </a-table>
       </a-tab-pane>
@@ -186,6 +188,7 @@
             <template v-else-if="column.key === 'definitions'"><div class="primary-cell"><strong>{{ record.sourceDefinitionName }}</strong><span v-if="record.targetDefinitionName">→ {{ record.targetDefinitionName }}</span></div></template>
             <template v-else-if="column.key === 'actor'">{{ record.actorUserId || 'Hệ thống' }}</template>
             <template v-else-if="column.key === 'createdDate'">{{ formatDate(record.createdDate) }}</template>
+            <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
           </template>
         </a-table>
       </a-tab-pane>
@@ -223,6 +226,7 @@
             <template v-else-if="column.key === 'actions'">
               <a-button size="small" @click="openAxisCreate(record.displayName)">Tạo gợi ý chuẩn</a-button>
             </template>
+            <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
           </template>
         </a-table>
 
@@ -403,6 +407,7 @@
           <template v-else-if="column.key === 'actions'">
             <a-button size="small" :disabled="record.verified" @click="verifyOption(record.id)">Duyệt</a-button>
           </template>
+          <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
         </template>
       </a-table>
     </a-drawer>

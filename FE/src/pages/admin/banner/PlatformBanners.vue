@@ -14,6 +14,7 @@
             <a-popconfirm title="Xoa banner nay?" @confirm="remove(record.id)"><a-button size="small" danger>Xoa</a-button></a-popconfirm>
           </a-space>
         </template>
+        <template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template>
       </template>
     </a-table>
     <a-modal v-model:open="modalOpen" :title="editingId ? 'Sua banner' : 'Them banner'" :confirm-loading="saving" ok-text="Luu" cancel-text="Huy" @ok="save">

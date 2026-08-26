@@ -85,7 +85,7 @@ interface FilterProps {
   phanTramGiam?: string
   ngayBatDau?: number | null
   ngayKetThuc?: number | null
-  trangThai?: number | null
+  trangThai?: string | null
 }
 
 const props = defineProps<FilterProps>()
@@ -95,7 +95,7 @@ const emit = defineEmits<{
   'update:phanTramGiam': [value: string]
   'update:ngayBatDau': [value: number | null]
   'update:ngayKetThuc': [value: number | null]
-  'update:trangThai': [value: number | null]
+  'update:trangThai': [value: string | null]
 }>()
 
 const localFilters = ref({

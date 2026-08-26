@@ -18,10 +18,42 @@ export interface ParamsGetKhachHang extends PaginationParams {
 export type KhachHangResponse = ResponseList & {
   ma: string,
   ten: string,
+  sdt: string,
+  diaChi?: string,
+  tinh?: string,
+  huyen?: string,
+  xa?: string,
+  cccd?: string,
+  ngaySinh?: string | number,
+  gioiTinh?: boolean,
+  email?: string,
+  avatar?: string,
+  createdDate?: number,
   status: string,
   sellerStatus?: string | null,
   sellerShopName?: string | null,
 }
+
+const normalizeKhachHang = (row: any): KhachHangResponse => ({
+  ...row,
+  ma: row?.ma ?? row?.code ?? '',
+  ten: row?.ten ?? row?.name ?? '',
+  sdt: row?.sdt ?? row?.phoneNumber ?? '',
+  diaChi: row?.diaChi ?? row?.address ?? '',
+  tinh: row?.tinh ?? row?.province ?? '',
+  huyen: row?.huyen ?? row?.district ?? '',
+  xa: row?.xa ?? row?.ward ?? '',
+  cccd: row?.cccd ?? row?.identityNumber ?? '',
+  ngaySinh: row?.ngaySinh ?? row?.dateOfBirth,
+  gioiTinh: row?.gioiTinh ?? row?.gender,
+})
+
+const normalizeKhachHangPage = (response: DefaultResponse<PaginationResponse<Array<KhachHangResponse>>>) => ({
+  ...response,
+  data: response.data
+    ? { ...response.data, data: (response.data.data ?? []).map(normalizeKhachHang) }
+    : response.data,
+})
 
 export type SellerOwnerStatus = {
   sellerId: string,
@@ -45,7 +77,7 @@ export const GetKhachHangs = async (params: ParamsGetKhachHang) => {
     params: params
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<KhachHangResponse>>>>
 
-  return res.data
+  return normalizeKhachHangPage(res.data)
 }
 
 export const getKhachHang = async (id: string) => {
@@ -54,7 +86,10 @@ export const getKhachHang = async (id: string) => {
     method: 'GET'
   })) as AxiosResponse<DefaultResponse<KhachHangResponse>>
 
-  return res.data
+  return {
+    ...res.data,
+    data: res.data?.data ? normalizeKhachHang(res.data.data) : res.data?.data,
+  }
 }
 
 export const modifyKhachHang = async (data: ADKhachHangRequest) => {

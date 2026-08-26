@@ -51,7 +51,7 @@ const state = reactive({
     phanTramGiam: '',
     ngayBatDau: null as number | null,
     ngayKetThuc: null as number | null,
-    trangThai: null as number | null
+    trangThai: null as string | null
   },
   products: [] as AdminCampaignResponse[],
   paginationParams: { page: 1, size: 10 },

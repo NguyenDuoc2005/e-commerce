@@ -20,10 +20,39 @@ export type NhanVienResponse = ResponseList & {
   ten: string,
   sdt: string,
   diaChi: string,
+  tinh?: string,
+  huyen?: string,
+  xa?: string,
+  cccd?: string,
+  ngaySinh?: string | number,
+  gioiTinh?: boolean,
+  avatar?: string,
+  createdDate?: number,
   email: string,
   status: string,
   role?: 'ADMIN' | 'STAFF',
 }
+
+const normalizeNhanVien = (row: any): NhanVienResponse => ({
+  ...row,
+  ma: row?.ma ?? row?.code ?? '',
+  ten: row?.ten ?? row?.name ?? '',
+  sdt: row?.sdt ?? row?.phoneNumber ?? '',
+  diaChi: row?.diaChi ?? row?.address ?? '',
+  tinh: row?.tinh ?? row?.province ?? '',
+  huyen: row?.huyen ?? row?.district ?? '',
+  xa: row?.xa ?? row?.ward ?? '',
+  cccd: row?.cccd ?? row?.identityNumber ?? '',
+  ngaySinh: row?.ngaySinh ?? row?.dateOfBirth,
+  gioiTinh: row?.gioiTinh ?? row?.gender,
+})
+
+const normalizeNhanVienPage = (response: DefaultResponse<PaginationResponse<Array<NhanVienResponse>>>) => ({
+  ...response,
+  data: response.data
+    ? { ...response.data, data: (response.data.data ?? []).map(normalizeNhanVien) }
+    : response.data,
+})
 
 export interface ADNhanVienRequest  {
   id?: string,
@@ -40,7 +69,7 @@ export const getMembers = async (params: ParamsGetMember) => {
     params: params
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<NhanVienResponse>>>>
 
-  return res.data
+  return normalizeNhanVienPage(res.data)
 }
 
 export const getMember = async (id: string) => {
@@ -49,7 +78,10 @@ export const getMember = async (id: string) => {
     method: 'GET'
   })) as AxiosResponse<DefaultResponse<NhanVienResponse>>
 
-  return res.data
+  return {
+    ...res.data,
+    data: res.data?.data ? normalizeNhanVien(res.data.data) : res.data?.data,
+  }
 }
 
 export const modifyMember = async (data: ADNhanVienRequest) => {

@@ -8,8 +8,8 @@
       <div class="metric"><span>Seller co don</span><strong>{{ data.activeSellers }}</strong></div>
     </div>
     <div class="table-grid">
-      <section class="panel"><h3>Top seller</h3><a-table row-key="sellerId" :columns="sellerColumns" :data-source="data.topSellers" :pagination="false" size="small"><template #bodyCell="{ column, record }"><template v-if="column.key === 'revenue'">{{ currency(record.revenue) }}</template></template></a-table></section>
-      <section class="panel"><h3>Top san pham</h3><a-table row-key="productVariantId" :columns="productColumns" :data-source="data.topProducts" :pagination="false" size="small"><template #bodyCell="{ column, record }"><template v-if="column.key === 'revenue'">{{ currency(record.revenue) }}</template></template></a-table></section>
+      <section class="panel"><h3>Top seller</h3><a-table row-key="sellerId" :columns="sellerColumns" :data-source="data.topSellers" :pagination="false" size="small"><template #bodyCell="{ column, record }"><template v-if="column.key === 'revenue'">{{ currency(record.revenue) }}</template><template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template></template></a-table></section>
+      <section class="panel"><h3>Top san pham</h3><a-table row-key="productVariantId" :columns="productColumns" :data-source="data.topProducts" :pagination="false" size="small"><template #bodyCell="{ column, record }"><template v-if="column.key === 'revenue'">{{ currency(record.revenue) }}</template><template v-else-if="column.dataIndex">{{ record[column.dataIndex] ?? '—' }}</template></template></a-table></section>
     </div>
   </div>
 </template>

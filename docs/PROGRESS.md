@@ -1,13 +1,13 @@
 # PROGRESS.md - Nhat ky tien do chuyen doi Marketplace
 
 ## Trang thai tong quan hien tai
-- Giai doan: Da hoan tat source va runtime acceptance cho backlog 10 — Chat buyer-seller, sau khi hoan tat PR NHOM 1-11.
-- Task dang lam do (neu co): Khong. Chat REST polling, unread/read, UI buyer/seller va cac diem mo chat tu shop/san pham da smoke tren runtime that.
-- Viec tiep theo can lam ngay: Backlog 11 — Flash sale toan san; audit `promotion_campaign`, `promotion_campaign_product` va luong seller dang ky/admin duyet truoc khi code.
+- Giai doan: Da hoan tat source va runtime acceptance cho backlog 11 — Flash sale toan san; toan bo checklist nghiep vu danh so 1-11 trong prompt da co implementation.
+- Task dang lam do (neu co): Khong. Lifecycle Seller dang ky -> Platform Admin duyet/tu choi -> public hien thi san pham da duyet da smoke tren runtime that.
+- Viec tiep theo can lam ngay: Sang nhom audit bo sung dau tien trong prompt — doi ten/don route legacy catalog va promotion; audit dependency truoc khi deprecate/xoa.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
-- Khong co cau hoi treo cho Chat. Backlog tiep theo theo thu tu checklist la Flash sale toan san.
+- Khong co cau hoi treo cho Flash sale. Checklist nghiep vu danh so 1-11 da ket thuc; tiep theo la cac muc audit bo sung cua prompt.
 
 ## Checklist tinh nang
 - [x] Dang ky/dang nhap buyer, seller, platform admin
@@ -42,9 +42,52 @@
 - [x] Dispute: Buyer tao/trao doi, Seller phan hoi, Admin resolve/dong va payout adjustment
 - [x] Report: Buyer/Seller bao cao product/shop/review, Admin kiem duyet va thi hanh action
 - [x] Chat buyer-seller
-- [ ] Flash sale toan san
+- [x] Flash sale toan san
 
 ## Nhat ky chi tiet
+
+### [2026-08-26 09:05] Phien #45
+**Da lam:**
+- Doc lai ba tai lieu bat buoc, doi chieu progress va chon dung backlog 11 — Flash sale toan san.
+- Audit `promotion_campaign`, `promotion_campaign_product`, API promotion legacy, gateway, CatalogClient va UI hien tai; giu nguyen promotion shop/voucher dang chay.
+- Mo rong schema campaign voi `campaign_type`, cua so dang ky va staff tao; mo rong campaign product voi seller, trang thai dang ky, ly do tu choi va thong tin reviewer.
+- Implement lifecycle Flash Sale rieng: Platform Admin tao/sua su kien va duyet/tu choi san pham; Seller xem su kien, lay variant cua shop, dang ky gia Flash Sale/rut dang ky; public chi nhin san pham `APPROVED`.
+- Enforce ownership variant theo `X-Seller-Id`, variant ACTIVE/con hang, gia Flash Sale > 0 va nho hon gia dang ban, duplicate registration va registration window.
+- Tach Flash Sale khoi danh sach promotion legacy bang `campaign_type = STANDARD`; regression runtime dong thoi phat hien va sua pageable native query cu bi append `createdDate` lam API `/admin/dot-giam-gia` tra 500.
+- Them route gateway va ba UI: `/admin/flash-sales`, `/seller/flash-sales`, `/flash-sale`; bo sung menu Admin/Seller, navbar storefront, countdown va trang thai rong/public product card.
+- Tao migration thu cong `m13_flash_sale_up.sql`. Sua `campaign_type` dung `VARCHAR DEFAULT STANDARD` de Hibernate `ddl-auto=update` khong gan nham campaign legacy thanh Flash Sale; local DB da duoc sua dung 2 seed legacy ve `STANDARD`.
+- Build/restart promotion-service va api-gateway tren runtime local. Smoke qua gateway voi JWT role that; sau acceptance da xoa dung 2 campaign va 1 registration smoke, xac minh khong con du lieu test.
+
+**File da tao/sua chinh:**
+- `backend-microservice/promotion-service/src/main/java/com/ecommerce/promotion/{controller,service,entity,repository,constant,model/request}` cho Flash Sale.
+- `backend-microservice/promotion-service/src/main/resources/db/migration/manual/m13_flash_sale_up.sql` va unit test `FlashSaleServiceTest.java`.
+- `backend-microservice/api-gateway/src/main/resources/application.yml`.
+- `FE/src/pages/admin/flash-sale/AdminFlashSales.vue`, `FE/src/pages/seller/flash-sale/SellerFlashSales.vue`, `FE/src/pages/users/flash-sale/FlashSalePage.vue`.
+- `FE/src/services/api/flash-sale/flash-sale.api.ts`, route constants/router/sidebar/navbar.
+- `HE_THONG_HIEN_TAI_MARKETPLACE.md`, `docs/PROGRESS.md`.
+
+**Ket qua:** DONE backlog 11 Flash sale toan san theo acceptance cua prompt: Seller dang ky san pham, Platform Admin duyet/tu choi va storefront chi hien thi san pham da duyet.
+
+**Kiem chung:**
+- `gradlew :promotion-service:test :api-gateway:compileJava --no-daemon --max-workers=1`: PASS.
+- `gradlew :promotion-service:bootJar :api-gateway:bootJar --no-daemon --max-workers=1`: PASS.
+- `vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS (chi con warning font/chunk size co san).
+- Runtime promotion-service/gateway: health `UP`, port `8085`/`8080` LISTEN voi artifact moi.
+- API smoke qua gateway: route Admin khong token `401`; seller khac owner `403`; registration `PENDING`; review `APPROVED`; public campaign co dung 1 approved product.
+- Regression promotion legacy sau restart: `/api/v1/admin/dot-giam-gia` tra `200`, khong leak campaign `FS-*`.
+- Chrome headless: `/flash-sale` render dung navbar, hero va empty state sau khi don smoke data.
+- DB cleanup: `remaining_smoke_campaigns = 0`; hai campaign seed `DGG0001`, `DGG0002` giu nguyen va co `campaign_type = STANDARD`.
+- `git diff --check`: PASS.
+
+**Ghi chu/vuong mac:**
+- Backlog nay hoan thanh dung yeu cau UI dang ky/duyet cua prompt. Cart/checkout hien van theo luong gia catalog legacy; khong rewrite bo giai gia giam dung chung trong phien nay de tranh thay doi hanh vi voucher/promotion cu ngoai pham vi acceptance.
+- Migration `m13_flash_sale_up.sql` danh cho moi truong deploy co quan ly schema; local runtime da duoc Hibernate tao cot va da xac minh default `STANDARD` sau restart.
+
+**Viec tiep theo can lam ngay:**
+- Audit muc bo sung dau tien trong prompt: doi ten/don route legacy catalog/promotion (`mau-sac`, `chat-lieu`, `loai-de`, `loai-giay`, `size`, `thuong-hieu`, `dot-giam-gia` va cac route add/update lien quan), kiem tra dependency truoc khi deprecate/xoa.
+
+---
 
 ### [2026-08-25 18:04] Phien #44
 **Da lam:**

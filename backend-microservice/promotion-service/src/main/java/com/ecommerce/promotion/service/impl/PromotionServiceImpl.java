@@ -3,7 +3,6 @@ package com.ecommerce.promotion.service.impl;
 import com.ecommerce.common.base.PageableObject;
 import com.ecommerce.common.base.ResponseObject;
 import com.ecommerce.common.catalog.CatalogVariantSnapshot;
-import com.ecommerce.common.util.PageUtils;
 import com.ecommerce.promotion.client.CatalogClient;
 import com.ecommerce.promotion.constant.Status;
 import com.ecommerce.promotion.constant.StatusPromotion;
@@ -17,6 +16,7 @@ import com.ecommerce.promotion.model.response.PromotionByIdResponse;
 import com.ecommerce.promotion.repository.PromotionDetailRepository;
 import com.ecommerce.promotion.repository.PromotionRepository;
 import com.ecommerce.promotion.service.PromotionService;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -51,7 +51,7 @@ public class PromotionServiceImpl implements PromotionService {
 
     @Override
     public ResponseObject<?> getAll(FindPromotionRequest request) {
-        Pageable pageable = PageUtils.createPageable(request, "createdDate");
+        Pageable pageable = legacyCampaignPageable(request);
         request.setPlatformOnly(true);
         request.setSellerId(null);
         return new ResponseObject<>(PageableObject.of(promotionRepository.getAllPromotionCampaign(request, pageable)), HttpStatus.OK, "Lay danh sach dot giam gia thanh cong");
@@ -83,10 +83,16 @@ public class PromotionServiceImpl implements PromotionService {
 
     @Override
     public ResponseObject<?> getSellerAll(String sellerId, FindPromotionRequest request) {
-        Pageable pageable = PageUtils.createPageable(request, "createdDate");
+        Pageable pageable = legacyCampaignPageable(request);
         request.setSellerId(sellerId);
         request.setPlatformOnly(false);
         return new ResponseObject<>(PageableObject.of(promotionRepository.getAllPromotionCampaign(request, pageable)), HttpStatus.OK, "Lay danh sach dot giam gia shop thanh cong");
+    }
+
+    private Pageable legacyCampaignPageable(FindPromotionRequest request) {
+        int page = Math.max(request.getPage() - 1, 0);
+        int size = request.getSize() == 0 ? 10 : request.getSize();
+        return PageRequest.of(page, size);
     }
 
     @Override

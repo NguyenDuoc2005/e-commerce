@@ -1,6 +1,7 @@
 package com.ecommerce.promotion.repository;
 
 import com.ecommerce.promotion.entity.PromotionCampaign;
+import com.ecommerce.promotion.constant.CampaignType;
 import com.ecommerce.promotion.model.request.FindPromotionRequest;
 import com.ecommerce.promotion.model.response.PromotionByIdResponse;
 import com.ecommerce.promotion.model.response.PromotionByProductDetail;
@@ -29,6 +30,7 @@ public interface PromotionRepository extends JpaRepository<PromotionCampaign, St
                 dgg.seller_id AS sellerId
             FROM promotion_campaign dgg
             WHERE (:#{#req.code} IS NULL OR :#{#req.code} = '' OR dgg.code LIKE %:#{#req.code}% OR dgg.name LIKE %:#{#req.code}%)
+              AND (dgg.campaign_type IS NULL OR dgg.campaign_type = 'STANDARD')
               AND (:#{#req.discountValue} IS NULL OR dgg.discount_value = :#{#req.discountValue})
               AND (:#{#req.trangThai} IS NULL OR dgg.campaign_status = :#{#req.trangThai})
               AND ((:#{#req.startDate} IS NULL OR :#{#req.endDate} IS NULL) OR (dgg.start_date >= :#{#req.startDate} AND dgg.end_date <= :#{#req.endDate}))
@@ -63,4 +65,6 @@ public interface PromotionRepository extends JpaRepository<PromotionCampaign, St
 
     @Query("SELECT d FROM PromotionCampaign d JOIN PromotionCampaignProduct dc ON d.id = dc.promotionCampaign.id WHERE dc.productVariantId IN :productDetailIds")
     List<PromotionCampaign> findAllByProductDetails(List<String> productDetailIds);
+
+    List<PromotionCampaign> findByCampaignTypeOrderByStartDateDesc(CampaignType campaignType);
 }

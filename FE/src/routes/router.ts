@@ -66,6 +66,11 @@ export const routes: RouteRecordRaw[] = [
         meta: { requiresRole: ROLES.USERS, requiresAuth: true },
       },
       {
+        path: ROUTES_CONSTANTS.USERS.children.FLASH_SALE.path,
+        name: ROUTES_CONSTANTS.USERS.children.FLASH_SALE.name,
+        component: () => import("@/pages/users/flash-sale/FlashSalePage.vue"),
+      },
+      {
         path: ROUTES_CONSTANTS.USERS.children.LIENHE.path,
         name: ROUTES_CONSTANTS.USERS.children.LIENHE.name,
 
@@ -189,6 +194,12 @@ export const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: ROUTES_CONSTANTS.SELLER.children.FLASH_SALES.path,
+        name: ROUTES_CONSTANTS.SELLER.children.FLASH_SALES.name,
+        component: () => import("@/pages/seller/flash-sale/SellerFlashSales.vue"),
+        meta: { requiresRole: 'SELLER', requiresAuth: true },
+      },
+      {
         path: ROUTES_CONSTANTS.SELLER.children.PAYOUT.path,
         name: ROUTES_CONSTANTS.SELLER.children.PAYOUT.name,
         component: () => import("@/pages/seller/payout/SellerPayout.vue"),
@@ -233,6 +244,12 @@ export const routes: RouteRecordRaw[] = [
         path: ROUTES_CONSTANTS.ADMIN.children.THONG_KE.path,
         name: ROUTES_CONSTANTS.ADMIN.children.THONG_KE.name,
         component: () => import("@/pages/admin/thongke/MarketplaceStatistics.vue"),
+        meta: { requiresRole: ROLES.ADMIN, requiresAuth: true }
+      },
+      {
+        path: ROUTES_CONSTANTS.ADMIN.children.FLASH_SALES.path,
+        name: ROUTES_CONSTANTS.ADMIN.children.FLASH_SALES.name,
+        component: () => import("@/pages/admin/flash-sale/AdminFlashSales.vue"),
         meta: { requiresRole: ROLES.ADMIN, requiresAuth: true }
       },
     ],

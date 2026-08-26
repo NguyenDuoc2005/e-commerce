@@ -135,6 +135,10 @@
           <a href="/san-pham" class="jp-menu-link">Sản phẩm</a>
         </li>
 
+        <li class="jp-menu-item">
+          <a href="/flash-sale" class="jp-menu-link">FLASH SALE</a>
+        </li>
+
         <li class="jp-menu-item" key="menu-trang-chu">
           <a href="/gioi-thieu" class="jp-menu-link">GIỚI THIỆU</a>
         </li>
@@ -177,6 +181,9 @@
           <!-- Trang chủ fix cứng trên đầu -->
           <li class="jp-side-menu-item" key="side-menu-trang-chu">
             <a href="/" class="jp-side-menu-link">TRANG CHỦ</a>
+          </li>
+          <li class="jp-side-menu-item" key="side-menu-flash-sale">
+            <a href="/flash-sale" class="jp-side-menu-link">FLASH SALE</a>
           </li>
           <!-- Duyệt các thương hiệu khác -->
           <li v-for="item in menuItems" :key="item.id" class="jp-side-menu-item">

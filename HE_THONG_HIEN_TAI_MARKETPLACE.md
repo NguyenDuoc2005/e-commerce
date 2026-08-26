@@ -142,7 +142,7 @@ He thong la microservice Spring Boot, di qua `api-gateway`, dang ky Eureka.
 - `catalog-service`: danh muc, san pham, variant, image, thuoc tinh dong, truc bien the, public/seller/admin catalog API, internal snapshot cho cart/order.
 - `cart-service`: gio hang buyer, item theo product variant.
 - `order-service`: checkout, order history, sub-order seller, seller order workflow, thong ke.
-- `promotion-service`: voucher/khuyen mai admin va voucher seller.
+- `promotion-service`: voucher san/shop, promotion shop va Flash Sale toan san voi Seller dang ky, Platform Admin duyet.
 - `payout-service`: vi seller, receivable, commission/config, admin/seller payout view.
 - `notification-service`: notification/email API.
 - `common-lib`: base response, pageable, shared utilities.
@@ -158,7 +158,7 @@ He thong la microservice Spring Boot, di qua `api-gateway`, dang ky Eureka.
   - Admin moi: `/api/v1/admin/categories/**`, `/api/v1/admin/product-attributes/**`, `/api/v1/admin/product-variant-axes/**`.
   - Public: `/api/v1/permitall/san-pham/**`, `/api/v1/permitall/san-pham-chi-tiet/**`, `/api/v1/permitall/thuong-hieu/**`, `/api/v1/permitall/products/**`, `/api/v1/permitall/categories/**`.
   - Seller: `/api/v1/seller/products/**`, `/api/v1/seller/product-variants/**`.
-- Promotion: `/api/v1/admin/dot-giam-gia/**`, `/api/v1/admin/voucher/**`, `/api/v1/seller/vouchers/**`, `/api/v1/seller/promotions/**`.
+- Promotion: `/api/v1/admin/dot-giam-gia/**`, `/api/v1/admin/voucher/**`, `/api/v1/admin/flash-sales/**`, `/api/v1/seller/vouchers/**`, `/api/v1/seller/promotions/**`, `/api/v1/seller/flash-sales/**`, `/api/v1/permitall/flash-sales/**`.
 - Order: `/api/v1/admin/ban-hang/**`, `/api/v1/admin/hoa-don/**`, `/api/v1/admin/thong-ke/**`, `/api/v1/permitall/don-mua/**`, `/api/orders/**`, `/api/v1/seller/orders/**`.
 - Cart: `/api/v1/permitall/cart/**`.
 - Notification: `/api/v1/notifications/**`.
@@ -703,18 +703,25 @@ FE:
 
 - Admin route legacy: `/admin/dot-giam-gia`, `/admin/add-dot-giam-gia`, `/admin/update-dot-giam-gia/:id`.
 - Sidebar admin dang comment menu "Quan ly dot giam gia".
+- Flash Sale Admin: `/admin/flash-sales` de tao/sua event va duyet/tu choi registration.
+- Flash Sale Seller: `/seller/flash-sales` de xem cua so dang ky, chon variant cua shop, gui gia Flash Sale va rut dang ky.
+- Flash Sale public: `/flash-sale`; chi render product registration da duoc duyet.
 
 Backend:
 
 - `/api/v1/admin/dot-giam-gia/**`
 - `/api/v1/seller/promotions/**`
+- `/api/v1/admin/flash-sales/**`
+- `/api/v1/seller/flash-sales/**`
+- `/api/v1/permitall/flash-sales/**`
 
 Thuc te marketplace:
 
-- Can tach:
-  - Campaign san: admin tao dot lon, seller dang ky/tham gia.
-  - Promotion shop: seller tao trong shop.
-  - Flash sale toan san: phase sau.
+- `campaign_type = STANDARD`: promotion/campaign legacy; khong bi tron vao danh sach Flash Sale.
+- `campaign_type = FLASH_SALE`: Platform Admin so huu event va cua so dang ky, `seller_id` campaign de null.
+- Seller chi dang ky `product_variant_id` thuoc `X-Seller-Id`, dang ACTIVE/con hang va co `flash_price` nho hon gia dang ban.
+- Registration lifecycle: `PENDING -> APPROVED | REJECTED`; seller co the `WITHDRAWN`. Chi `APPROVED` moi dat `detail_status = DANG_SU_DUNG` va duoc public API tra ve.
+- Promotion shop legacy van do seller tao trong shop qua `/api/v1/seller/promotions/**`; khong bi rewrite boi lifecycle Flash Sale.
 
 ## 9. Payout, vi, doi soat
 
@@ -1696,13 +1703,16 @@ Y nghia:
 Bang khac:
 
 - `voucher_customer`: quan he voucher/customer neu co phan phoi voucher.
-- `promotion_campaign`: dot giam gia/campaign.
-- `promotion_campaign_product`: san pham tham gia campaign.
+- `promotion_campaign`: dot giam gia/campaign; Flash Sale them `campaign_type`, `registration_start_date`, `registration_end_date`, `created_by_staff_id`.
+- `promotion_campaign_product`: san pham tham gia campaign; Flash Sale them `seller_id`, `registration_status`, `rejection_reason`, `reviewed_by_staff_id`, `reviewed_at`.
 
 Diem can hieu:
 
 - Source van con ten "phieu giam gia" theo he thong cu.
 - Trong marketplace can doc theo nghia voucher san/voucher shop.
+- `campaign_type` co default DB `STANDARD` de seed/campaign legacy khong bi Hibernate/MySQL gan nham thanh Flash Sale khi nang schema.
+- Public Flash Sale chi doc registration `APPROVED` va `detail_status = DANG_SU_DUNG`; pending/rejected/withdrawn khong lo ra storefront.
+- Migration deploy thu cong: `promotion-service/src/main/resources/db/migration/manual/m13_flash_sale_up.sql`.
 
 ### 23.8. DB payout-service
 

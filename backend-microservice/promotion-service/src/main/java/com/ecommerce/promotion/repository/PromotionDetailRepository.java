@@ -20,6 +20,12 @@ public interface PromotionDetailRepository extends JpaRepository<PromotionCampai
     @Query("SELECT pdd FROM PromotionCampaignProduct pdd WHERE pdd.productVariantId = :productDetailId")
     List<PromotionCampaignProduct> findAllByProductDetailId(@Param("productDetailId") String productDetailId);
 
+    List<PromotionCampaignProduct> findByPromotionCampaign_IdOrderByCreatedDateDesc(String campaignId);
+
+    List<PromotionCampaignProduct> findBySellerIdOrderByCreatedDateDesc(String sellerId);
+
+    PromotionCampaignProduct findByPromotionCampaign_IdAndProductVariantId(String campaignId, String productVariantId);
+
     @Query("""
             SELECT pdd
             FROM PromotionCampaignProduct pdd

@@ -62,6 +62,10 @@ export const ROUTES_CONSTANTS = {
         path: 'tin-nhan',
         name: 'buyer-chat'
       },
+      FLASH_SALE: {
+        path: 'flash-sale',
+        name: 'flash-sale'
+      },
       THONGTINCANHAN: {
         path: 'thong-tin-ca-nhan',
         name: 'thong-tin-ca-nhan'
@@ -125,6 +129,10 @@ export const ROUTES_CONSTANTS = {
         path: 'voucher',
         name: 'voucher-admin'
       },
+      FLASH_SALES: {
+        path: 'flash-sales',
+        name: 'flash-sales-admin'
+      },
       SELLER_APPROVAL: {
         path: 'seller-approval',
         name: 'seller-approval-admin'
@@ -187,6 +195,10 @@ export const ROUTES_CONSTANTS = {
       VOUCHERS: {
         path: 'vouchers',
         name: 'seller-vouchers'
+      },
+      FLASH_SALES: {
+        path: 'flash-sales',
+        name: 'seller-flash-sales'
       },
       PAYOUT: {
         path: 'payout',

@@ -17,7 +17,10 @@ const menuItems = [
   { label: 'Sản phẩm', icon: icon('M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'), routeName: ROUTES_CONSTANTS.SELLER.children.PRODUCTS.name },
   { label: 'Đơn hàng', icon: icon('M9 12h6m-6 4h6M5 5h14v14H5z'), routeName: ROUTES_CONSTANTS.SELLER.children.ORDERS.name },
   { label: 'Tin nhắn', icon: icon('M8 10h8m-8 4h5M4 5h16v13H8l-4 3V5z'), routeName: ROUTES_CONSTANTS.SELLER.children.CHAT.name },
-  { label: 'Marketing shop', icon: icon('M15 5v14M5 7a2 2 0 012-2h10a2 2 0 012 2v3a2 2 0 010 4v3a2 2 0 01-2 2H7a2 2 0 01-2-2v-3a2 2 0 010-4V7z'), routeName: ROUTES_CONSTANTS.SELLER.children.VOUCHERS.name },
+  { label: 'Marketing shop', icon: icon('M15 5v14M5 7a2 2 0 012-2h10a2 2 0 012 2v3a2 2 0 010 4v3a2 2 0 01-2 2H7a2 2 0 01-2-2v-3a2 2 0 010-4V7z'), children: [
+    { label: 'Voucher shop', routeName: ROUTES_CONSTANTS.SELLER.children.VOUCHERS.name },
+    { label: 'Flash sale sàn', routeName: ROUTES_CONSTANTS.SELLER.children.FLASH_SALES.name },
+  ] },
   { label: 'Đánh giá', icon: icon('M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z'), routeName: ROUTES_CONSTANTS.SELLER.children.REVIEWS.name },
   { label: 'Ví & đối soát', icon: icon('M3 7h18v10H3zM16 12h2'), routeName: ROUTES_CONSTANTS.SELLER.children.PAYOUT.name },
   { label: 'Tranh chấp/Khiếu nại', icon: icon('M12 9v4m0 4h.01M5.1 19h13.8a2 2 0 001.73-3L13.73 4a2 2 0 00-3.46 0L3.37 16a2 2 0 001.73 3z'), routeName: ROUTES_CONSTANTS.SELLER.children.DISPUTES.name },

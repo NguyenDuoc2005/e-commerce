@@ -25,7 +25,7 @@ spring:
         - id: promotion-service
           uri: lb://promotion-service
           predicates:
-            - Path=/api/v1/admin/dot-giam-gia/**,/api/v1/admin/voucher/**,/api/v1/seller/vouchers/**,/api/v1/seller/promotions/**
+            - Path=/api/v1/admin/dot-giam-gia/**,/api/v1/admin/voucher/**,/api/v1/admin/flash-sales/**,/api/v1/seller/vouchers/**,/api/v1/seller/promotions/**,/api/v1/seller/flash-sales/**,/api/v1/permitall/flash-sales/**
         - id: order-service
           uri: lb://order-service
           predicates:

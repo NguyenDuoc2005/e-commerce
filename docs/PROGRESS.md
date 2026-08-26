@@ -1,15 +1,16 @@
 # PROGRESS.md - Nhat ky tien do chuyen doi Marketplace
 
 ## Trang thai tong quan hien tai
-- Giai doan: Da hoan tat 11 backlog nghiep vu va 3 audit bo sung: route legacy, role guard FE va contract protected Buyer.
-- Task dang lam do (neu co): Khong. Cart/order/review/follow da nam duoi `/api/v1/buyer/**`; gateway enforce `USERS`, public shop/review van hoat dong va guest cart van render.
-- Viec tiep theo can lam ngay: Audit va trien khai "Chuan hoa san pham" con mo: chot schema target, migration an toan khong reset, seed demo da nganh va deprecate 6 bang hard-code sau khi kiem tra FK/du lieu.
+- Giai doan: Da hoan tat toan bo checklist marketplace, gom 11 backlog nghiep vu, 3 audit bo sung va chuan hoa product canonical theo migration an toan.
+- Task dang lam do (neu co): Khong. Live catalog co 14 bang canonical, khong con bang/cot/FK hard-code giay; schema script additive, seed da nganh idempotent va deprecation audit read-only.
+- Viec tiep theo can lam ngay: Khong con backlog bat buoc trong prompt hien tai; chi thuc hien regression/mo rong moi khi co yeu cau tiep theo.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
 - Khong co cau hoi treo cho route cleanup. Khong xoa bang/cot hay du lieu lich su; chi xoa route/file khong con controller/consumer sau audit dependency.
 - Khong co cau hoi treo cho audit role guard FE; gio hang khach va trang ket qua thanh toan duoc giu public co chu dich.
 - Khong co cau hoi treo cho contract Buyer; bon nhom API da tach ro public/protected ma khong thay doi du lieu nghiep vu.
+- Khong co cau hoi treo cho product canonical: prompt da chot khong reset; live audit cho thay 6 bang legacy da absent nen khong co thao tac xoa vat ly can xin phep.
 
 ## Checklist tinh nang
 - [x] Dang ky/dang nhap buyer, seller, platform admin
@@ -40,7 +41,7 @@
 - [x] Audit bo sung 1: Doi ten/don route legacy catalog va promotion; campaign san dung `/admin/campaigns`
 - [x] Audit bo sung 2: Gan role meta cho Admin/Seller/Buyer protected route va harden router guard theo JWT
 - [x] Audit bo sung 3: Doi cart/order/review/follow tu `/permitall` sang `/api/v1/buyer/**`
-- [ ] Chuan hoa san pham: schema target + migration an toan, seed demo da nganh, deprecate/xoa 6 bang hard-code sau audit
+- [x] Chuan hoa san pham: schema target + migration an toan, seed demo da nganh, deprecate/xoa 6 bang hard-code sau audit
 - [x] Thuoc tinh dong: Seller suggestion/autocomplete/tu them tren form san pham
 - [x] Thuoc tinh dong: Buyer filter theo danh muc va product detail
 - [x] Thuoc tinh dong: Platform Admin hau kiem/chuan hoa/gop/an
@@ -50,6 +51,66 @@
 - [x] Flash sale toan san
 
 ## Nhat ky chi tiet
+
+### [2026-08-26 13:24] Phien #50
+**Da lam:**
+- Doc lai ba tai lieu bat buoc; xac nhan Phien #49 da ket thuc backlog code cuoi va khong con task bat buoc nao de trien khai tiep.
+- Audit nhanh source cho cac artifact chinh: layout/sidebar tach rieng, role meta, Category Management, Product Attributes, Dispute, Report, Chat, Flash Sale va Payout lifecycle deu ton tai dung vi tri da ghi trong progress.
+- Phat hien checklist Muc 3 cua prompt va cac Muc 16/30 trong tai lieu hien trang van mang mo ta truoc chuyen doi, de gay lam lai cac task da DONE.
+- Dong bo checklist prompt sang trang thai hoan tat va cap nhat tai lieu hien trang theo source/progress; khong thay doi code nghiep vu, DB hay du lieu live.
+
+**File da tao/sua:**
+- `docs/Prompt chuyen doi marketplace.md`.
+- `HE_THONG_HIEN_TAI_MARKETPLACE.md`.
+- `docs/PROGRESS.md`.
+
+**Ket qua:** DONE dong bo ke hoach/hien trang. Khong con backlog bat buoc trong prompt; cac muc mo rong moi can co yeu cau moi.
+
+**Kiem chung:**
+- Static source audit bang `rg`: xac nhan cac route/component/service/test dai dien cho 11 backlog va 3 audit bo sung.
+- `git diff --check`: PASS.
+
+**Ghi chu/vuong mac:**
+- Khong chay lai full regression vi phien nay chi sua tai lieu; acceptance code va DB gan nhat van duoc ghi day du tai Phien #49 va cac phien truoc.
+- Worktree da co thay doi chua commit cua Phien #49; phien nay giu nguyen, khong ghi de hay hoan tac.
+
+**Viec tiep theo can lam ngay:**
+- Khong co. Cho yeu cau regression, toi uu hoac backlog mo rong moi.
+
+---
+
+### [2026-08-26 11:22] Phien #49
+**Da lam:**
+- Doc lai ba tai lieu bat buoc va chon dung backlog cuoi: product canonical/migration an toan.
+- Audit read-only live `ecommerce_catalog`: du 14 bang canonical, 0 bang `brand/color/material/origin/size/sole_type`, 0 cot/FK legacy va khong co FK cheo schema tro vao catalog.
+- Harden file schema ten lich su `p1_product_domain_reset.sql`: bo toan bo `DROP TABLE`, bo tat FK, chuyen sang `CREATE TABLE IF NOT EXISTS`; bang half-migrated trung ten se duoc giu nguyen va bi verify chan, khong bi tu sua/xoa.
+- Them preflight read-only va deprecation audit read-only co verdict ro; runbook bat buoc backup/preflight/verify va cam dung M10 half-migrated trong flow hien hanh.
+- Chuyen seed giay/dien thoai-phu kien/my pham sang `INSERT IGNORE` idempotent, khong ghi de row live; bo sung expected value ro cho schema verify.
+- Them contract test ngan migration entry point tai dien hanh vi reset va ngan seed mat tinh idempotent.
+
+**File da tao/sua:**
+- `backend-microservice/catalog-service/src/main/resources/db/migration/manual/{README.md,p1_product_domain_preflight.sql,p1_product_domain_reset.sql,p1_product_domain_seed.sql,p1_product_domain_verify.sql,p1_legacy_product_deprecation_audit.sql}`.
+- `backend-microservice/catalog-service/src/test/java/com/ecommerce/catalog/repository/ProductSchemaContractTest.java`.
+- `HE_THONG_HIEN_TAI_MARKETPLACE.md`, `docs/PROGRESS.md`.
+
+**Ket qua:** DONE backlog product canonical. Khong reset, khong drop va khong sua data live; 6 bang hard-code da absent tu truoc nen deprecation gate ket luan khong co gi de xoa.
+
+**Kiem chung:**
+- Live preflight: `EXPECTED_SCHEMA`, `CANONICAL_READY`, 0 legacy/14 target/6 required columns.
+- Live deprecation audit: `ALREADY_ABSENT_NOTHING_TO_DROP`, 0 legacy table/column/FK.
+- DB tam `verify_p1_safe_20260826`: schema additive + seed chay 2 lan; verify 14/14 target table, 6/6 required column, 19/19 FK, 4 product/12 variant va moi invariant violation = 0; DB tam da xoa sau test.
+- `gradlew :catalog-service:test --no-daemon --max-workers=1`: PASS.
+- `git diff --check`: PASS.
+
+**Ghi chu/vuong mac:**
+- File `p1_product_domain_reset.sql` giu ten de khong lam vo tham chieu/runbook cu, nhung noi dung da fail-safe va khong con kha nang reset.
+- M10 up/down giu lai chi de truy vet lich su, khong thuoc runbook deploy hien tai.
+- Console MySQL PowerShell hien dau tieng Viet cua DB tam thanh ky tu `?`; client da dung `--default-character-set=utf8mb4`, count/invariant va live UTF-8 van dung.
+
+**Viec tiep theo can lam ngay:**
+- Khong con backlog bat buoc trong prompt hien tai; cho yeu cau regression/toi uu/mo rong tiep theo.
+
+---
 
 ### [2026-08-26 10:37] Phien #48
 **Da lam:**

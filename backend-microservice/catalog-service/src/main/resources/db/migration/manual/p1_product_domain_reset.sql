@@ -1,35 +1,13 @@
--- Product domain P1 target schema.
--- Destructive by design: run only against an explicitly selected dev/temporary catalog database.
--- This script does not migrate or preserve the legacy demo product data.
+-- Product domain P1 target schema (additive compatibility entry point).
+-- The historical file name is retained so old runbooks fail safe: this script no longer
+-- drops tables or disables foreign-key checks. Existing tables/data are never overwritten.
+-- Run p1_product_domain_preflight.sql first and p1_product_domain_verify.sql afterwards.
+-- A half-migrated legacy table with the same name is intentionally left untouched and will
+-- fail verification; it must be migrated with an environment-specific, reviewed ALTER plan.
 
 SET NAMES utf8mb4;
-SET FOREIGN_KEY_CHECKS = 0;
 
-DROP TABLE IF EXISTS `product_variant_axis_value_mapping`;
-DROP TABLE IF EXISTS `product_variant`;
-DROP TABLE IF EXISTS `product_variant_axis_value`;
-DROP TABLE IF EXISTS `product_variant_axis`;
-DROP TABLE IF EXISTS `variant_axis_name_suggestion`;
-DROP TABLE IF EXISTS `product_image`;
-DROP TABLE IF EXISTS `product_attribute_value_option`;
-DROP TABLE IF EXISTS `product_attribute_value`;
-DROP TABLE IF EXISTS `category_attribute_suggestion`;
-DROP TABLE IF EXISTS `product_attribute_option`;
-DROP TABLE IF EXISTS `product_attribute_moderation_audit`;
-DROP TABLE IF EXISTS `product_attribute_definition`;
-DROP TABLE IF EXISTS `outbox`;
-DROP TABLE IF EXISTS `product`;
-DROP TABLE IF EXISTS `brand`;
-DROP TABLE IF EXISTS `color`;
-DROP TABLE IF EXISTS `material`;
-DROP TABLE IF EXISTS `origin`;
-DROP TABLE IF EXISTS `size`;
-DROP TABLE IF EXISTS `sole_type`;
-DROP TABLE IF EXISTS `category`;
-
-SET FOREIGN_KEY_CHECKS = 1;
-
-CREATE TABLE `category` (
+CREATE TABLE IF NOT EXISTS `category` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -46,7 +24,7 @@ CREATE TABLE `category` (
   CONSTRAINT `fk_category_parent` FOREIGN KEY (`parent_id`) REFERENCES `category` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product` (
+CREATE TABLE IF NOT EXISTS `product` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -67,7 +45,7 @@ CREATE TABLE `product` (
   CONSTRAINT `chk_product_rating_count` CHECK (`rating_count` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product_image` (
+CREATE TABLE IF NOT EXISTS `product_image` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -81,7 +59,7 @@ CREATE TABLE `product_image` (
   CONSTRAINT `chk_product_image_order` CHECK (`display_order` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product_attribute_definition` (
+CREATE TABLE IF NOT EXISTS `product_attribute_definition` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -105,7 +83,7 @@ CREATE TABLE `product_attribute_definition` (
   CONSTRAINT `chk_attribute_definition_not_self_merged` CHECK (`merged_into_definition_id` IS NULL OR `merged_into_definition_id` <> `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product_attribute_option` (
+CREATE TABLE IF NOT EXISTS `product_attribute_option` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -126,7 +104,7 @@ CREATE TABLE `product_attribute_option` (
   CONSTRAINT `chk_attribute_option_order` CHECK (`display_order` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `category_attribute_suggestion` (
+CREATE TABLE IF NOT EXISTS `category_attribute_suggestion` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -144,7 +122,7 @@ CREATE TABLE `category_attribute_suggestion` (
   CONSTRAINT `chk_category_attribute_order` CHECK (`display_order` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product_attribute_value` (
+CREATE TABLE IF NOT EXISTS `product_attribute_value` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -172,7 +150,7 @@ CREATE TABLE `product_attribute_value` (
   CONSTRAINT `chk_product_attribute_value_order` CHECK (`display_order` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `variant_axis_name_suggestion` (
+CREATE TABLE IF NOT EXISTS `variant_axis_name_suggestion` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -188,7 +166,7 @@ CREATE TABLE `variant_axis_name_suggestion` (
   CONSTRAINT `chk_axis_name_suggestion_not_self_merged` CHECK (`merged_into_suggestion_id` IS NULL OR `merged_into_suggestion_id` <> `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product_variant_axis` (
+CREATE TABLE IF NOT EXISTS `product_variant_axis` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -206,7 +184,7 @@ CREATE TABLE `product_variant_axis` (
   CONSTRAINT `chk_product_axis_order` CHECK (`display_order` IN (1, 2))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product_variant_axis_value` (
+CREATE TABLE IF NOT EXISTS `product_variant_axis_value` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -222,7 +200,7 @@ CREATE TABLE `product_variant_axis_value` (
   CONSTRAINT `chk_axis_value_order` CHECK (`display_order` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product_variant` (
+CREATE TABLE IF NOT EXISTS `product_variant` (
   `id` varchar(36) NOT NULL,
   `status` tinyint NOT NULL DEFAULT 0,
   `created_date` bigint DEFAULT NULL,
@@ -244,7 +222,7 @@ CREATE TABLE `product_variant` (
   CONSTRAINT `chk_product_variant_combination_key` CHECK (CHAR_LENGTH(TRIM(`combination_key`)) > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product_variant_axis_value_mapping` (
+CREATE TABLE IF NOT EXISTS `product_variant_axis_value_mapping` (
   `product_variant_id` varchar(36) NOT NULL,
   `axis_value_id` varchar(36) NOT NULL,
   PRIMARY KEY (`product_variant_id`, `axis_value_id`),
@@ -253,7 +231,7 @@ CREATE TABLE `product_variant_axis_value_mapping` (
   CONSTRAINT `fk_variant_axis_mapping_axis_value` FOREIGN KEY (`axis_value_id`) REFERENCES `product_variant_axis_value` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `product_attribute_moderation_audit` (
+CREATE TABLE IF NOT EXISTS `product_attribute_moderation_audit` (
   `id` varchar(36) NOT NULL,
   `actor_user_id` varchar(36) DEFAULT NULL,
   `source_definition_id` varchar(36) NOT NULL,
@@ -267,7 +245,7 @@ CREATE TABLE `product_attribute_moderation_audit` (
   CONSTRAINT `fk_attribute_audit_source` FOREIGN KEY (`source_definition_id`) REFERENCES `product_attribute_definition` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `outbox` (
+CREATE TABLE IF NOT EXISTS `outbox` (
   `id` varchar(36) NOT NULL,
   `aggregate_type` varchar(100) NOT NULL,
   `aggregate_id` varchar(100) NOT NULL,

@@ -1,6 +1,6 @@
 # HE THONG HIEN TAI - MARKETPLACE E-COMMERCE
 
-Tai lieu nay mo ta hien trang source marketplace va duoc doi chieu tu `docs/PROGRESS.md`, prompt, route FE, controller/backend service va gateway. Cap nhat 2026-08-26: Chat, Flash Sale, dot don route catalog/promotion legacy, audit role guard FE va chuan hoa protected Buyer API da co acceptance.
+Tai lieu nay mo ta hien trang source marketplace va duoc doi chieu tu `docs/PROGRESS.md`, prompt, route FE, controller/backend service, gateway va DB live. Cap nhat 2026-08-26: Chat, Flash Sale, dot don route catalog/promotion legacy, audit role guard FE, chuan hoa protected Buyer API va product canonical safe-migration da co acceptance.
 
 ## 1. Ket luan nhanh
 
@@ -13,14 +13,14 @@ He thong hien tai da khong con la website ban giay 1 cua hang don thuan. Source 
 - Don hang da co cau truc cha/con theo seller: order goc va `order_seller` cho tung shop.
 - Gio hang va checkout da huong toi multi-seller.
 - San pham da co `sellerId`, shop public, follow shop, review product/shop.
-- Thuoc tinh san pham dong va truc bien the da co backend/UI admin, nhung van dang trong giai doan hoan thien.
+- Thuoc tinh san pham dong va truc bien the da co backend/UI Admin/Seller/Buyer; live catalog dung schema canonical va seed demo da nganh.
 
-Phan ky thuat con can audit tiep:
+Trang thai ky thuat sau dot chuyen doi:
 
 - Route FE Admin/Seller va cac route Buyer protected da co `meta.requiresRole`; guard hien doc role/han token tu JWT, xoa auth storage hong/het han va chuyen dung trang login theo vai tro.
 - Cart, order history, create/mine review va follow shop da chuyen sang `/api/v1/buyer/**`; `/permitall` chi con duoc giu cho public shop/review/catalog/banner/Flash Sale trong nhom da audit.
 - Model seller/shop hien tai la 1 owner/customer co toi da 1 shop active/pending, chua co mo hinh 1 seller quan ly nhieu shop.
-- DB con bang/cot lich su; moi deprecation/xoa vat ly van phai audit FK va du lieu truoc.
+- DB cac service van co the con bang/cot lich su; moi deprecation/xoa vat ly van phai audit FK va du lieu truoc. Rieng live `ecommerce_catalog` da audit khong con 6 bang hard-code giay.
 
 ## 2. Mo hinh vai tro hien tai
 
@@ -81,8 +81,10 @@ Route FE seller:
 - `/seller/orders`
 - `/seller/products`
 - `/seller/vouchers`
+- `/seller/flash-sales`
 - `/seller/payout`
 - `/seller/reviews`
+- `/seller/disputes`
 - `/seller/chat`
 
 ### 2.3. Platform Admin
@@ -108,14 +110,18 @@ Route FE admin chinh:
 - `/admin/payout`
 - `/admin/voucher`
 - `/admin/campaigns`
+- `/admin/flash-sales`
+- `/admin/categories`
+- `/admin/product-attributes`
+- `/admin/reports`
+- `/admin/disputes`
 - `/admin/khach-hang`
 - `/admin/nhan-vien`
 
-Route admin legacy catalog/promotion da xoa. Cac route legacy user/staff con can audit rieng:
+Route admin legacy catalog/promotion da xoa. Hai route modal user/staff duoi day duoc giu co chu dich cho nghiep vu ho tro quan tri tai khoan; flow voucher legacy rieng da xoa:
 
 - `/admin/them-nhan-vien`
 - `/admin/them-khach-hang`
-- `/admin/them-phieu-giam-gia`
 
 ## 3. Kien truc backend hien tai
 
@@ -388,7 +394,9 @@ Entity moi/canonical dang co:
 
 Ghi chu quan trong:
 
-- Theo `docs/PROGRESS.md`, live DB catalog tung duoc ghi la con schema legacy/half-migrated o mot so bang. Khi thiet ke lai can doi chieu DB thuc te, khong chi dua vao entity source.
+- Audit live 2026-08-26: `ecommerce_catalog` co du 14 bang canonical, 0 bang/cot/FK legacy giay, 4 product/12 variant demo da nganh; khong co FK cheo schema tro vao catalog.
+- Runbook catalog hien la preflight read-only -> schema additive `CREATE TABLE IF NOT EXISTS` -> verify. File ten lich su `p1_product_domain_reset.sql` khong con `DROP TABLE`/tat FK; seed dung `INSERT IGNORE` va chay lai khong ghi de.
+- `p1_legacy_product_deprecation_audit.sql` chi bao cao dependency/verdict, khong xoa vat ly. Live tra `ALREADY_ABSENT_NOTHING_TO_DROP` nen khong co delete trong dot chuan hoa nay.
 - Route/constant/API FE legacy mau sac/size/chat lieu/loai de/thuong hieu da xoa sau khi audit khong con controller/consumer; dung category + attribute dong canonical.
 
 ### 6.2. Public product
@@ -633,8 +641,8 @@ Seller:
 
 Admin/gateway legacy:
 
-- Gateway van route `/api/v1/admin/ban-hang/**`, `/api/v1/admin/hoa-don/**`.
-- Day la dau vet POS/hoa don cu, can quyet dinh remove hoac convert thanh "quan ly don toan san".
+- DONE: gateway khong con route `/api/v1/admin/ban-hang/**`, `/api/v1/admin/hoa-don/**`; controller POS doc lap da xoa sau audit dependency.
+- Cac cot lich su trong `orders` khong bi xoa vat ly; luong marketplace tiep tuc van hanh tren `orders`/`order_seller` canonical.
 
 Thuc te marketplace:
 
@@ -1021,13 +1029,11 @@ Khuyen nghi:
 - Statistics:
   - `/api/v1/admin/thong-ke/**`
 - Legacy/POS:
-  - `/api/v1/admin/ban-hang/**`
-  - `/api/v1/admin/hoa-don/**`
-  - Cac API nay can audit de remove/convert.
+  - DONE: `/api/v1/admin/ban-hang/**` va `/api/v1/admin/hoa-don/**` da xoa khoi gateway/controller.
 
 ## 16. Trang thai hoan thien theo module
 
-### 16.1. Da co nen tang
+### 16.1. Da co va da co acceptance
 
 - JWT role buyer/admin/seller.
 - Seller registration/approval.
@@ -1039,12 +1045,17 @@ Khuyen nghi:
 - Order split seller.
 - Seller order workflow.
 - Voucher 2 huong admin/seller.
-- Payout service skeleton.
+- Payout lifecycle `pending -> available -> paid`, payout batch va dispute adjustment.
 - Review product/shop.
 - Banner admin/public.
-- Dynamic attributes backend/admin UI.
+- Dynamic attributes va variant axes tren backend/UI Admin/Seller/Buyer.
+- Category Management tree CRUD/status/suggestions.
+- Dispute Buyer/Seller/Admin.
+- Report product/shop/review va moderation action.
+- Chat buyer-seller.
+- Campaign STANDARD va Flash Sale toan san.
 
-### 16.2. Dang can chuan hoa lai
+### 16.2. Da chuan hoa trong dot marketplace
 
 - Admin IA/menu.
 - Seller center IA/menu.
@@ -1053,19 +1064,20 @@ Khuyen nghi:
 - Product attributes UI/UX va browser proof.
 - Seller product form dynamic attributes/variant axis.
 - Buyer filter attributes theo category.
-- Order admin toan san va dispute/return/refund.
-- Payout workflow full.
-- Campaign/flash sale.
+- Order admin toan san va dispute/refund.
+- Payout workflow full va `soldCount` that.
+- Campaign/Flash Sale.
+- Protected Buyer API va FE route role guard.
+- Product canonical safe-migration, seed da nganh idempotent va deprecation audit read-only.
 
-### 16.3. Legacy can xu ly
+### 16.3. Legacy da xu ly
 
-- POS `ban-hang`.
-- Offline invoice `hoa-don`.
-- Hard-code giay: mau sac, size, chat lieu, loai de, thuong hieu nhu entity/menu rieng.
-- Admin san-pham/san-pham-chi-tiet neu con la admin ban hang.
-- Admin dot giam gia cu neu chua convert campaign san.
+- POS `ban-hang` va offline invoice `hoa-don`: route/file/controller doc lap da xoa; cot lich su khong bi xoa vat ly.
+- Hard-code giay: route/entity/menu rieng da deprecate; live catalog khong con 6 bang/cot/FK legacy.
+- Admin san-pham/san-pham-chi-tiet theo kieu admin ban hang: da xoa sau audit dependency.
+- Admin dot giam gia cu: da chuyen thanh campaign san `/admin/campaigns`.
 - Route role FE: da audit va xu ly; Admin/Seller cung cac man Buyer can dang nhap deu co `meta.requiresRole`.
-- Gateway route cu khong con dung.
+- Gateway route cu khong con consumer da xoa.
 
 ## 17. De xuat thiet ke lai Platform Admin
 
@@ -1269,38 +1281,39 @@ Flow de xuat:
    - Can xac nhan lan cuoi truoc khi hoan thien seller form/buyer filter.
 
 8. Product canonical DB co duoc reset/cutover khong?
-   - Progress van ghi can phe duyet reset DB va CDC.
-   - Neu khong reset, phai viet migration an toan cho DB hien tai.
+   - DA CHOT: migration an toan, khong reset.
+   - Live schema da khop canonical; runbook moi co preflight/verify va schema additive, seed idempotent.
+   - Sau audit 6 bang legacy da absent, nen khong co DDL xoa vat ly can thuc thi.
 
 ## 21. Checklist hanh dong de lam sach he thong
 
 ### 21.1. Frontend
 
 - Tach admin menu va seller menu.
-- Doi ten route/menu theo marketplace.
-- Remove/hide hoan toan POS/hoa don offline.
+- DONE: doi ten route/menu theo marketplace.
+- DONE: remove/hide hoan toan POS/hoa don offline.
 - Audit route Admin/Seller/Buyer protected va router guard theo JWT: DONE.
-- Tao man Category Management moi.
-- Hoan thien Product Attributes.
-- Hoan thien Seller Product Form.
-- Hoan thien Buyer dynamic filters.
-- Hoan thien Admin Order/Dispute neu can.
+- DONE: tao man Category Management moi.
+- DONE: hoan thien Product Attributes.
+- DONE: hoan thien Seller Product Form.
+- DONE: hoan thien Buyer dynamic filters.
+- DONE: hoan thien Admin Dispute.
 
 ### 21.2. Gateway/backend
 
-- Remove route legacy khong dung.
-- Kiem tra controller admin ban-hang/hoa-don.
+- DONE: remove route legacy khong dung.
+- DONE: audit va xoa controller admin ban-hang/hoa-don doc lap.
 - Chuan hoa cart/order/review/follow tu `/permitall` sang protected buyer endpoints: DONE.
-- Chuan hoa response envelope giua service.
-- Bo hard-code giay khoi catalog flow.
-- Doi ten API neu can: `seller` vs `shop` ro nghia.
+- Response envelope hien tai duoc giu de tranh rewrite cac flow dang hoat dong; khong thuoc backlog bat buoc.
+- DONE: bo hard-code giay khoi catalog flow.
+- DONE: glossary giu `sellerId` = shop ID, khong tao `shopId` song song.
 
 ### 21.3. Database
 
-- Chot reset/cutover hay migration.
-- Kiem tra live schema catalog.
-- Kiem tra seed da nganh.
-- Kiem tra unique/index cho dynamic attribute, variant axis, seller/shop.
+- DONE: chot migration an toan, khong reset.
+- DONE: live schema catalog co 14/14 bang target, 19/19 FK, khong co hard-code legacy.
+- DONE: seed idempotent da nganh (giay, dien thoai/phu kien, my pham), chay hai lan tren DB tam van dung count.
+- DONE: verify unique/index/invariant cho dynamic attribute va variant axis; seller/shop van thuoc seller-service rieng.
 - Kiem tra order/payout lien ket.
 
 ### 21.4. Runtime/proof
@@ -1982,9 +1995,9 @@ sequenceDiagram
 
 Luu y:
 
-- Tai lieu source cho thay bang payout da co.
-- Can kiem tra service implementation neu muon chac flow tu order complete sang payout da auto chay day du hay moi la skeleton.
-- Thiet ke lai nen coi `order_seller` la don vi doi soat, khong phai `orders` goc.
+- Payout da duoc verify: khi `order_seller` complete, order-service goi internal payout idempotent de tao `seller_receivable` va tang pending.
+- Receivable duoc release sang available, sau do Admin chi tra theo batch va ghi lich su; dispute co adjustment rieng.
+- `order_seller` la don vi doi soat, khong phai `orders` goc.
 
 ### 24.8. Luong admin hau kiem thuoc tinh
 
@@ -2150,13 +2163,15 @@ Neu thiet ke UI dung tu "Shop" thi backend van dang goi la `seller`. Khong nen t
 
 ### 26.2. Admin khong nen duoc hieu la nguoi ban
 
-Admin hien tai con nhieu route cu lam de nham:
+Truoc dot chuyen doi, Admin tung co cac route cu de gay nham:
 
 - `ban-hang`
 - `hoa-don`
 - `san-pham`
 - `san-pham-chi-tiet`
 - `mau-sac`, `size`, `chat-lieu`, `loai-de`, `thuong-hieu`
+
+Audit source/gateway da xoa cac route/controller khong con consumer; danh sach tren chi duoc giu trong tai lieu nhu dau vet lich su.
 
 Trong marketplace dung:
 
@@ -2356,21 +2371,21 @@ Buyer khong nen:
 - Thay data shop bi suspend/inactive.
 - Dat hang variant het ton.
 
-## 30. Nhung viec can lam tiep de he thong bot sai hieu
+## 30. Ket qua dot lam sach va chuan hoa he thong
 
 1. Chot lai glossary:
    - `sellerId` hien tai = shop ID trong da so context.
    - Neu muon co `shopId` rieng thi phai refactor lon.
 
-2. Doi menu admin:
+2. Menu admin da doi:
    - `Quan ly khach hang` -> `Nguoi dung`.
-   - `Quan ly nhan vien` -> `Quan tri vien`.
+   - `Quan ly nhan vien` -> `Quan tri vien/Phan quyen`.
    - `Quan ly phieu giam gia` -> `Voucher san`.
-   - Bo POS/hoa don.
+   - POS/hoa don da bo khoi FE va gateway/controller doc lap.
 
-3. Tach sidebar:
-   - Admin sidebar rieng.
-   - Seller sidebar rieng.
+3. Sidebar da tach:
+   - Admin dung `PlatformAdminLayout` + `AdminSidebar`.
+   - Seller dung `SellerCenterLayout` + `SellerSidebar`.
    - Khong tron route buyer vao admin sidebar, tru link ve storefront co the de o user menu.
 
 4. Audit route FE:
@@ -2379,18 +2394,21 @@ Buyer khong nen:
    - Route legacy redirect thi quyet dinh xoa hay giu alias.
 
 5. Audit gateway:
-   - Xoa route POS neu bo module.
+   - DONE: route POS da xoa sau audit dependency.
    - DONE: cart/order/review/follow da chuyen khoi `/permitall` sang `/api/v1/buyer/**`.
 
 6. Audit DB:
-   - Kiem tra live schema co khop entity moi khong.
-   - Chot reset/cutover hay migration.
-   - Khong code tiep product canonical neu DB live con half-migrated ma khong co ke hoach.
+   - DONE: live schema khop entity canonical va contract verify.
+   - DONE: chot migration an toan, khong reset; schema script additive va seed idempotent.
+   - DONE: 6 bang hard-code da absent, audit dependency khong phat hien FK/cot legacy can xoa.
 
-7. Hoan thien browser proof:
-   - Admin product attributes.
+7. Browser/runtime proof da hoan thanh theo tung phien trong `docs/PROGRESS.md`:
+   - Admin product attributes va category management.
    - Seller product create/edit.
    - Buyer product list/detail dynamic filters.
    - Cart checkout multi-shop.
    - Seller order workflow.
    - Admin payout.
+   - Dispute, report, chat va Flash Sale.
+
+Khong con backlog bat buoc trong prompt hien tai. Moi mo rong tiep theo can duoc mo thanh yeu cau moi va ghi them vao `docs/PROGRESS.md`.

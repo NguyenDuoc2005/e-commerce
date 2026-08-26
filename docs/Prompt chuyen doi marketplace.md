@@ -135,25 +135,26 @@ Vì DB hiện tại (`ecommerce_catalog`, xem ảnh DBeaver) đã đúng schema 
 - [x] Duyệt/khóa seller bởi Platform Admin (Mục 5.3 audit)
 - [x] Thông báo qua notification-service (Mục 12 audit)
 
-### Đang dở / chưa làm — ưu tiên theo đúng thứ tự Mục 6 (Thứ tự PR) của file này
-1. **[ ] Chuẩn hóa UI thuộc tính động phía Admin** — backend/DB đã có đủ (đã xác nhận qua DBeaver), việc còn lại thuần là hoàn thiện UI hậu kiểm tại `/admin/product-attributes` theo đúng Mục 6.5 audit (tab Thuộc tính/Option/Danh mục gợi ý/Gộp-lịch sử/Trục biến thể).
-2. **[ ] Chuẩn hóa UI thuộc tính động phía Seller** — form đăng sản phẩm cần autocomplete/tự thêm thuộc tính đúng luồng Mục 18.2 audit (chọn danh mục → gợi ý thuộc tính → seller tự thêm → khai báo trục biến thể → sinh SKU).
-3. **[ ] Chuẩn hóa UI thuộc tính động phía Buyer** — filter theo danh mục (`categories/{id}/attribute-suggestions`) và hiển thị bảng thông số ở trang chi tiết sản phẩm (Mục 19.3 audit).
-4. **[ ] Xóa module POS `ban-hang`/`hoa-don` offline** — theo đúng 3 bước ở Mục 1.6 file này.
-5. **[ ] Đổi tên menu Admin**: "Quản lý khách hàng" → "Người dùng", "Quản lý nhân viên" → "Quản trị viên/Phân quyền", "Quản lý phiếu giảm giá" → "Voucher sàn" (Mục 1.3-1.5 file này).
-6. **[ ] Tách layout/sidebar Admin và Seller** — hiện dùng chung `Admin.vue` + `AdminSidebar.vue` (Mục 13.2 audit) gây dễ lẫn logic. Tách thành `PlatformAdminLayout` + `AdminSidebar.vue` riêng, và `SellerCenterLayout` + `SellerSidebar.vue` riêng.
-7. **[ ] Category Management UI mới cho Admin** — hiện category tree chỉ được dùng ngầm trong product-attributes, chưa có màn quản lý category độc lập, đúng vai trò (Mục 6.4, 17.1 mục 5 audit).
-8. **[ ] Module Dispute (Tranh chấp đơn hàng)** — CHƯA CÓ, phải tạo mới hoàn toàn (xem Mục 5 file này).
-9. **[ ] Module Report/Kiểm duyệt nội dung** — CHƯA CÓ, phải tạo mới hoàn toàn (xem Mục 5 file này).
-10. **[ ] Chat buyer-seller** — làm sau khi các mục trên ổn định.
-11. **[ ] Flash sale toàn sàn** — cần hoàn thiện `promotion_campaign`, `promotion_campaign_product` (đã có bảng theo Mục 8.3 audit, cần UI đăng ký/duyệt).
+### Đã hoàn thành theo đúng thứ tự Mục 6 (Thứ tự PR) của file này
+1. **[x] Chuẩn hóa UI thuộc tính động phía Admin** — đủ 5 tab hậu kiểm tại `/admin/product-attributes`.
+2. **[x] Chuẩn hóa UI thuộc tính động phía Seller** — có suggestion/autocomplete, seller tự thêm thuộc tính và khai báo tối đa 2 trục biến thể.
+3. **[x] Chuẩn hóa UI thuộc tính động phía Buyer** — filter động theo category và hiển thị thông số/variant trên trang chi tiết.
+4. **[x] Xóa module POS `ban-hang`/`hoa-don` offline** — FE, gateway và controller độc lập đã dọn; cột lịch sử không bị xóa vật lý.
+5. **[x] Đổi tên menu Admin** — dùng “Người dùng”, “Quản trị viên/Phân quyền”, “Voucher sàn”.
+6. **[x] Tách layout/sidebar Admin và Seller** — dùng `PlatformAdminLayout`/`AdminSidebar` và `SellerCenterLayout`/`SellerSidebar` riêng.
+7. **[x] Category Management UI mới cho Admin** — có tree CRUD/status và attribute suggestions.
+8. **[x] Module Dispute (Tranh chấp đơn hàng)** — Buyer/Seller/Admin và payout adjustment đã có acceptance.
+9. **[x] Module Report/Kiểm duyệt nội dung** — report product/shop/review và action Admin đã có acceptance.
+10. **[x] Chat buyer-seller** — hội thoại, unread/read và UI hai phía đã có acceptance.
+11. **[x] Flash sale toàn sàn** — Seller đăng ký, Admin duyệt/từ chối, public chỉ thấy sản phẩm approved.
 
-**Việc audit phát hiện thêm, chưa có trong checklist gốc, cần bổ sung:**
-- [ ] Đổi tên/dọn route legacy catalog: `mau-sac`, `chat-lieu`, `loai-de`, `loai-giay`, `size`, `thuong-hieu`, `dot-giam-gia`, `add-dot-giam-gia`, `update-dot-giam-gia` (Mục 2.3 audit) — folder/route vẫn còn dù sidebar đã ẩn, cần dọn dứt điểm.
-- [ ] Audit toàn bộ route FE thiếu `meta.requiresRole` (Mục 16.3, 21.1 audit).
-- [ ] Đổi tên path `/permitall/cart`, `/permitall/don-mua`, `/permitall/reviews`, `/permitall/shops/{id}/follow` — các path này có tên "permitall" (ngụ ý public) nhưng thực tế cần `X-User-Id` (buyer đã login) — dễ gây hiểu lầm khi audit bảo mật (Mục 26.6 audit).
-- [ ] Xác minh `soldCount` trong Public shop response đang hard-code = 0 (Mục 5.4 audit) — cần tính thật từ `order_seller`/`order_item` completed.
-- [ ] Xác minh luồng payout có thực sự tự động tạo `seller_receivable` khi `order_seller` complete hay mới là skeleton (Mục 24.7 audit ghi "cần kiểm tra service implementation").
+**Việc audit phát hiện thêm — đã hoàn thành:**
+- [x] Đổi tên/dọn route legacy catalog và promotion; campaign sàn dùng `/admin/campaigns`.
+- [x] Audit và gắn `meta.requiresRole` cho toàn bộ route FE Admin/Seller/Buyer protected; harden guard theo JWT.
+- [x] Chuyển cart/order/create-mine review/follow khỏi `/permitall` sang `/api/v1/buyer/**`; giữ public review/shop đúng chủ đích.
+- [x] Tính `soldCount` thật từ đơn completed.
+- [x] Hoàn thiện payout `pending -> available -> paid`, tạo `seller_receivable` khi sub-order hoàn tất.
+- [x] Chuẩn hóa product canonical bằng migration an toàn, schema additive, seed đa ngành idempotent và audit deprecation read-only; không reset DB.
 ---
 
 ## 4. THIẾT KẾ CHI TIẾT MODULE MỚI — DISPUTE (TRANH CHẤP ĐƠN HÀNG)

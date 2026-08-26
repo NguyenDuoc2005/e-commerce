@@ -1,4 +1,5 @@
--- Fresh-only P1 demo seed. Run after p1_product_domain_reset.sql on an explicit dev/temp DB.
+-- Idempotent opt-in P1 demo seed for development/staging only.
+-- INSERT IGNORE preserves every existing row and makes a second run a no-op.
 SET NAMES utf8mb4;
 SET @now = 1720000000000;
 SET @seller1 = '70000000-0000-0000-0000-000000000001';
@@ -8,7 +9,7 @@ SET @phone = '37000000-0000-0000-0000-000000000002';
 SET @serum = '37000000-0000-0000-0000-000000000003';
 SET @charger = '37000000-0000-0000-0000-000000000004';
 
-INSERT INTO category (id,parent_id,code,name,slug,display_order) VALUES
+INSERT IGNORE INTO category (id,parent_id,code,name,slug,display_order) VALUES
 ('32000000-0000-0000-0000-000000000101',NULL,'CAT-FASHION','Thời trang','thoi-trang',1),
 ('32000000-0000-0000-0000-000000000102','32000000-0000-0000-0000-000000000101','CAT-SHOES','Giày','giay',1),
 ('32000000-0000-0000-0000-000000000103','32000000-0000-0000-0000-000000000102','CAT-RUNNING-SHOES','Giày chạy bộ','giay-chay-bo',1),
@@ -18,7 +19,7 @@ INSERT INTO category (id,parent_id,code,name,slug,display_order) VALUES
 ('32000000-0000-0000-0000-000000000106',NULL,'CAT-BEAUTY','Mỹ phẩm','my-pham',3),
 ('32000000-0000-0000-0000-000000000107','32000000-0000-0000-0000-000000000106','CAT-SERUM','Serum','serum',1);
 
-INSERT INTO product_attribute_definition
+INSERT IGNORE INTO product_attribute_definition
 (id,code,name,normalized_name,data_type,default_unit,is_verified,created_by_seller_id,merged_into_definition_id) VALUES
 ('41000000-0000-0000-0000-000000000001','ATTR-BRAND','Thương hiệu','thuong hieu','SELECT_ONE',NULL,b'1',NULL,NULL),
 ('41000000-0000-0000-0000-000000000002','ATTR-ORIGIN','Xuất xứ','xuat xu','SELECT_ONE',NULL,b'1',NULL,NULL),
@@ -33,7 +34,7 @@ INSERT INTO product_attribute_definition
 ('41000000-0000-0000-0000-000000000011','ATTR-SKIN-TYPE','Loại da phù hợp','loai da phu hop','SELECT_MULTI',NULL,b'1',NULL,NULL),
 ('41000000-0000-0000-0000-000000000012','ATTR-FABRIC-SELLER','Chất liệu vải','chat lieu vai','TEXT',NULL,b'0',@seller1,'41000000-0000-0000-0000-000000000003');
 
-INSERT INTO product_attribute_option
+INSERT IGNORE INTO product_attribute_option
 (id,attribute_definition_id,created_by_seller_id,value,normalized_value,is_verified,display_order) VALUES
 ('42000000-0000-0000-0000-000000000001','41000000-0000-0000-0000-000000000001',NULL,'Nike','nike',b'1',1),
 ('42000000-0000-0000-0000-000000000002','41000000-0000-0000-0000-000000000001',NULL,'Acme Mobile','acme mobile',b'1',2),
@@ -49,7 +50,7 @@ INSERT INTO product_attribute_option
 ('42000000-0000-0000-0000-000000000012','41000000-0000-0000-0000-000000000011',NULL,'Da hỗn hợp','da hon hop',b'1',3),
 ('42000000-0000-0000-0000-000000000013','41000000-0000-0000-0000-000000000011',NULL,'Da nhạy cảm','da nhay cam',b'1',4);
 
-INSERT INTO category_attribute_suggestion
+INSERT IGNORE INTO category_attribute_suggestion
 (id,category_id,attribute_definition_id,required_value,filterable,display_order) VALUES
 (UUID(),'32000000-0000-0000-0000-000000000103','41000000-0000-0000-0000-000000000001',b'1',b'1',1),
 (UUID(),'32000000-0000-0000-0000-000000000103','41000000-0000-0000-0000-000000000002',b'0',b'1',2),
@@ -65,17 +66,17 @@ INSERT INTO category_attribute_suggestion
 (UUID(),'32000000-0000-0000-0000-000000000107','41000000-0000-0000-0000-000000000010',b'0',b'1',3),
 (UUID(),'32000000-0000-0000-0000-000000000107','41000000-0000-0000-0000-000000000011',b'0',b'1',4);
 
-INSERT INTO product (id,seller_id,category_id,code,name,description,rating_average,rating_count) VALUES
+INSERT IGNORE INTO product (id,seller_id,category_id,code,name,description,rating_average,rating_count) VALUES
 (@shoe,@seller1,'32000000-0000-0000-0000-000000000103','PROD-SHOE-001','Giày chạy AeroRun Pro','Hai trục Màu sắc và Kích cỡ',4.80,25),
 (@phone,@seller2,'32000000-0000-0000-0000-000000000105','PROD-PHONE-001','Acme X1 5G','Hai trục Dung lượng và Màu',4.60,18),
 (@serum,@seller2,'32000000-0000-0000-0000-000000000107','PROD-SERUM-001','PureLab Niacinamide 10%','Không trục, dùng default variant',4.90,31),
 (@charger,@seller2,'32000000-0000-0000-0000-000000000108','PROD-PHONE-002','Acme Charger GaN','Một trục Công suất',4.50,9);
 
-INSERT INTO product_image (id,product_id,url,display_order) VALUES
+INSERT IGNORE INTO product_image (id,product_id,url,display_order) VALUES
 (UUID(),@shoe,'https://placehold.co/800x800?text=AeroRun+Pro',0),(UUID(),@phone,'https://placehold.co/800x800?text=Acme+X1',0),
 (UUID(),@serum,'https://placehold.co/800x800?text=PureLab+Serum',0),(UUID(),@charger,'https://placehold.co/800x800?text=Acme+GaN',0);
 
-INSERT INTO product_attribute_value
+INSERT IGNORE INTO product_attribute_value
 (id,product_id,attribute_definition_id,attribute_option_id,value_text,value_number,unit,display_order) VALUES
 (UUID(),@shoe,'41000000-0000-0000-0000-000000000001','42000000-0000-0000-0000-000000000001',NULL,NULL,NULL,1),
 (UUID(),@shoe,'41000000-0000-0000-0000-000000000002','42000000-0000-0000-0000-000000000004',NULL,NULL,NULL,2),
@@ -93,25 +94,25 @@ INSERT INTO product_attribute_value
 (UUID(),@serum,'41000000-0000-0000-0000-000000000011','42000000-0000-0000-0000-000000000012',NULL,NULL,NULL,4),
 (UUID(),@charger,'41000000-0000-0000-0000-000000000001','42000000-0000-0000-0000-000000000002',NULL,NULL,NULL,1);
 
-INSERT INTO variant_axis_name_suggestion (id,name,normalized_name,is_verified) VALUES
+INSERT IGNORE INTO variant_axis_name_suggestion (id,name,normalized_name,is_verified) VALUES
 (UUID(),'Màu sắc','mau sac',b'1'),(UUID(),'Kích cỡ','kich co',b'1'),(UUID(),'Dung lượng','dung luong',b'1'),(UUID(),'Màu','mau',b'1'),(UUID(),'Công suất','cong suat',b'1');
 
 SET @shoe_color='43000000-0000-0000-0000-000000000001'; SET @shoe_size='43000000-0000-0000-0000-000000000002';
 SET @phone_storage='43000000-0000-0000-0000-000000000003'; SET @phone_color='43000000-0000-0000-0000-000000000004';
 SET @charger_power='43000000-0000-0000-0000-000000000005';
-INSERT INTO product_variant_axis (id,product_id,name,normalized_name,display_order) VALUES
+INSERT IGNORE INTO product_variant_axis (id,product_id,name,normalized_name,display_order) VALUES
 (@shoe_color,@shoe,'Màu sắc','mau sac',1),(@shoe_size,@shoe,'Kích cỡ','kich co',2),
 (@phone_storage,@phone,'Dung lượng','dung luong',1),(@phone_color,@phone,'Màu','mau',2),
 (@charger_power,@charger,'Công suất','cong suat',1);
 
-INSERT INTO product_variant_axis_value (id,axis_id,value,normalized_value,display_order) VALUES
+INSERT IGNORE INTO product_variant_axis_value (id,axis_id,value,normalized_value,display_order) VALUES
 ('44000000-0000-0000-0000-000000000001',@shoe_color,'Trắng','trang',1),('44000000-0000-0000-0000-000000000002',@shoe_color,'Đen','den',2),
 ('44000000-0000-0000-0000-000000000003',@shoe_size,'39','39',1),('44000000-0000-0000-0000-000000000004',@shoe_size,'40','40',2),('44000000-0000-0000-0000-000000000005',@shoe_size,'41','41',3),
 ('44000000-0000-0000-0000-000000000006',@phone_storage,'128 GB','128 gb',1),('44000000-0000-0000-0000-000000000007',@phone_storage,'256 GB','256 gb',2),
 ('44000000-0000-0000-0000-000000000008',@phone_color,'Đen','den',1),('44000000-0000-0000-0000-000000000009',@phone_color,'Xanh','xanh',2),
 ('44000000-0000-0000-0000-000000000010',@charger_power,'30 W','30 w',1),('44000000-0000-0000-0000-000000000011',@charger_power,'65 W','65 w',2);
 
-INSERT INTO product_variant (id,product_id,sku,combination_key,sale_price,quantity,image_url,is_default) VALUES
+INSERT IGNORE INTO product_variant (id,product_id,sku,combination_key,sale_price,quantity,image_url,is_default) VALUES
 ('38000000-0000-0000-0000-000000000001',@shoe,'AR-PRO-W-39','trang|39',1200000,20,NULL,b'0'),
 ('38000000-0000-0000-0000-000000000002',@shoe,'AR-PRO-W-40','trang|40',1200000,15,NULL,b'0'),
 ('38000000-0000-0000-0000-000000000003',@shoe,'AR-PRO-W-41','trang|41',1250000,10,NULL,b'0'),
@@ -125,7 +126,7 @@ INSERT INTO product_variant (id,product_id,sku,combination_key,sale_price,quanti
 ('38000000-0000-0000-0000-000000000011',@charger,'ACME-GAN-30','30 w',490000,20,NULL,b'0'),
 ('38000000-0000-0000-0000-000000000012',@charger,'ACME-GAN-65','65 w',790000,14,NULL,b'0');
 
-INSERT INTO product_variant_axis_value_mapping (product_variant_id,axis_value_id) VALUES
+INSERT IGNORE INTO product_variant_axis_value_mapping (product_variant_id,axis_value_id) VALUES
 ('38000000-0000-0000-0000-000000000001','44000000-0000-0000-0000-000000000001'),('38000000-0000-0000-0000-000000000001','44000000-0000-0000-0000-000000000003'),
 ('38000000-0000-0000-0000-000000000002','44000000-0000-0000-0000-000000000001'),('38000000-0000-0000-0000-000000000002','44000000-0000-0000-0000-000000000004'),
 ('38000000-0000-0000-0000-000000000003','44000000-0000-0000-0000-000000000001'),('38000000-0000-0000-0000-000000000003','44000000-0000-0000-0000-000000000005'),

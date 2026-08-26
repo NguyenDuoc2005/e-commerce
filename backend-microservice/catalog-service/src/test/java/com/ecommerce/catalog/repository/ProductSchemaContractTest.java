@@ -72,6 +72,30 @@ class ProductSchemaContractTest {
         assertTrue(schema.contains("`uk_product_attribute_value_slot`"));
     }
 
+    @Test
+    void productMigrationEntryPointCannotResetExistingCatalogData() throws Exception {
+        String schema = Files.readString(Path.of(
+                "src/main/resources/db/migration/manual/p1_product_domain_reset.sql")).toUpperCase();
+        assertTrue(schema.contains("CREATE TABLE IF NOT EXISTS"));
+        assertTrue(!schema.contains("DROP TABLE"));
+        assertTrue(!schema.contains("FOREIGN_KEY_CHECKS = 0"));
+    }
+
+    @Test
+    void demoSeedIsIdempotentAndPreflightIsReadOnly() throws Exception {
+        String seed = Files.readString(Path.of(
+                "src/main/resources/db/migration/manual/p1_product_domain_seed.sql")).toUpperCase();
+        assertTrue(seed.contains("INSERT IGNORE INTO PRODUCT"));
+        assertTrue(!seed.contains("\nINSERT INTO "));
+
+        String preflight = Files.readString(Path.of(
+                "src/main/resources/db/migration/manual/p1_product_domain_preflight.sql")).toUpperCase();
+        assertTrue(preflight.contains("CANONICAL_READY"));
+        assertTrue(!preflight.contains("DROP TABLE"));
+        assertTrue(!preflight.contains("DELETE FROM"));
+        assertTrue(!preflight.contains("TRUNCATE TABLE"));
+    }
+
     private static void assertTable(Class<?> type, String tableName) {
         Table table = type.getAnnotation(Table.class);
         assertNotNull(table);

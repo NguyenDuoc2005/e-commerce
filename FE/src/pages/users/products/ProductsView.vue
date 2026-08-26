@@ -2,7 +2,7 @@
   <div class="container py-3">
     <BreadCrumbUser :routes="[{ name: 'Trang chủ', path: '/' }, { name: 'Sản phẩm', path: '/san-pham' }]" title="Danh sách sản phẩm" />
     <div class="row g-4">
-      <div class="col-12 col-lg-3"><FilterBox @filter="applyFilters" /></div>
+      <div class="col-12 col-lg-3"><FilterBox :initial-category-id="initialCategoryId" @filter="applyFilters" /></div>
       <main class="col">
         <div class="d-flex gap-2 mb-3 search-row">
           <input v-model="q" class="form-control" placeholder="Tìm kiếm sản phẩm…" @keyup.enter="reload" />
@@ -53,8 +53,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import BreadCrumbUser from '@/components/ui/Breadcrumbs/BreadCrumbUser.vue'
 import FilterBox from './FilterBox.vue'
 import { getCatalogProducts, type CatalogAttribute, type CatalogSummary } from '@/services/api/catalog/catalog.api'
@@ -68,6 +68,8 @@ type FilterState = {
 }
 
 const router = useRouter()
+const route = useRoute()
+const initialCategoryId = computed(() => typeof route.query.categoryId === 'string' ? route.query.categoryId : '')
 const products = ref<CatalogSummary[]>([])
 const shops = ref(new Map<string, SellerResponse>())
 const loading = ref(false)

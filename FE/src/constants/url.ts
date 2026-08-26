@@ -53,24 +53,15 @@ export const PREFIX_API_PERMITALL = `${API_URL}/permitall` as string;
 // export const PREFIX_API_CUSTOMER = `${API_URL}/customer` as string;
 
 export const PREFIX_API_THONG_KE_ADMIN = `${PREFIX_API_ADMIN}/thong-ke` as string;
-export const PREFIX_API_MAU_SAC_ADMIN = `${PREFIX_API_ADMIN}/mau-sac` as string;
-export const PREFIX_API_SIZE_ADMIN = `${PREFIX_API_ADMIN}/size` as string;
-export const PREFIX_API_THUONG_HIEU_ADMIN = `${PREFIX_API_ADMIN}/thuong-hieu` as string;
-export const PREFIX_API_XUAT_XU_ADMIN = `${PREFIX_API_ADMIN}/xuat-xu` as string;
 export const PREFIX_API_KHACH_HANG_ADMIN = `${PREFIX_API_ADMIN}/khach-hang` as string;
 export const PREFIX_API_NHAN_VIEN_ADMIN = `${PREFIX_API_ADMIN}/nhan-vien` as string;
-export const PREFIX_API_SAN_PHAM_ADMIN = `${PREFIX_API_ADMIN}/san-pham` as string;
-export const PREFIX_API_CHAT_LIEU_ADMIN = `${PREFIX_API_ADMIN}/chat-lieu` as string;
-export const PREFIX_API_LOAI_DE_ADMIN = `${PREFIX_API_ADMIN}/loai-de` as string;
-export const PREFIX_API_LOAI_GIAY_ADMIN = `${PREFIX_API_ADMIN}/danh-muc` as string;
-export const PREFIX_API_DOT_GIAM_GIA_ADMIN = `${PREFIX_API_ADMIN}/dot-giam-gia` as string;
+export const PREFIX_API_CAMPAIGNS_ADMIN = `${PREFIX_API_ADMIN}/campaigns` as string;
 export const PREFIX_API_VOUCHER_ADMIN = `${PREFIX_API_ADMIN}/voucher` as string;
 export const PREFIX_API_SELLER_ADMIN = `${PREFIX_API_ADMIN}/sellers` as string;
 export const PREFIX_API_SELLER = `${API_URL}/sellers` as string;
 export const PREFIX_API_SELLER_PROFILE = `${API_URL}/seller/profile` as string;
 export const PREFIX_API_SELLER_ORDERS = `${API_URL}/seller/orders` as string;
 export const PREFIX_API_SELLER_PRODUCTS = `${API_URL}/seller/products` as string;
-export const PREFIX_API_SELLER_PRODUCT_VARIANTS = `${API_URL}/seller/product-variants` as string;
 export const PREFIX_API_SELLER_VOUCHERS = `${API_URL}/seller/vouchers` as string;
 export const PREFIX_API_SELLER_PAYOUT = `${API_URL}/seller/payout` as string;
 export const PREFIX_API_BANNER_ADMIN = `${PREFIX_API_ADMIN}/banners` as string;
@@ -78,10 +69,6 @@ export const PREFIX_API_PRODUCT_ATTRIBUTES_ADMIN = `${PREFIX_API_ADMIN}/product-
 export const PREFIX_API_PRODUCT_VARIANT_AXES_ADMIN = `${PREFIX_API_ADMIN}/product-variant-axes` as string;
 export const PREFIX_API_BANNER_PERMITALL = `${PREFIX_API_PERMITALL}/banners` as string;
 // Permitall API PREFIX
-export const PREFIX_API_SANPHAM_PERMITALL = `${PREFIX_API_PERMITALL}/san-pham` as string;
-export const PREFIX_API_SANPHAMCHITIET_PERMITALL =
-  `${PREFIX_API_PERMITALL}/san-pham-chi-tiet` as string;
-export const PREFIX_API_THUONGHIEU_PERMITALL = `${PREFIX_API_PERMITALL}/thuong-hieu` as string;
 export const PREFIX_API_CART_PERMITALL = `${PREFIX_API_PERMITALL}/cart` as string;
 export const PREFIX_API_SHOP_PERMITALL = `${PREFIX_API_PERMITALL}/shops` as string;
 

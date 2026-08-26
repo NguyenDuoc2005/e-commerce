@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { getCategoryFilters, getCategoryTree } from '@/services/api/catalog/catalog.api'
 
 type Selection = { values: string[]; text?: string; min?: number; max?: number }
@@ -80,9 +80,10 @@ type FilterPayload = {
   giaDen?: number
 }
 
+const props = defineProps<{ initialCategoryId?: string }>()
 const emit = defineEmits<{ filter: [value: FilterPayload] }>()
 const categories = ref<CategoryOption[]>([])
-const categoryId = ref('')
+const categoryId = ref(props.initialCategoryId || '')
 const dynamicFilters = ref<DynamicFilter[]>([])
 const selections = reactive<Record<string, Selection>>({})
 const priceMin = ref<number>()
@@ -132,6 +133,13 @@ const reset = async () => {
   await changeCategory()
 }
 
+watch(() => props.initialCategoryId, async (value) => {
+  const nextCategoryId = value || ''
+  if (nextCategoryId === categoryId.value) return
+  categoryId.value = nextCategoryId
+  await changeCategory()
+})
+
 onMounted(async () => {
   const flatten = (nodes: any[], prefix = ''): CategoryOption[] => nodes.flatMap(node => {
     const children = node.children || node.childCategories || []
@@ -140,6 +148,7 @@ onMounted(async () => {
   })
   try {
     categories.value = flatten(await getCategoryTree())
+    if (categoryId.value) await changeCategory()
   } catch {
     filterError.value = 'Không tải được cây danh mục.'
   }

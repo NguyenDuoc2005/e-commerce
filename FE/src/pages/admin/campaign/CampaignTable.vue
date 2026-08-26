@@ -1,15 +1,15 @@
 <template>
-  <DivCustom label="Danh sách đợt giảm giá" customClasses="mt-5">
+  <DivCustom label="Danh sách Campaign sàn" customClasses="mt-5">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <div style="font-size: 13px; margin-left: 15px;color: #58bddb;">
 
       </div>
 
       <div>
-        <a-tooltip title="Thêm đợt giảm giá">
+        <a-tooltip title="Thêm Campaign sàn">
           <a-button style="background-color: #54bddb;" type="primary" @click="handleAddClick"
             class="d-flex justify-content-center align-items-center px-4">
-            <PlusCircleOutlined /> Thêm mới đợt giảm giá
+            <PlusCircleOutlined /> Thêm Campaign sàn
           </a-button>
         </a-tooltip>
       </div>
@@ -52,7 +52,7 @@
           <template v-if="column.key === 'operation'">
             <div class="d-flex gap-1 justify-content-center align-items-center w-100 h-100">
               <template v-if="record.trangThai !== 'HET_HAN_KICH_HOAT'">
-                <a-tooltip title="Cập nhật đợt giảm giá">
+                <a-tooltip title="Cập nhật Campaign sàn">
                   <a-button type="primary" @click="handleViewClick(record.id)"
                     class="p-2 d-flex justify-content-center align-items-center"
                     style="background-color: #54bddb; border-color: #096dd9; color: white;">
@@ -71,7 +71,7 @@
 
 <script setup lang="ts">
 import DivCustom from '@/components/custom/Div/DivCustomTable.vue'
-import { EditOutlined, EyeOutlined, PlusCircleOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, PlusCircleOutlined } from '@ant-design/icons-vue'
 import type { TableColumnsType } from 'ant-design-vue'
 import { defineEmits, defineProps } from 'vue'
 import { useRouter } from 'vue-router'
@@ -101,11 +101,11 @@ const handlePageChange = (pagination: any) => {
 }
 
 const handleAddClick = () => {
-  router.push({ name: 'add-dot-giam-gia-admin' })
+  router.push({ name: 'campaign-create-admin' })
 }
 
 const handleViewClick = (id: string) => {
-  router.push({ name: 'update-dot-giam-gia-admin', params: { id } })
+  router.push({ name: 'campaign-edit-admin', params: { id } })
 }
 
 const formatDate = (timestamp: number) => {

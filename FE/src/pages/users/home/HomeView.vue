@@ -5,7 +5,6 @@
         <!-- Các thành phần chính -->
         <HomePage  />
         <ShopList />
-         <!-- <DiscountedProducts/> -->
         <NewProduct/>
         <PromotionList />
       </div>
@@ -14,7 +13,6 @@
 </template>
 
 <script setup lang="ts">
-import DiscountedProducts from './DiscountedProducts.vue'
 import HomePage from '@/pages/users/home/HomePage.vue'
 import ShopList from '@/pages/users/home/ShopList.vue'
 import NewProduct from '@/pages/users/home/NewProduct.vue'

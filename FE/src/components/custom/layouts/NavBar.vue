@@ -185,10 +185,10 @@
           <li class="jp-side-menu-item" key="side-menu-flash-sale">
             <a href="/flash-sale" class="jp-side-menu-link">FLASH SALE</a>
           </li>
-          <!-- Duyệt các thương hiệu khác -->
+          <!-- Duyệt category marketplace -->
           <li v-for="item in menuItems" :key="item.id" class="jp-side-menu-item">
             <a href="#" class="jp-side-menu-link" @click.prevent="() => { onMenuClick(item.id); closeSideMenu(); }">{{
-              item.ten }}</a>
+              item.name }}</a>
           </li>
           <li class="jp-menu-item" key="menu-trang-chu">
             <a href="/gioi-thieu" class="jp-menu-link">GIỚI THIỆU</a>
@@ -214,7 +214,7 @@ import { useRoute } from 'vue-router'
 import { localStorageAction } from '@/utils/storage'
 import { USER_INFO_STORAGE_KEY, CART_STORAGE_KEY } from '@/constants/storageKey'
 import { getAllCart, type requestCart } from '@/services/api/permitall/cart/cart'
-import { GetAllThuongHieusTrangChu } from '@/services/api/permitall/thuonghieu/pmthuonghieu.api'
+import { getCategoryTree } from '@/services/api/catalog/catalog.api'
 
 // Normalize cart responses from monolith and microservice shapes.
 const getRows = (data: any) => {
@@ -276,7 +276,7 @@ const isSeller = computed(() => currentRoles.value.includes('SELLER'))
 const sellerEntryPath = computed(() => isSeller.value ? '/seller/dashboard' : '/dang-ky-ban-hang')
 const sellerEntryLabel = computed(() => isSeller.value ? 'KÊNH NGƯỜI BÁN' : 'ĐĂNG KÝ BÁN HÀNG')
 
-const menuItems = ref([])
+const menuItems = ref<Array<{ id: string; name: string }>>([])
 const idUser = localStorageAction.get(USER_INFO_STORAGE_KEY)
 
 // Cập nhật số lượng giỏ hàng khi trạng thái đăng nhập thay đổi
@@ -297,14 +297,13 @@ const handleCartUpdate = () => {
   }
 }
 
-// Lấy danh sách thương hiệu
+// Lấy category cấp cao từ catalog canonical.
 const fetchCategory = async () => {
   try {
-    const payload = { page: 1, size: 100000 }
-    const res = await GetAllThuongHieusTrangChu(payload)
-    menuItems.value = res.data.content
+    const categories = await getCategoryTree()
+    menuItems.value = (categories || []).map((item: any) => ({ id: String(item.id), name: String(item.name) }))
   } catch (error) {
-    console.error('Lỗi lấy thương hiệu:', error)
+    console.error('Lỗi lấy category:', error)
     menuItems.value = []
   }
 }
@@ -332,9 +331,10 @@ onBeforeUnmount(() => {
 })
 
 const route = useRoute()
-const onMenuClick = (idThuongHieu: string) => {
+const onMenuClick = (categoryId: string) => {
   router.push({
     path: '/san-pham',
+    query: { ...route.query, categoryId },
   })
 }
 

@@ -1,6 +1,6 @@
 # HE THONG HIEN TAI - MARKETPLACE E-COMMERCE
 
-Tai lieu nay mo ta hien trang source tai thoi diem 2026-08-24 de lam nen cho viec thiet ke lai admin, seller center, buyer storefront va cac luong xu ly con thieu. Noi dung duoc doi chieu tu `docs/PROGRESS.md`, prompt marketplace, route FE, sidebar FE, controller/backend service va gateway route hien co. Cap nhat bo sung 2026-08-25: module Chat buyer-seller da duoc trien khai va runtime acceptance.
+Tai lieu nay mo ta hien trang source marketplace va duoc doi chieu tu `docs/PROGRESS.md`, prompt, route FE, controller/backend service va gateway. Cap nhat 2026-08-26: Chat, Flash Sale va dot don route catalog/promotion legacy da co runtime acceptance.
 
 ## 1. Ket luan nhanh
 
@@ -15,14 +15,12 @@ He thong hien tai da khong con la website ban giay 1 cua hang don thuan. Source 
 - San pham da co `sellerId`, shop public, follow shop, review product/shop.
 - Thuoc tinh san pham dong va truc bien the da co backend/UI admin, nhung van dang trong giai doan hoan thien.
 
-Tuy nhien source van con nhieu dau vet cua he thong cu:
+Phan ky thuat con can audit tiep:
 
-- Admin sidebar con hien/khai bao cac man "Quan ly khach hang", "Quan ly nhan vien", "Quan ly phieu giam gia", "Danh muc chung" nhung mot phan con mang tu duy cua hang/POS.
-- FE van con folder cu: `admin/banhang`, `admin/hoadon`, `admin/sanpham`, `admin/sanphamchitiet`, `admin/mausac`, `admin/size`, `admin/chatlieu`, `admin/loaide`, `admin/thuonghieu`.
-- Gateway van route ca `/api/v1/admin/ban-hang/**`, `/api/v1/admin/hoa-don/**`, `/api/v1/admin/san-pham/**`, `/api/v1/admin/san-pham-chi-tiet/**` du cac man nay khong con phu hop lam nghiep vu ban le cua platform admin.
-- Source route FE co nhieu route admin cu khong gan `requiresRole` hoac da redirect ve man moi.
+- Source route FE con mot so route chua gan `meta.requiresRole`; can audit router guard theo tung vai tro.
+- Cac path buyer can dang nhap van mang prefix `/permitall` (`cart`, `don-mua`, mot phan review/follow); can doi ten contract de tranh hieu nham bao mat.
 - Model seller/shop hien tai la 1 owner/customer co toi da 1 shop active/pending, chua co mo hinh 1 seller quan ly nhieu shop.
-- Live DB theo ghi chu tien do van co phan schema legacy/half-migrated trong catalog, nen source moi va DB runtime co the chua dong bo tuy moi truong.
+- DB con bang/cot lich su; moi deprecation/xoa vat ly van phai audit FK va du lieu truoc.
 
 ## 2. Mo hinh vai tro hien tai
 
@@ -109,25 +107,15 @@ Route FE admin chinh:
 - `/admin/banners`
 - `/admin/payout`
 - `/admin/voucher`
+- `/admin/campaigns`
 - `/admin/khach-hang`
 - `/admin/nhan-vien`
 
-Route admin legacy con khai bao:
+Route admin legacy catalog/promotion da xoa. Cac route legacy user/staff con can audit rieng:
 
-- `/admin/mau-sac`
-- `/admin/chat-lieu`
-- `/admin/loai-de`
-- `/admin/loai-giay`
-- `/admin/size`
-- `/admin/thuong-hieu`
-- `/admin/dot-giam-gia`
-- `/admin/add-dot-giam-gia`
-- `/admin/update-dot-giam-gia/:id`
 - `/admin/them-nhan-vien`
 - `/admin/them-khach-hang`
 - `/admin/them-phieu-giam-gia`
-
-Mot so route legacy da redirect ve `/admin/product-attributes`, nhung code/folder van con.
 
 ## 3. Kien truc backend hien tai
 
@@ -154,12 +142,11 @@ He thong la microservice Spring Boot, di qua `api-gateway`, dang ky Eureka.
 - Auth: `/api/v1/auth/**`, `/oauth2/**`.
 - User: `/api/v1/admin/khach-hang/**`, `/api/v1/admin/nhan-vien/**`, `/api/v1/permitall/profile/**`.
 - Catalog:
-  - Admin cu: `/api/v1/admin/mau-sac/**`, `/api/v1/admin/size/**`, `/api/v1/admin/thuong-hieu/**`, `/api/v1/admin/xuat-xu/**`, `/api/v1/admin/san-pham/**`, `/api/v1/admin/san-pham-chi-tiet/**`, `/api/v1/admin/chat-lieu/**`, `/api/v1/admin/danh-muc/**`, `/api/v1/admin/loai-de/**`.
-  - Admin moi: `/api/v1/admin/categories/**`, `/api/v1/admin/product-attributes/**`, `/api/v1/admin/product-variant-axes/**`.
-  - Public: `/api/v1/permitall/san-pham/**`, `/api/v1/permitall/san-pham-chi-tiet/**`, `/api/v1/permitall/thuong-hieu/**`, `/api/v1/permitall/products/**`, `/api/v1/permitall/categories/**`.
-  - Seller: `/api/v1/seller/products/**`, `/api/v1/seller/product-variants/**`.
-- Promotion: `/api/v1/admin/dot-giam-gia/**`, `/api/v1/admin/voucher/**`, `/api/v1/admin/flash-sales/**`, `/api/v1/seller/vouchers/**`, `/api/v1/seller/promotions/**`, `/api/v1/seller/flash-sales/**`, `/api/v1/permitall/flash-sales/**`.
-- Order: `/api/v1/admin/ban-hang/**`, `/api/v1/admin/hoa-don/**`, `/api/v1/admin/thong-ke/**`, `/api/v1/permitall/don-mua/**`, `/api/orders/**`, `/api/v1/seller/orders/**`.
+  - Admin: `/api/v1/admin/categories/**`, `/api/v1/admin/product-attributes/**`, `/api/v1/admin/product-variant-axes/**`.
+  - Public: `/api/v1/permitall/products/**`, `/api/v1/permitall/categories/**`.
+  - Seller: `/api/v1/seller/products/**` (gom CRUD, goi y, variant va low-stock).
+- Promotion: `/api/v1/admin/campaigns/**`, `/api/v1/admin/voucher/**`, `/api/v1/admin/flash-sales/**`, `/api/v1/seller/vouchers/**`, `/api/v1/seller/promotions/**`, `/api/v1/seller/flash-sales/**`, `/api/v1/permitall/flash-sales/**`.
+- Order: `/api/v1/admin/thong-ke/**`, `/api/v1/admin/disputes/**`, `/api/v1/permitall/don-mua/**`, `/api/orders/**`, `/api/v1/seller/orders/**`, `/api/v1/seller/disputes/**`, `/api/v1/buyer/disputes/**`.
 - Cart: `/api/v1/permitall/cart/**`.
 - Notification: `/api/v1/notifications/**`.
 - Payout: `/api/v1/admin/payout/**`, `/api/v1/seller/payout/**`.
@@ -402,7 +389,7 @@ Entity moi/canonical dang co:
 Ghi chu quan trong:
 
 - Theo `docs/PROGRESS.md`, live DB catalog tung duoc ghi la con schema legacy/half-migrated o mot so bang. Khi thiet ke lai can doi chieu DB thuc te, khong chi dua vao entity source.
-- Cac route admin legacy mau sac/size/chat lieu/loai de/thuong hieu van con constant/route, nhung sidebar dang an nhom legacy catalog va redirect ve product attributes.
+- Route/constant/API FE legacy mau sac/size/chat lieu/loai de/thuong hieu da xoa sau khi audit khong con controller/consumer; dung category + attribute dong canonical.
 
 ### 6.2. Public product
 
@@ -697,19 +684,18 @@ Context:
 - Controller doc `X-Seller-Id`.
 - Seller voucher chi thuoc shop hien tai.
 
-### 8.3. Dot giam gia / promotion campaign
+### 8.3. Campaign STANDARD / Flash Sale
 
 FE:
 
-- Admin route legacy: `/admin/dot-giam-gia`, `/admin/add-dot-giam-gia`, `/admin/update-dot-giam-gia/:id`.
-- Sidebar admin dang comment menu "Quan ly dot giam gia".
+- Admin campaign san: `/admin/campaigns`, `/admin/campaigns/new`, `/admin/campaigns/:id/edit`.
 - Flash Sale Admin: `/admin/flash-sales` de tao/sua event va duyet/tu choi registration.
 - Flash Sale Seller: `/seller/flash-sales` de xem cua so dang ky, chon variant cua shop, gui gia Flash Sale va rut dang ky.
 - Flash Sale public: `/flash-sale`; chi render product registration da duoc duyet.
 
 Backend:
 
-- `/api/v1/admin/dot-giam-gia/**`
+- `/api/v1/admin/campaigns/**`
 - `/api/v1/seller/promotions/**`
 - `/api/v1/admin/flash-sales/**`
 - `/api/v1/seller/flash-sales/**`
@@ -1030,7 +1016,7 @@ Khuyen nghi:
   - `/api/v1/admin/payout/**`
 - Voucher/campaign:
   - `/api/v1/admin/voucher/**`
-  - `/api/v1/admin/dot-giam-gia/**`
+  - `/api/v1/admin/campaigns/**`
 - User/staff:
   - `/api/v1/admin/khach-hang/**`
   - `/api/v1/admin/nhan-vien/**`

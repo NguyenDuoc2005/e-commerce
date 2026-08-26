@@ -551,6 +551,26 @@ public class CatalogProductService {
     }
 
     @Transactional(readOnly = true)
+    public List<Map<String, Object>> sellerLowStockVariants(String sellerId, int threshold) {
+        int safeThreshold = Math.max(threshold, 0);
+        return variantRepository
+                .findByProduct_SellerIdAndProduct_StatusAndStatusAndQuantityLessThanEqualOrderByQuantityAsc(
+                        sellerId, EntityStatus.ACTIVE, EntityStatus.ACTIVE, safeThreshold)
+                .stream()
+                .map(variant -> {
+                    Map<String, Object> row = linkedMap();
+                    row.put("id", variant.getId());
+                    row.put("code", variant.getSku());
+                    row.put("productName", variant.getProduct().getName());
+                    row.put("variantLabel", snapshot(variant).variantLabel());
+                    row.put("quantity", variant.getQuantity());
+                    row.put("imageUrl", variant.getImageUrl());
+                    return row;
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> categoryTree() {
         return categoryRepository.findByParentIsNullAndStatusOrderByDisplayOrderAsc(EntityStatus.ACTIVE).stream()
                 .map(this::categoryNode).toList();

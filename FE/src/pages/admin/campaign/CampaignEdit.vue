@@ -2,23 +2,23 @@
   <div class="update-discount-page p-6">
     <div class="breadcrumb-section">
       <BreadcrumbDefault
-        :pageTitle="'Sửa đợt giảm giá'"
+        :pageTitle="'Sửa Campaign sàn'"
         :routes="[
-          { path: '/admin/dot-giam-gia', name: 'Quản lý đợt giảm giá' },
-          { path: '/admin/update-dot-giam-gia', name: 'Sửa đợt giảm giá' },
+          { path: '/admin/campaigns', name: 'Campaign sàn' },
+          { path: '/admin/campaigns/' + route.params.id + '/edit', name: 'Sửa Campaign sàn' },
         ]"
       />
     </div>
     <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
       <div class="xl:col-span-1 bg-white rounded-lg shadow-sm border p-6">
-        <h2 class="text-lg font-semibold mb-4">Thông tin đợt giảm giá</h2>
+        <h2 class="text-lg font-semibold mb-4">Thông tin Campaign sàn</h2>
 
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2"> Mã đợt giảm giá </label>
+            <label class="block text-sm font-medium text-gray-700 mb-2"> Mã Campaign sàn </label>
             <a-input
               v-model:value="formData.code"
-              placeholder="Mã đợt giảm giá"
+              placeholder="Mã Campaign sàn"
               size="large"
               disabled
             />
@@ -104,7 +104,7 @@
               </div>
               <div class="col-span-1 text-center">STT</div>
               <div class="col-span-4 text-center">Tên sản phẩm</div>
-              <div class="col-span-2 text-center">Thương hiệu</div>
+              <div class="col-span-2 text-center">Danh mục</div>
               <div class="col-span-4 text-center">Trạng thái</div>
             </div>
           </div>
@@ -135,7 +135,7 @@
               <div class="col-span-1 text-center">{{ index + 1 }}</div>
               <div class="col-span-4 text-center">{{ product.ten }}</div>
               <div class="col-span-2 text-center">
-                {{ product.thuongHieu.ten }}
+                {{ product.categoryName }}
               </div>
               <div
                 style="color: green"
@@ -191,38 +191,6 @@
                 @input="handleDetailSearch"
                 class="w-full shadow-sm hover:shadow-md transition-shadow duration-200"
               />
-            </div>
-
-            <div class="col-md-3 mb-3">
-              <label class="form-label">Kích cỡ</label>
-              <a-select
-                v-model:value="selectedSize"
-                placeholder="Chọn kích cỡ"
-                size="large"
-                class="w-full shadow-sm hover:shadow-md transition-shadow duration-200"
-                @change="handleDetailSearch"
-                :allowClear="true"
-              >
-                <a-select-option v-for="size in sizes" :key="size.id" :value="size.id">
-                  {{ size.ten }}
-                </a-select-option>
-              </a-select>
-            </div>
-
-            <div class="col-md-3 mb-3">
-              <label class="form-label">Màu sắc</label>
-              <a-select
-                v-model:value="selectedColor"
-                placeholder="Chọn màu sắc"
-                size="large"
-                class="w-full shadow-sm hover:shadow-md transition-shadow duration-200"
-                @change="handleDetailSearch"
-                :allowClear="true"
-              >
-                <a-select-option v-for="color in colors" :key="color.id" :value="color.id">
-                  {{ color.ten }}
-                </a-select-option>
-              </a-select>
             </div>
 
             <div class="col-md-2 mb-3" style="margin-top: 32px">
@@ -284,8 +252,8 @@
               <div class="col-span-2 text-center">
                 <div class="w-10 h-10 bg-gray-200 rounded mx-auto flex items-center justify-center">
                   <img
-                    v-if="detail.anh || detail.hinhAnh"
-                    :src="detail.anh || detail.hinhAnh"
+                    v-if="detail.anh"
+                    :src="detail.anh"
                     :alt="getProductName(detail)"
                     class="w-full h-full object-cover rounded"
                     @error="onImageError"
@@ -294,8 +262,7 @@
                 </div>
               </div>
               <div class="col-span-4 text-center">
-                {{ getProductName(detail) }} [{{ getColorCode(detail) }} -
-                {{ getSizeName(detail) }}]
+                {{ getProductName(detail) }} [{{ getVariantLabel(detail) }}]
               </div>
               <div class="col-span-2 text-center">{{ detail.soLuong }}</div>
               <div class="col-span-2 text-center text-red-500">
@@ -332,7 +299,7 @@
               :loading="submitting"
               style="background-color: #54bddb; border-color: #54bddb; margin-top: 2%;"
             >
-              Cập nhật đợt giảm giá
+              Cập nhật Campaign sàn
             </a-button>
             </a-popconfirm>
       </div>
@@ -346,22 +313,21 @@ import { useRouter, useRoute } from "vue-router";
 import { message } from "ant-design-vue";
 import { SearchOutlined } from "@ant-design/icons-vue";
 import {
-  GetSanPham,
-  getSanPhamChiTiets,
-  DetailDotGiamGia,
-  getColorsFromAPI,
-  getSizesFromAPI,
-  updateDotGiamGia,
-  type DotGiamGiaResponse,
-  type DotGiamGiaRequest,
-} from "@/services/api/admin/dotgiamgia.api";
+  getCampaignProducts,
+  getCampaignProductVariants,
+  getCampaignVariants,
+  getAdminCampaign,
+  updateAdminCampaign,
+  type AdminCampaignResponse,
+  type AdminCampaignRequest,
+} from "@/services/api/admin/campaign.api";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import BreadcrumbDefault from "@/components/ui/Breadcrumbs/BreadcrumbDefault.vue";
 
 const router = useRouter();
 const route = useRoute();
-const dotGiamGiaId = route.params.id as string;
+const campaignId = route.params.id as string;
 
 // Loading states
 const loadingDetail = ref(false);
@@ -382,31 +348,18 @@ const selectedProductIds = ref<string[]>([]); // Store selected product IDs
 const selectedProductDetails = ref<any[]>([]);
 const loadingDetails = ref<Set<string>>(new Set()); // Track loading state for each product
 const searchTerm = ref("");
-const currentPage = ref(10); // Page for available products table
+const currentPage = ref(1); // Page for available products table
 const pageSize = ref(5); // Page size for available products table
 const loading = ref(false);
 
 // Detail search filters
 const productNameSearch = ref("");
-const selectedColor = ref(null);
-const selectedSize = ref(null);
-const sizes = ref([]);
-const colors = ref([]);
 
 // --- BIẾN MỚI CHO PHÂN TRANG CHI TIẾT SẢN PHẨM ---
 const detailCurrentPage = ref(1);
 const detailPageSize = ref(5);
 const detailPageSizeOptions = ["5", "10", "20", "50"]; 
 // --------------------------------------------------
-
-const fetchColors = async () => {
-  colors.value = await getColorsFromAPI();
-};
-
-const fetchSizes = async () => {
-  const result = await getSizesFromAPI();
-  sizes.value = result;
-};
 
 // API data
 const availableProducts = ref<any[]>([]);
@@ -432,13 +385,7 @@ const filteredProductDetails = computed(() => {
       productNameSearch.value.trim() === "" ||
       productName.includes(productNameSearch.value.trim().toLowerCase());
 
-    // Size filter
-    const sizeMatch = selectedSize.value === null || detail.kichCo?.id === selectedSize.value;
-
-    // Color filter
-    const colorMatch = selectedColor.value === null || detail.mauSac?.id === selectedColor.value;
-
-    return searchMatch && sizeMatch && colorMatch;
+    return searchMatch;
   });
 
   // --- LOGIC PHÂN TRANG MỚI CHO CHI TIẾT SẢN PHẨM ---
@@ -457,9 +404,7 @@ const totalFilteredProductDetails = computed(() => {
     const searchMatch =
       productNameSearch.value.trim() === "" ||
       productName.includes(productNameSearch.value.trim().toLowerCase());
-    const sizeMatch = selectedSize.value === null || detail.kichCo?.id === selectedSize.value;
-    const colorMatch = selectedColor.value === null || detail.mauSac?.id === selectedColor.value;
-    return searchMatch && sizeMatch && colorMatch;
+    return searchMatch;
   });
   return filtered.length;
 });
@@ -468,22 +413,15 @@ const totalFilteredProductDetails = computed(() => {
 const handleDetailSearch = () => {
   // Khi các bộ lọc chi tiết thay đổi, reset về trang 1
   detailCurrentPage.value = 1;
-  console.log("Detail search filters changed:", {
-    productNameSearch: productNameSearch.value.trim(),
-    selectedColor: selectedColor.value,
-    selectedSize: selectedSize.value,
-  });
 };
 
 const clearDetailFilters = () => {
   productNameSearch.value = "";
-  selectedColor.value = null;
-  selectedSize.value = null;
   detailCurrentPage.value = 1; // Reset trang khi xóa bộ lọc
 };
 
 // Store original data for comparison
-const originalData = ref<DotGiamGiaResponse | null>(null);
+const originalData = ref<AdminCampaignResponse | null>(null);
 
 const checkAll = computed(() => {
   return (
@@ -524,19 +462,11 @@ const formatCurrencyVND = (amount: number): string => {
 
 // Helper methods for displaying product details
 const getProductName = (detail: any): string => {
-  return detail.sanPham?.ten || detail.ten || "N/A";
+  return detail.productName || detail.sanPham?.ten || detail.ten || "N/A";
 };
 
-const getBrandName = (detail: any): string => {
-  return detail.sanPham?.thuongHieu?.ten || detail.thuongHieu?.ten || "N/A";
-};
-
-const getSizeName = (detail: any): string => {
-  return detail.kichCo?.ten || detail.size || "N/A";
-};
-
-const getColorCode = (detail: any): string => {
-  return detail.mauSac?.ten || detail.color || "#cccccc";
+const getVariantLabel = (detail: any): string => {
+  return detail.variantLabel || detail.sku || "Mặc định";
 };
 
 const onImageError = (event: Event) => {
@@ -544,11 +474,11 @@ const onImageError = (event: Event) => {
   target.style.display = "none";
 };
 
-// Hàm load chi tiết đợt giảm giá và tự động chọn sản phẩm/chi tiết
-const loadDotGiamGiaDetail = async () => {
+// Tải Campaign sàn và tự động chọn các biến thể đang áp dụng.
+const loadCampaignDetail = async () => {
   try {
     loadingDetail.value = true;
-    const response = await DetailDotGiamGia(dotGiamGiaId);
+    const response = await getAdminCampaign(campaignId);
 
     if (response && typeof response === "object" && !Array.isArray(response)) {
       const data = response;
@@ -564,24 +494,11 @@ const loadDotGiamGiaDetail = async () => {
         ngayKetThuc: data.endDate ? dayjs(data.endDate) : null,
       };
 
-      // Improved parsing function to handle various API response formats for IDs
-      const parseIds = (value: any) => {
-        if (!value) return [];
-        if (typeof value === "string") {
-          return value
-            .split(",")
-            .map((id) => id.trim())
-            .filter(Boolean);
-        } else if (Array.isArray(value)) {
-          return value.map((id) => id.toString().trim()).filter(Boolean);
-        } else if (typeof value === "number") {
-          return [value.toString()];
-        }
-        return [value.toString()];
-      };
-
-      const selectedProductIdsArray = parseIds(data.product);
-      const productDetailIdsArray = parseIds(data.productDetail);
+      const activeVariants = await getCampaignVariants(campaignId);
+      const productDetailIdsArray = activeVariants.map((variant) => String(variant.id));
+      const selectedProductIdsArray = [...new Set(
+        activeVariants.map((variant) => String(variant.productId)).filter(Boolean)
+      )];
 
       // Set selected products
       selectedProductIds.value = [...selectedProductIdsArray];
@@ -600,7 +517,7 @@ const loadDotGiamGiaDetail = async () => {
     }
   } catch (error) {
     console.error("Error loading detail:", error);
-    message.error("Lỗi khi tải thông tin đợt giảm giá");
+    message.error("Lỗi khi tải thông tin Campaign sàn");
   } finally {
     loadingDetail.value = false;
   }
@@ -609,7 +526,7 @@ const loadDotGiamGiaDetail = async () => {
 const loadProductDetailsWithAutoSelect = async (productId: string, productDetailIds: string[]) => {
   try {
     loadingDetails.value.add(productId);
-    const response = await getSanPhamChiTiets(productId);
+    const response = await getCampaignProductVariants(productId);
 
     if (response && Array.isArray(response) && response.length > 0) {
       const details = response.map((item) => {
@@ -617,25 +534,14 @@ const loadProductDetailsWithAutoSelect = async (productId: string, productDetail
         const isAutoSelected = productDetailIds.includes(itemIdStr); // Check if this detail ID is in the initial list
         return {
           id: item.id,
-          productId: productId,
+          productId: item.productId || productId,
           status: item.status,
-          ma: item.ma,
-          giaBan: item.giaBan,
-          anh: item.anh,
-          soLuong: item.soLuong,
-          sanPham: {
-            id: item.sanPham.id,
-            ma: item.sanPham.ma,
-            ten: item.sanPham.ten,
-            moTa: item.sanPham.moTa,
-            thuongHieu: item.sanPham.thuongHieu,
-            xuatSu: item.sanPham.xuatSu,
-            danhMuc: item.sanPham.danhMuc,
-            loaiDe: item.sanPham.loaiDe,
-            chatLieu: item.sanPham.chatLieu,
-          },
-          kichCo: item.kichCo,
-          mauSac: item.mauSac,
+          sku: item.sku,
+          productName: item.productName,
+          variantLabel: item.variantLabel,
+          giaBan: Number(item.salePrice || 0),
+          anh: item.imageUrl,
+          soLuong: item.quantity || 0,
           selected: isAutoSelected, // Set selected state based on initial data
         };
       });
@@ -660,30 +566,19 @@ const loadProductDetailsWithAutoSelect = async (productId: string, productDetail
 const fetchProductDetails = async (productId: string) => {
   try {
     loadingDetails.value.add(productId);
-    const response = await getSanPhamChiTiets(productId);
+    const response = await getCampaignProductVariants(productId);
 
     if (response && Array.isArray(response) && response.length > 0) {
       const details = response.map((item) => ({
         id: item.id,
-        productId: productId,
+        productId: item.productId || productId,
         status: item.status,
-        ma: item.ma,
-        giaBan: item.giaBan,
-        anh: item.anh,
-        soLuong: item.soLuong,
-        sanPham: {
-          id: item.sanPham.id,
-          ma: item.sanPham.ma,
-          ten: item.sanPham.ten,
-          moTa: item.sanPham.moTa,
-          thuongHieu: item.sanPham.thuongHieu,
-          xuatSu: item.sanPham.xuatSu,
-          danhMuc: item.sanPham.danhMuc,
-          loaiDe: item.sanPham.loaiDe,
-          chatLieu: item.sanPham.chatLieu,
-        },
-        kichCo: item.kichCo,
-        mauSac: item.mauSac,
+        sku: item.sku,
+        productName: item.productName,
+        variantLabel: item.variantLabel,
+        giaBan: Number(item.salePrice || 0),
+        anh: item.imageUrl,
+        soLuong: item.quantity || 0,
         selected: false, // User action - explicitly NOT auto-selected
       }));
 
@@ -733,24 +628,27 @@ const handleSubmit = async () => {
       return;
     }
 
+    if (!selectedProductDetails.value.some((detail) => detail.selected)) {
+      message.error("Vui lòng chọn ít nhất một phân loại sản phẩm");
+      return;
+    }
+
     // Gather form data
-    const requestData: DotGiamGiaRequest = {
-      id: dotGiamGiaId,
+    const requestData: AdminCampaignRequest = {
+      id: campaignId,
       name: formData.value.tenKhuyenMai,
       value: parseFloat(formData.value.giaTriGiam),
-      status: formData.value.trangThai,
-      startDate: formData.value.ngayBatDau?.valueOf() || null,
-      endDate: formData.value.ngayKetThuc?.valueOf() || null,
+      startDate: formData.value.ngayBatDau.valueOf(),
+      endDate: formData.value.ngayKetThuc.valueOf(),
       idProductDetails: selectedProductDetails.value
         .filter((detail) => detail.selected) // Only send selected details
         .map((detail) => ({ id: detail.id })),
     };
 
-    const response = await updateDotGiamGia(requestData);
-    console.log("Update response:", response);
+    await updateAdminCampaign(requestData);
 
     message.success({
-      content: "Cập nhật đợt giảm giá thành công!",
+      content: "Cập nhật Campaign sàn thành công!",
       duration: 1.5,
       style: {
         marginTop: "20vh",
@@ -760,14 +658,14 @@ const handleSubmit = async () => {
     });
 
     setTimeout(() => {
-      router.push("/admin/dot-giam-gia");
+      router.push("/admin/campaigns");
     }, 1600);
   } catch (error) {
     console.error("Update error:", error);
     if (error.response && error.response.data) {
       message.error(error.response.data.message);
     } else {
-      message.error("Lỗi khi cập nhật đợt giảm giá. Vui lòng thử lại.");
+      message.error("Lỗi khi cập nhật Campaign sàn. Vui lòng thử lại.");
     }
   } finally {
     submitting.value = false;
@@ -775,7 +673,7 @@ const handleSubmit = async () => {
 };
 
 const handleCancel = () => {
-  router.push("/admin/dot-giam-gia");
+  router.push("/admin/campaigns");
 };
 
 // Product selection handling
@@ -865,47 +763,25 @@ const handleSearch = () => {
 const fetchProducts = async () => {
   try {
     loading.value = true;
-    const params = {
-      page: currentPage.value - 1,
-      size: pageSize.value,
-      search: searchTerm.value,
-    };
-
-    const response = await GetSanPham(params);
+    const response = await getCampaignProducts();
 
     if (response) {
-      let products = [];
-      if (Array.isArray(response)) {
-        products = response;
-      } else if (response.data && Array.isArray(response.data)) {
-        products = response.data;
-      } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
-        products = response.data.content;
-        totalProducts.value = response.data.totalElements || response.data.content.length;
-      } else if (response.content && Array.isArray(response.content)) {
-        products = response.content;
-        totalProducts.value = response.totalElements || response.content.length;
-      } else {
-        products = [];
-      }
-
-      availableProducts.value = products.map((product) => ({
+      const products = Array.isArray(response) ? response : [];
+      const normalizedProducts = products.map((product) => ({
         id: product.id,
-        ma: product.ma,
-        ten: product.ten,
+        ma: product.code || product.id,
+        ten: product.name,
+        categoryName: product.category?.name || "Chưa phân loại",
         status: product.status,
         trangThai: product.status === "ACTIVE" ? "Đang kinh doanh" : "Ngừng kinh doanh",
-        thuongHieu: product.thuongHieu,
-        xuatSu: product.xuatSu,
-        danhMuc: product.danhMuc,
-        loaiDe: product.loaiDe,
-        chatLieu: product.chatLieu,
-        moTa: product.moTa,
       }));
-
-      if (!totalProducts.value) {
-        totalProducts.value = availableProducts.value.length;
-      }
+      const query = searchTerm.value.trim().toLowerCase();
+      const matches = normalizedProducts.filter((product) =>
+        !query || product.ma.toLowerCase().includes(query) || product.ten.toLowerCase().includes(query)
+      );
+      totalProducts.value = matches.length;
+      const start = (currentPage.value - 1) * pageSize.value;
+      availableProducts.value = matches.slice(start, start + pageSize.value);
     } else {
       availableProducts.value = [];
       totalProducts.value = 0;
@@ -930,16 +806,12 @@ onMounted(async () => {
   try {
     console.log("Starting page initialization...");
 
-    // Load colors and sizes first
-    await Promise.all([fetchColors(), fetchSizes()]);
-    console.log("Colors and sizes loaded");
-
     // Load products list for the available products table
     await fetchProducts();
     console.log("Products list loaded");
 
     // Load discount detail (this will also auto-load and auto-select product details)
-    await loadDotGiamGiaDetail();
+    await loadCampaignDetail();
     console.log("Discount details loaded and auto-selected");
 
     console.log("All data loaded successfully");

@@ -21,11 +21,11 @@ spring:
         - id: catalog-service
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/admin/mau-sac/**,/api/v1/admin/size/**,/api/v1/admin/thuong-hieu/**,/api/v1/admin/xuat-xu/**,/api/v1/admin/san-pham/**,/api/v1/admin/san-pham-chi-tiet/**,/api/v1/admin/chat-lieu/**,/api/v1/admin/danh-muc/**,/api/v1/admin/loai-de/**,/api/v1/admin/categories/**,/api/v1/admin/product-attributes/**,/api/v1/admin/product-variant-axes/**,/api/v1/permitall/san-pham/**,/api/v1/permitall/san-pham-chi-tiet/**,/api/v1/permitall/thuong-hieu/**,/api/v1/permitall/products/**,/api/v1/permitall/categories/**,/api/catalog/user/products/**,/api/v1/seller/products/**,/api/v1/seller/product-variants/**
+            - Path=/api/v1/admin/categories/**,/api/v1/admin/product-attributes/**,/api/v1/admin/product-variant-axes/**,/api/v1/permitall/products/**,/api/v1/permitall/categories/**,/api/v1/seller/products/**
         - id: promotion-service
           uri: lb://promotion-service
           predicates:
-            - Path=/api/v1/admin/dot-giam-gia/**,/api/v1/admin/voucher/**,/api/v1/admin/flash-sales/**,/api/v1/seller/vouchers/**,/api/v1/seller/promotions/**,/api/v1/seller/flash-sales/**,/api/v1/permitall/flash-sales/**
+            - Path=/api/v1/admin/campaigns/**,/api/v1/admin/voucher/**,/api/v1/admin/flash-sales/**,/api/v1/seller/vouchers/**,/api/v1/seller/promotions/**,/api/v1/seller/flash-sales/**,/api/v1/permitall/flash-sales/**
         - id: order-service
           uri: lb://order-service
           predicates:

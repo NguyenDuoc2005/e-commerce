@@ -54,7 +54,7 @@ public class PromotionServiceImpl implements PromotionService {
         Pageable pageable = legacyCampaignPageable(request);
         request.setPlatformOnly(true);
         request.setSellerId(null);
-        return new ResponseObject<>(PageableObject.of(promotionRepository.getAllPromotionCampaign(request, pageable)), HttpStatus.OK, "Lay danh sach dot giam gia thanh cong");
+        return new ResponseObject<>(PageableObject.of(promotionRepository.getAllPromotionCampaign(request, pageable)), HttpStatus.OK, "Lay danh sach campaign san thanh cong");
     }
 
     @Override
@@ -63,13 +63,13 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override
-    public List<Map<String, Object>> getProductCT(String id) {
-        return catalogClient.getProductVariants(id).stream().map(PromotionServiceImpl::variantMap).toList();
+    public List<Map<String, Object>> getProductVariants(String productId) {
+        return catalogClient.getProductVariants(productId).stream().map(PromotionServiceImpl::variantMap).toList();
     }
 
     @Override
-    public List<Map<String, Object>> getProductByDot(String id) {
-        List<String> ids = detailRepository.findActiveProductDetailIdsByPromotion(id);
+    public List<Map<String, Object>> getProductVariantsByCampaign(String campaignId) {
+        List<String> ids = detailRepository.findActiveProductDetailIdsByPromotion(campaignId);
         return ids.isEmpty() ? List.of() : catalogClient.getProductVariantsByIds(ids).stream()
                 .map(PromotionServiceImpl::variantMap).toList();
     }
@@ -86,7 +86,7 @@ public class PromotionServiceImpl implements PromotionService {
         Pageable pageable = legacyCampaignPageable(request);
         request.setSellerId(sellerId);
         request.setPlatformOnly(false);
-        return new ResponseObject<>(PageableObject.of(promotionRepository.getAllPromotionCampaign(request, pageable)), HttpStatus.OK, "Lay danh sach dot giam gia shop thanh cong");
+        return new ResponseObject<>(PageableObject.of(promotionRepository.getAllPromotionCampaign(request, pageable)), HttpStatus.OK, "Lay danh sach campaign shop thanh cong");
     }
 
     private Pageable legacyCampaignPageable(FindPromotionRequest request) {
@@ -144,7 +144,7 @@ public class PromotionServiceImpl implements PromotionService {
         PromotionCampaign promotion = promotionRepository.findById(request.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Kdistrict mai khong ton tai"));
         if (!sameScope(promotion.getSellerId(), sellerId)) {
-            throw new IllegalArgumentException("Khong co quyen cap nhat dot giam gia nay");
+            throw new IllegalArgumentException("Khong co quyen cap nhat campaign nay");
         }
         validateProductDetails(request.getIdProductDetails(), sellerId);
         validateDates(request.getStartDate(), request.getEndDate(), false);
@@ -178,7 +178,7 @@ public class PromotionServiceImpl implements PromotionService {
         PromotionCampaign promotion = promotionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Kdistrict mai khong ton tai"));
         if (!sameScope(promotion.getSellerId(), sellerId)) {
-            throw new IllegalArgumentException("Khong co quyen doi trang thai dot giam gia nay");
+            throw new IllegalArgumentException("Khong co quyen doi trang thai campaign nay");
         }
         promotion.setTrangThai(getStatusPromotion(promotion.getStartDate(), promotion.getEndDate()));
         promotionRepository.save(promotion);
@@ -189,24 +189,6 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     public PromotionByIdResponse getByIdPromotion(String id) {
         return promotionRepository.getByIdPromotion(id);
-    }
-
-    @Override
-    public List<Map<String, Object>> getByIdProductDetail(String id) {
-        CatalogVariantSnapshot productDetail = catalogClient.getProductVariant(id);
-        return detailRepository.findAllByProductDetailId(id).stream()
-                .map(detail -> {
-                    Map<String, Object> row = new java.util.LinkedHashMap<>();
-                    row.put("image", productDetail.imageUrl());
-                    row.put("code", productDetail.sku());
-                    row.put("name", productDetail.productName());
-                    row.put("variantLabel", productDetail.variantLabel());
-                    row.put("namePromotion", detail.getPromotionCampaign().getName());
-                    row.put("valuePromotion", detail.getPromotionCampaign().getDiscountValue());
-                    row.put("statusPromotion", detail.getTrangThai() == null ? null : detail.getTrangThai().name());
-                    return row;
-                })
-                .toList();
     }
 
     private void validateProductDetails(List<IdProductDetail> ids, String sellerId) {
@@ -296,17 +278,6 @@ public class PromotionServiceImpl implements PromotionService {
         row.put("imageUrl", snapshot.imageUrl());
         row.put("status", snapshot.status());
         return row;
-    }
-
-    private double doubleValue(Object value) {
-        if (value instanceof Number number) {
-            return number.doubleValue();
-        }
-        return value == null ? 0D : Double.parseDouble(String.valueOf(value));
-    }
-
-    private String stringValue(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 
     private boolean sameScope(String currentSellerId, String requestedSellerId) {

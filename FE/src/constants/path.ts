@@ -161,17 +161,17 @@ export const ROUTES_CONSTANTS = {
         path: 'categories',
         name: 'categories-admin'
       },
-      DOT_GIAM_GIA: {
-        path: 'dot-giam-gia',
-        name: 'dot-giam-gia-admin'
+      CAMPAIGNS: {
+        path: 'campaigns',
+        name: 'campaigns-admin'
       },
-      ADD_DOT_GIAM_GIA: {
-        path: 'add-dot-giam-gia',
-        name: 'add-dot-giam-gia-admin'
+      CAMPAIGN_CREATE: {
+        path: 'campaigns/new',
+        name: 'campaign-create-admin'
       },
-      UPDATE_DOT_GIAM_GIA: {
-        path: 'update-dot-giam-gia/:id',
-        name: 'update-dot-giam-gia-admin'
+      CAMPAIGN_EDIT: {
+        path: 'campaigns/:id/edit',
+        name: 'campaign-edit-admin'
       },
     }
   },

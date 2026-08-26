@@ -161,7 +161,7 @@ const resetFilters = () => {
 </script>
 
 <style scoped>
-.promotion-icon {
+.campaign-icon {
   font-size: 15px;
 }
 

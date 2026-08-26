@@ -13,8 +13,8 @@ import java.util.Map;
 public interface PromotionService {
     ResponseObject<?> getAll(FindPromotionRequest request);
     List<Map<String, Object>> getProduct();
-    List<Map<String, Object>> getProductCT(String id);
-    List<Map<String, Object>> getProductByDot(String id);
+    List<Map<String, Object>> getProductVariants(String productId);
+    List<Map<String, Object>> getProductVariantsByCampaign(String campaignId);
     PromotionCampaign add(CreatePromotionRequest request);
     PromotionCampaign update(UpdatePromotionRequest request);
     PromotionCampaign updateStatus(String id);
@@ -23,5 +23,4 @@ public interface PromotionService {
     PromotionCampaign updateSeller(String sellerId, UpdatePromotionRequest request);
     PromotionCampaign updateSellerStatus(String sellerId, String id);
     PromotionByIdResponse getByIdPromotion(String id);
-    List<Map<String, Object>> getByIdProductDetail(String id);
 }

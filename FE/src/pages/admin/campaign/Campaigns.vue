@@ -1,8 +1,8 @@
 <template>
   <div class="page-container"> 
     <div class="breadcrumb-section">
-      <BreadcrumbDefault :pageTitle="'Quản lý đợt giảm giá'" :routes="[
-        { path: '/admin/dot-giam-gia', name: 'Quản lý đợt giảm giá' }
+      <BreadcrumbDefault :pageTitle="'Campaign sàn'" :routes="[
+        { path: '/admin/campaigns', name: 'Campaign sàn' }
       ]" />
     </div>
         <p class="section-title">
@@ -23,39 +23,25 @@
       @update:trangThai="updateFilter('trangThai', $event)"
     />
    <p class="section-title">
-      <UnorderedListOutlined /> Danh sách đợt giảm giá
+      <UnorderedListOutlined /> Danh sách Campaign sàn
     </p>
     <ProductTable 
       :products="state.products" 
       :paginationParams="state.paginationParams" 
       :totalItems="state.totalItems"
-      @add="openAddModal" 
-      @view="openViewModal" 
       @page-change="handlePageChange" 
       @change-status="handleChangeStatus" 
     />
-    
-    <!-- <ProductModal
-      :open="state.isModalOpen" 
-      :openChangeStatus="state.isModalChangeStatus"
-      :productId="state.selectedProductId" 
-      :title="modalTitle" 
-      @closeChangeStatus="closeModalChangeStatus"
-      @close="closeModal"
-      @success="fetchProducts"
-    /> -->
   </div>
 </template>
 
 <script setup lang="ts">
 import BreadcrumbDefault from '@/components/ui/Breadcrumbs/BreadcrumbDefault.vue';
-import ProductFilter from './DotGiamGiaFilter.vue';
-import ProductTable from './DotGiamGiaTable.vue';
-import ProductModal from './DotGiamGiaModal.vue';
-import { computed, onMounted, reactive, watch } from 'vue';
-import { GetDotGiamGia, type DotGiamGiaResponse, type ParamsGetDotGiamGia } from '@/services/api/admin/dotgiamgia.api';
+import ProductFilter from './CampaignFilter.vue';
+import ProductTable from './CampaignTable.vue';
+import { onMounted, reactive, watch } from 'vue';
+import { getAdminCampaigns, type AdminCampaignResponse, type AdminCampaignParams } from '@/services/api/admin/campaign.api';
 import { debounce } from 'lodash';
-import DivCustom from '@/components/custom/Div/DivCustomAll.vue'
 import { FilterOutlined, UnorderedListOutlined } from '@ant-design/icons-vue';
 
 const state = reactive({
@@ -67,49 +53,18 @@ const state = reactive({
     ngayKetThuc: null as number | null,
     trangThai: null as number | null
   },
-  isModalOpen: false,
-  isModalChangeStatus: false,
-  selectedProductId: null as string | null,
-  products: [] as DotGiamGiaResponse[],
+  products: [] as AdminCampaignResponse[],
   paginationParams: { page: 1, size: 10 },
   totalItems: 0
-})
-
-const modalTitle = computed(() => {
-  return state.selectedProductId ? 'Cập nhật đợt giảm giá' : null
 })
 
 const updateFilter = (key: keyof typeof state.filters, value: any) => {
   state.filters[key] = value
 }
 
-const openAddModal = () => {
-  state.selectedProductId = null
-  state.isModalOpen = true
-}
-
-const openViewModal = (id: string) => {
-  state.selectedProductId = id
-  state.isModalOpen = true
-}
-
-const openChangeStatusModal = (id: string) => {
-  state.selectedProductId = id
-  state.isModalChangeStatus = true
-}
-
-const closeModal = () => {
-  state.isModalOpen = false
-}
-
-const closeModalChangeStatus = () => {
-  fetchProducts();
-  state.isModalChangeStatus = false
-}
-
 const fetchProducts = async () => {
   try {
-    const params: ParamsGetDotGiamGia = {
+    const params: AdminCampaignParams = {
       page: state.paginationParams.page,
       size: state.paginationParams.size,
       ma: state.filters.ma || undefined,
@@ -122,20 +77,18 @@ const fetchProducts = async () => {
     
     // Remove empty string values
     Object.keys(params).forEach(key => {
-      if (params[key as keyof ParamsGetDotGiamGia] === '') {
-        delete params[key as keyof ParamsGetDotGiamGia]
+      if (params[key as keyof AdminCampaignParams] === '') {
+        delete params[key as keyof AdminCampaignParams]
       }
     })
     
-    const response = await GetDotGiamGia(params)
-    state.products = response.data?.data
-    state.totalItems = response.data?.totalElements
+    const response = await getAdminCampaigns(params)
+    state.products = response.data?.data ?? []
+    state.totalItems = response.data?.totalElements ?? 0
   } catch (error) {
     console.error('Failed to fetch products:', error)
   }
 }
-
-console.log(state.products)
 
 const debouncedFetchProducts = debounce(fetchProducts, 300)
 

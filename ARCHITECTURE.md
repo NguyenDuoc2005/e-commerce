@@ -35,8 +35,8 @@ Ghi chú: trong workspace hiện tại không thấy `README-Microservice.md`, `
 | `common-lib` | `backend-microservice/common-lib` | N/A | Không | DTO response/exception/common utilities, không chứa shared JPA entity |
 | `auth-service` | `backend-microservice/auth-service` | 8081 | `ecommerce_auth` cấu hình, chưa thấy entity JPA | Login/register/change password, tạo JWT/refresh token, OAuth2 |
 | `user-service` | `backend-microservice/user-service` | 8082 | `ecommerce_user` | Khách hàng, nhân viên, profile, dữ liệu auth nội bộ cho user/staff |
-| `catalog-service` | `backend-microservice/catalog-service` | 8083 | `ecommerce_catalog` | Sản phẩm, sản phẩm chi tiết, thuộc tính, tồn kho hiện tại, search outbox |
-| `promotion-service` | `backend-microservice/promotion-service` | 8085 | `ecommerce_promotion` | Voucher, phiếu giảm giá, đợt giảm giá sản phẩm |
+| `catalog-service` | `backend-microservice/catalog-service` | 8083 | `ecommerce_catalog` | Category, product, variant, thuộc tính động, tồn kho, search outbox |
+| `promotion-service` | `backend-microservice/promotion-service` | 8085 | `ecommerce_promotion` | Voucher sàn/shop, campaign STANDARD, Flash Sale |
 | `order-service` | `backend-microservice/order-service` | 8086 | `ecommerce_order` | Đơn hàng, hóa đơn, bán hàng tại quầy, checkout online, VNPay, thống kê |
 | `cart-service` | `backend-microservice/cart-service` | 8087 | `ecommerce_cart` | Giỏ hàng khách hàng và chi tiết giỏ hàng |
 | `notification-service` | `backend-microservice/notification-service` | 8088 | Không | Gửi email qua REST hoặc consume Kafka topic email |
@@ -47,9 +47,9 @@ Ghi chú: trong workspace hiện tại không thấy `README-Microservice.md`, `
 |---|---|---|
 | ANY | `/api/v1/auth/**`, `/oauth2/**` | Route tới `auth-service` |
 | ANY | `/api/v1/admin/khach-hang/**`, `/api/v1/admin/nhan-vien/**`, `/api/v1/permitall/profile/**` | Route tới `user-service` |
-| ANY | `/api/v1/admin/mau-sac/**`, `/api/v1/admin/size/**`, `/api/v1/admin/thuong-hieu/**`, `/api/v1/admin/xuat-xu/**`, `/api/v1/admin/san-pham/**`, `/api/v1/admin/san-pham-chi-tiet/**`, `/api/v1/admin/chat-lieu/**`, `/api/v1/admin/danh-muc/**`, `/api/v1/admin/loai-de/**`, `/api/v1/permitall/san-pham/**`, `/api/v1/permitall/san-pham-chi-tiet/**`, `/api/v1/permitall/thuong-hieu/**`, `/api/catalog/user/products/**` | Route tới `catalog-service` |
-| ANY | `/api/v1/admin/dot-giam-gia/**`, `/api/v1/admin/voucher/**` | Route tới `promotion-service` |
-| ANY | `/api/v1/admin/ban-hang/**`, `/api/v1/admin/hoa-don/**`, `/api/v1/admin/thong-ke/**`, `/api/v1/permitall/don-mua/**`, `/api/orders/**` | Route tới `order-service` |
+| ANY | `/api/v1/admin/categories/**`, `/api/v1/admin/product-attributes/**`, `/api/v1/admin/product-variant-axes/**`, `/api/v1/permitall/products/**`, `/api/v1/permitall/categories/**`, `/api/v1/seller/products/**` | Route canonical tới `catalog-service` |
+| ANY | `/api/v1/admin/campaigns/**`, `/api/v1/admin/voucher/**`, `/api/v1/admin/flash-sales/**`, `/api/v1/seller/vouchers/**`, `/api/v1/seller/promotions/**`, `/api/v1/seller/flash-sales/**`, `/api/v1/permitall/flash-sales/**` | Route tới `promotion-service` |
+| ANY | `/api/v1/admin/thong-ke/**`, `/api/v1/admin/disputes/**`, `/api/v1/permitall/don-mua/**`, `/api/orders/**`, `/api/v1/seller/orders/**`, `/api/v1/seller/disputes/**`, `/api/v1/buyer/disputes/**` | Route tới `order-service` |
 | ANY | `/api/v1/permitall/cart/**` | Route tới `cart-service` |
 | ANY | `/api/v1/notifications/**` | Route tới `notification-service` |
 
@@ -85,30 +85,28 @@ Ghi chú: trong workspace hiện tại không thấy `README-Microservice.md`, `
 
 | Method | Path | Mục đích |
 |---|---|---|
-| GET/POST/PUT | `/api/v1/admin/mau-sac`, `/size`, `/thuong-hieu`, `/xuat-xu`, `/chat-lieu`, `/danh-muc`, `/loai-de` | CRUD thuộc tính sản phẩm và đổi trạng thái |
-| GET/POST/PUT | `/api/v1/admin/san-pham/**` | Quản lý sản phẩm, danh sách thuộc tính phục vụ form |
-| GET/POST/PUT | `/api/v1/admin/san-pham-chi-tiet/**` | Quản lý biến thể sản phẩm, màu/size, tồn kho |
-| GET | `/api/v1/permitall/san-pham/**`, `/san-pham-chi-tiet/**`, `/thuong-hieu/**` | API public cho trang người dùng |
-| GET | `/api/catalog/user/products/search` | Search sản phẩm người dùng |
-| GET/POST | `/internal/catalog/**` | API nội bộ cho product/product-detail/color/size/stock |
+| GET/POST/PUT | `/api/v1/admin/categories/**`, `/product-attributes/**`, `/product-variant-axes/**` | Taxonomy và hậu kiểm thuộc tính động |
+| GET/POST/PUT | `/api/v1/seller/products/**` | Product aggregate, variant/SKU, tồn kho và low-stock theo seller |
+| GET | `/api/v1/permitall/products/**`, `/api/v1/permitall/categories/**` | Storefront product/category canonical |
+| GET/POST | `/internal/catalog/**` | Snapshot product/variant và điều chỉnh stock cho service nội bộ |
 
 | Mục | Chi tiết |
 |---|---|
-| Bảng sở hữu | `san_pham`, `san_pham_chi_tiet`, `mau_sac`, `kich_co`, `danh_muc`, `thuong_hieu`, `loai_de`, `chat_lieu`, `xuat_su`, `outbox` |
-| Dependency | Gọi `promotion-service` qua OpenFeign để lấy discount active; ghi outbox để Debezium/Kafka Connect đồng bộ Elasticsearch |
+| Bảng sở hữu | `category`, `product`, `product_variant`, `product_image`, `product_attribute_*`, `product_variant_axis*`, `outbox` |
+| Dependency | Cấp snapshot canonical cho cart/order/promotion; ghi outbox để đồng bộ search |
 
 ### promotion-service
 
 | Method | Path | Mục đích |
 |---|---|---|
-| GET/POST/PUT | `/api/v1/admin/dot-giam-gia/**` | Quản lý đợt giảm giá và sản phẩm áp dụng |
+| GET/POST/PUT | `/api/v1/admin/campaigns/**` | Quản lý campaign sàn STANDARD và variant áp dụng |
 | GET/POST/PUT | `/api/v1/admin/voucher/**` | Quản lý phiếu giảm giá/voucher và khách hàng áp dụng |
 | GET/POST | `/internal/promotions/**` | API nội bộ: voucher theo mã, voucher áp dụng, giảm số lượng, discount active |
 
 | Mục | Chi tiết |
 |---|---|
-| Bảng sở hữu | `dot_giam_gia`, `dot_giam_gia_chi_tiet_san_pham`, `phieu_giam_gia`, `phieu_giam_gia_chi_tiet_khach_hang` |
-| Dependency | Gọi `catalog-service` qua OpenFeign để lấy sản phẩm, sản phẩm chi tiết, màu, size |
+| Bảng sở hữu | `promotion_campaign`, `promotion_campaign_product`, `voucher`, `voucher_customer` |
+| Dependency | Gọi `catalog-service` qua OpenFeign để lấy product/variant snapshot canonical |
 
 ### order-service
 

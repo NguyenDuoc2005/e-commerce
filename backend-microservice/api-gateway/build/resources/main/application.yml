@@ -21,15 +21,15 @@ spring:
         - id: catalog-service
           uri: lb://catalog-service
           predicates:
-            - Path=/api/v1/admin/mau-sac/**,/api/v1/admin/size/**,/api/v1/admin/thuong-hieu/**,/api/v1/admin/xuat-xu/**,/api/v1/admin/san-pham/**,/api/v1/admin/san-pham-chi-tiet/**,/api/v1/admin/chat-lieu/**,/api/v1/admin/danh-muc/**,/api/v1/admin/loai-de/**,/api/v1/admin/categories/**,/api/v1/admin/product-attributes/**,/api/v1/admin/product-variant-axes/**,/api/v1/permitall/san-pham/**,/api/v1/permitall/san-pham-chi-tiet/**,/api/v1/permitall/thuong-hieu/**,/api/v1/permitall/products/**,/api/v1/permitall/categories/**,/api/catalog/user/products/**,/api/v1/seller/products/**,/api/v1/seller/product-variants/**
+            - Path=/api/v1/admin/categories/**,/api/v1/admin/product-attributes/**,/api/v1/admin/product-variant-axes/**,/api/v1/permitall/products/**,/api/v1/permitall/categories/**,/api/v1/seller/products/**
         - id: promotion-service
           uri: lb://promotion-service
           predicates:
-            - Path=/api/v1/admin/dot-giam-gia/**,/api/v1/admin/voucher/**,/api/v1/seller/vouchers/**,/api/v1/seller/promotions/**
+            - Path=/api/v1/admin/campaigns/**,/api/v1/admin/voucher/**,/api/v1/admin/flash-sales/**,/api/v1/seller/vouchers/**,/api/v1/seller/promotions/**,/api/v1/seller/flash-sales/**,/api/v1/permitall/flash-sales/**
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/api/v1/admin/thong-ke/**,/api/v1/permitall/don-mua/**,/api/orders/**,/api/v1/seller/orders/**
+            - Path=/api/v1/admin/thong-ke/**,/api/v1/admin/disputes/**,/api/v1/permitall/don-mua/**,/api/orders/**,/api/v1/seller/orders/**,/api/v1/seller/disputes/**,/api/v1/buyer/disputes/**
         - id: cart-service
           uri: lb://cart-service
           predicates:
@@ -45,7 +45,7 @@ spring:
         - id: seller-service
           uri: lb://seller-service
           predicates:
-            - Path=/api/v1/sellers/**,/api/v1/seller/**,/api/v1/admin/sellers/**,/api/v1/admin/banners/**,/api/v1/permitall/shops/**,/api/v1/permitall/banners/**,/api/v1/permitall/reviews/**
+            - Path=/api/v1/sellers/**,/api/v1/seller/**,/api/v1/buyer/reports/**,/api/v1/buyer/chat/**,/api/v1/admin/sellers/**,/api/v1/admin/banners/**,/api/v1/admin/reports/**,/api/v1/permitall/shops/**,/api/v1/permitall/banners/**,/api/v1/permitall/reviews/**
 
 server:
   port: ${SERVER_PORT:8080}

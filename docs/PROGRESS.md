@@ -1,13 +1,13 @@
 # PROGRESS.md - Nhat ky tien do chuyen doi Marketplace
 
 ## Trang thai tong quan hien tai
-- Giai doan: Da hoan tat source va runtime acceptance cho backlog 11 — Flash sale toan san; toan bo checklist nghiep vu danh so 1-11 trong prompt da co implementation.
-- Task dang lam do (neu co): Khong. Lifecycle Seller dang ky -> Platform Admin duyet/tu choi -> public hien thi san pham da duyet da smoke tren runtime that.
-- Viec tiep theo can lam ngay: Sang nhom audit bo sung dau tien trong prompt — doi ten/don route legacy catalog va promotion; audit dependency truoc khi deprecate/xoa.
+- Giai doan: Da hoan tat 11 backlog nghiep vu va audit bo sung dau tien — doi ten/don route legacy catalog/promotion.
+- Task dang lam do (neu co): Khong. Catalog storefront/Admin/Seller da chi dung route canonical; campaign san `STANDARD` da chuyen tu `dot-giam-gia` sang `/admin/campaigns` va da smoke runtime.
+- Viec tiep theo can lam ngay: Audit toan bo route FE con thieu `meta.requiresRole` theo Muc 16.3/21.1 cua tai lieu hien trang.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
-- Khong co cau hoi treo cho Flash sale. Checklist nghiep vu danh so 1-11 da ket thuc; tiep theo la cac muc audit bo sung cua prompt.
+- Khong co cau hoi treo cho route cleanup. Khong xoa bang/cot hay du lieu lich su; chi xoa route/file khong con controller/consumer sau audit dependency.
 
 ## Checklist tinh nang
 - [x] Dang ky/dang nhap buyer, seller, platform admin
@@ -35,6 +35,7 @@
 - [x] PR NHOM 5: Category Management UI, tree CRUD/status va attribute suggestions
 - [x] PR NHOM 6: Admin hau kiem thuoc tinh day du 5 tab
 - [x] PR NHOM 11: Payout pending -> available -> paid theo batch, lich su chi tra va soldCount that
+- [x] Audit bo sung 1: Doi ten/don route legacy catalog va promotion; campaign san dung `/admin/campaigns`
 - [ ] Chuan hoa san pham: schema target + reset seed demo da nganh, xoa 6 bang hard-code
 - [x] Thuoc tinh dong: Seller suggestion/autocomplete/tu them tren form san pham
 - [x] Thuoc tinh dong: Buyer filter theo danh muc va product detail
@@ -45,6 +46,47 @@
 - [x] Flash sale toan san
 
 ## Nhat ky chi tiet
+
+### [2026-08-26 10:01] Phien #46
+**Da lam:**
+- Doc lai ba tai lieu bat buoc va chon dung audit bo sung dau tien: doi ten/don route legacy catalog/promotion.
+- Audit dependency toan bo FE/backend/gateway: catalog-service chi con controller canonical; cac prefix/file API `mau-sac`, `size`, `thuong-hieu`, `xuat-xu`, `chat-lieu`, `loai-de`, `loai-giay`, `san-pham` cu khong con consumer/controller that.
+- Xoa cac gateway predicate va FE API/component legacy khong con dung; navbar, trang chu va danh sach san pham chuyen sang category/product canonical.
+- Chuyen promotion `STANDARD` cua Platform Admin tu `/admin/dot-giam-gia` sang `/admin/campaigns`; doi controller, route FE, API FE va menu thanh "Campaign san". Giu nguyen schema/du lieu `promotion_campaign` va seller promotion/Flash Sale.
+- Sua Campaign Create/Edit dung dung product summary/variant snapshot canonical; man Edit khoi phuc product/variant dang chon qua `GET /admin/campaigns/{id}/product-variants`, khong con dua vao field product legacy `NULL`.
+- Build production phat hien dashboard seller con goi route `/seller/product-variants/low-stock` khong co controller. Them endpoint canonical `/seller/products/low-stock-variants`, enforce `X-Seller-Id`, va chuyen FE sang endpoint moi.
+- Build jar va restart dung catalog-service, promotion-service, api-gateway voi MySQL Docker cong 3307; khong reset DB/volume va khong tao/xoa campaign smoke.
+
+**File da tao/sua:**
+- `backend-microservice/api-gateway/src/main/resources/application.yml`.
+- `backend-microservice/catalog-service/src/main/java/com/ecommerce/catalog/{controller/SellerProductController.java,service/CatalogProductService.java,repository/ProductVariantRepository.java}`.
+- `backend-microservice/promotion-service/src/main/java/com/ecommerce/promotion/{controller/AdminCampaignController.java,service/PromotionService.java,service/impl/PromotionServiceImpl.java}`.
+- `FE/src/pages/admin/campaign/*`, `FE/src/services/api/admin/campaign.api.ts`, route/sidebar/constants va cac trang storefront dung catalog canonical.
+- Xoa folder/file FE `admin/dotgiamgia`, API catalog legacy va component `DiscountedProducts.vue` khong con consumer.
+- `ARCHITECTURE.md`, `HE_THONG_HIEN_TAI_MARKETPLACE.md`, `docs/PROGRESS.md`.
+
+**Ket qua:** DONE audit bo sung 1. Route catalog/promotion legacy da duoc cat khoi source/gateway; campaign san va low-stock seller dung contract canonical, build va runtime smoke dat.
+
+**Kiem chung:**
+- `vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS (chi con warning font/chunk size co san).
+- `gradlew :catalog-service:test :promotion-service:test :api-gateway:compileJava --no-daemon --max-workers=1`: PASS.
+- `gradlew :catalog-service:bootJar :promotion-service:bootJar :api-gateway:bootJar --no-daemon --max-workers=1`: PASS.
+- Runtime: gateway/promotion health HTTP 200; public `/api/v1/permitall/products` qua gateway HTTP 200.
+- Route legacy direct/gateway `/api/v1/admin/mau-sac`, `/api/v1/admin/dot-giam-gia`, `/api/v1/permitall/san-pham/**`: HTTP 404.
+- Route campaign moi direct `/api/v1/admin/campaigns`, `/api/v1/admin/campaigns/products`: HTTP 200; qua gateway khong JWT: HTTP 401 dung role protection.
+- Low-stock canonical voi `X-Seller-Id` seller demo: HTTP 200, tra dung 2 variant ton 3/4.
+- Catalog actuator HTTP 503 chi do Elasticsearch local dang dung; public product/DB API can cho acceptance van HTTP 200 nhu cac phien truoc.
+- `git diff --check`: PASS.
+
+**Ghi chu/vuong mac:**
+- Khong xoa bang/cot catalog/promotion va khong sua du lieu lich su. `campaign_type = STANDARD`/`FLASH_SALE` van giu nguyen.
+- Cac field `dotGiamGia` trong adapter gio hang duoc giu lai tam thoi de doc response snapshot legacy dang co; day khong phai route CRUD legacy va xoa ngay co the lam vo gio hang cu.
+
+**Viec tiep theo can lam ngay:**
+- Audit toan bo route FE thieu `meta.requiresRole` theo Muc 16.3/21.1, bo sung meta va kiem tra router guard cho Admin/Seller/Buyer.
+
+---
 
 ### [2026-08-26 09:05] Phien #45
 **Da lam:**

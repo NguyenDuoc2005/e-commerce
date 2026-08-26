@@ -23,12 +23,12 @@ import java.util.Map;
 
 @RestController
 @CrossOrigin("*")
-@RequestMapping("/api/v1/admin/dot-giam-gia")
-public class PromotionController {
+@RequestMapping("/api/v1/admin/campaigns")
+public class AdminCampaignController {
 
     private final PromotionService promotionService;
 
-    public PromotionController(PromotionService promotionService) {
+    public AdminCampaignController(PromotionService promotionService) {
         this.promotionService = promotionService;
     }
 
@@ -37,19 +37,19 @@ public class PromotionController {
         return ResponseUtils.createResponseEntity(promotionService.getAll(request));
     }
 
-    @GetMapping("/san-pham")
-    public ResponseEntity<List<Map<String, Object>>> getProduct() {
+    @GetMapping("/products")
+    public ResponseEntity<List<Map<String, Object>>> getProducts() {
         return ResponseEntity.ok(promotionService.getProduct());
     }
 
-    @GetMapping("/san-pham-chi-tiet/{id}")
-    public ResponseEntity<List<Map<String, Object>>> getProductCT(@PathVariable String id) {
-        return ResponseEntity.ok(promotionService.getProductCT(id));
+    @GetMapping("/products/{id}/variants")
+    public ResponseEntity<List<Map<String, Object>>> getProductVariants(@PathVariable String id) {
+        return ResponseEntity.ok(promotionService.getProductVariants(id));
     }
 
-    @GetMapping("/san-pham-chi-tiet-by-dot/{id}")
-    public ResponseEntity<List<Map<String, Object>>> getProductCTByDot(@PathVariable String id) {
-        return ResponseEntity.ok(promotionService.getProductByDot(id));
+    @GetMapping("/{id}/product-variants")
+    public ResponseEntity<List<Map<String, Object>>> getProductVariantsByCampaign(@PathVariable String id) {
+        return ResponseEntity.ok(promotionService.getProductVariantsByCampaign(id));
     }
 
     @PostMapping
@@ -71,10 +71,5 @@ public class PromotionController {
     @GetMapping("/{id}")
     public ResponseEntity<PromotionByIdResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(promotionService.getByIdPromotion(id));
-    }
-
-    @GetMapping("/byProductDetail/{id}")
-    public ResponseEntity<List<Map<String, Object>>> getByProductDetailId(@PathVariable String id) {
-        return ResponseEntity.ok(promotionService.getByIdProductDetail(id));
     }
 }

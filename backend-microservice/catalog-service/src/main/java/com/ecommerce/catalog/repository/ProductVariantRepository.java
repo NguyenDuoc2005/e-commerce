@@ -14,6 +14,8 @@ import java.util.Optional;
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, String> {
     List<ProductVariant> findByProduct_IdOrderByCreatedDateDesc(String productId);
     List<ProductVariant> findByProduct_IdAndStatusOrderByCreatedDateDesc(String productId, EntityStatus status);
+    List<ProductVariant> findByProduct_SellerIdAndProduct_StatusAndStatusAndQuantityLessThanEqualOrderByQuantityAsc(
+            String sellerId, EntityStatus productStatus, EntityStatus variantStatus, Integer quantity);
     List<ProductVariant> findByIdIn(List<String> ids);
     boolean existsBySku(String sku);
     boolean existsByProduct_IdAndCombinationKey(String productId, String combinationKey);

@@ -37,6 +37,12 @@ public class SellerProductController {
     @GetMapping("/variant-axis-name-suggestions")
     public Object axisSuggestions(@RequestParam(defaultValue = "") String q) { return service.axisNameSuggestions(q); }
 
+    @GetMapping("/low-stock-variants")
+    public Object lowStockVariants(@RequestHeader("X-Seller-Id") String sellerId,
+                                   @RequestParam(defaultValue = "5") int threshold) {
+        return service.sellerLowStockVariants(sellerId, threshold);
+    }
+
     @GetMapping
     public Object list(@RequestHeader("X-Seller-Id") String sellerId, ProductSearchRequest request) {
         return service.sellerProducts(sellerId, request);

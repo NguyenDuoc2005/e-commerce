@@ -18,8 +18,6 @@
         <div
           class="card h-100 shadow-sm border-0 product-card"
           @click="handleClick(item)"
-          @mouseenter="hoverProductId = item.id"
-          @mouseleave="hoverProductId = null"
         >
           <div class="product-img-wrapper position-relative">
             <img
@@ -30,49 +28,17 @@
             />
           </div>
           <div class="card-body py-2">
-            <h6 class="card-title fw-semibold text-truncate mb-2" :title="item.tenSanPham">
-              {{ item.tenSanPham }}
+            <h6 class="card-title fw-semibold text-truncate mb-2" :title="item.name">
+              {{ item.name }}
             </h6>
             <div class="mb-1">
-              <span class="main-price">
-                {{ (item.giaSauGiam ?? item.giaBan) }}₫
-              </span>
-              <span
-                v-if="item.dotGiamGia"
-                class="origin-price ms-2"
-              >
-                {{ item.dotGiamGia.giaTruoc }}₫
-              </span>
-              <span
-                v-if="item.dotGiamGia"
-                class="badge bg-danger ms-2"
-                style="font-size:12px;"
-              >
-                -{{ item.dotGiamGia.phanTramGiam }}%
-              </span>
+              <span class="main-price">{{ priceLabel(item) }}</span>
             </div>
             <div class="brand-row mb-1 text-muted">
-              <span class="brand-label">Thương hiệu:</span>
-              <span class="fw-medium text-dark ms-1">{{ item.thuongHieu }}</span>
+              <span class="brand-label">Danh mục:</span>
+              <span class="fw-medium text-dark ms-1">{{ item.category?.name || 'Marketplace' }}</span>
             </div>
-            <div class="d-flex flex-wrap align-items-center small text-muted mb-1">
-              <span class="me-1">Màu:</span>
-              <span
-                v-for="(color, i) in item.mauSac"
-                :key="i"
-                class="color-dot me-1"
-                :style="{ backgroundColor: color.maMau }"
-                :title="color.ten"
-              ></span>
-            </div>
-            <div class="d-flex flex-wrap align-items-center small">
-              <span class="me-1">Kích cỡ:</span>
-              <span
-                v-for="(size, i) in item.kichCo"
-                :key="i"
-                class="size-box me-1 mb-1"
-              >{{ size.ten }}</span>
-            </div>
+            <div class="small text-muted">{{ item.activeVariantCount }} phân loại · Còn {{ item.totalQuantity }} sản phẩm</div>
           </div>
         </div>
       </div>
@@ -84,7 +50,7 @@
         class="btn rounded-pill px-3 py-1 fw-medium text-secondary border"
         style="background-color: #f8f9fa; border-color: #ced4da; font-size: 14px;"
         @click="showLess"
-        v-if="currentPage > 1"
+      v-if="currentPage > 0"
       >
         Xem ít hơn
       </button>
@@ -109,46 +75,35 @@
 import { ref, onMounted } from 'vue'
 import { PlusOutlined, GiftFilled } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
-import { GetSanPhamMoiTrangChu, type ParamsGetSanPhamMoi, type SanPhamMoiResponse } from '@/services/api/permitall/sanpham/pmsanpham.api'
+import { getCatalogProducts, type CatalogSummary } from '@/services/api/catalog/catalog.api'
 
-const allProducts = ref<SanPhamMoiResponse[]>([])
-const currentPage = ref(1)
+const allProducts = ref<CatalogSummary[]>([])
+const currentPage = ref(0)
 const pageSize = 8
 const isLoading = ref(false)
 const hasMore = ref(true)
 const totalElements = ref(0)
-const hoverProductId = ref<string | null>(null)
 
-const getShowImage = (item: SanPhamMoiResponse) => {
-  if (
-    hoverProductId.value === item.id &&
-    item.dsAnh &&
-    item.dsAnh.length > 1 &&
-    item.dsAnh[1]
-  ) {
-    return item.dsAnh[1]
-  }
-  return (item.dsAnh && item.dsAnh.length > 0)
-    ? item.dsAnh[0]
-    : item.hinhAnhDaiDien
-}
+const placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="100%25" height="100%25" fill="%23f1f5f9"/%3E%3C/svg%3E'
+const getShowImage = (item: CatalogSummary) => item.thumbnailUrl || placeholder
+const money = (value?: number) => `${Number(value || 0).toLocaleString('vi-VN')}₫`
+const priceLabel = (item: CatalogSummary) => item.maxPrice && item.minPrice !== item.maxPrice
+  ? `${money(item.minPrice)} - ${money(item.maxPrice)}`
+  : money(item.minPrice)
 
 const fetchProducts = async (append = false) => {
   isLoading.value = true
   try {
-    const params: ParamsGetSanPhamMoi = {
-      page: currentPage.value,
-      size: pageSize
-    }
-    const res = await GetSanPhamMoiTrangChu(params)
-    const fetchedCount = res.data.data.length
+    const response = await getCatalogProducts({ page: currentPage.value, size: pageSize })
+    const rows = response.content || []
+    const fetchedCount = rows.length
 
     if (append) {
-      allProducts.value = [...allProducts.value, ...res.data.data]
+      allProducts.value = [...allProducts.value, ...rows]
     } else {
-      allProducts.value = res.data.data
+      allProducts.value = rows
     }
-    totalElements.value = res.data.totalElements
+    totalElements.value = response.totalElements || 0
     hasMore.value = allProducts.value.length < totalElements.value && fetchedCount === pageSize
   } finally {
     isLoading.value = false
@@ -166,13 +121,13 @@ const showMore = async () => {
 }
 
 const showLess = async () => {
-  if (currentPage.value === 1) return
-  currentPage.value = 1
+  if (currentPage.value === 0) return
+  currentPage.value = 0
   await fetchProducts(false)
 }
 
 const router = useRouter()
-const handleClick = (product: SanPhamMoiResponse) => {
+const handleClick = (product: CatalogSummary) => {
   router.push({
     name: 'san-pham-chi-tiet',
     params: { idsp: product.id }

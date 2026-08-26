@@ -1,6 +1,6 @@
 import type { AxiosResponse } from 'axios'
 import request from '@/services/request'
-import { PREFIX_API_SELLER_PRODUCT_VARIANTS } from '@/constants/url'
+import { PREFIX_API_SELLER_PRODUCTS } from '@/constants/url'
 import type { DefaultResponse } from '@/types/api.common'
 
 export interface LowStockProduct {
@@ -13,7 +13,7 @@ export interface LowStockProduct {
 
 export const getSellerLowStock = async (threshold = 5) => {
   const res = (await request({
-    url: `${PREFIX_API_SELLER_PRODUCT_VARIANTS}/low-stock`,
+    url: `${PREFIX_API_SELLER_PRODUCTS}/low-stock-variants`,
     method: 'GET',
     params: { threshold }
   })) as AxiosResponse<DefaultResponse<LowStockProduct[]>>

@@ -17,9 +17,6 @@ public interface PromotionDetailRepository extends JpaRepository<PromotionCampai
     @Query("SELECT pdd.productVariantId FROM PromotionCampaignProduct pdd WHERE pdd.promotionCampaign.id = :idPromotion AND pdd.detailStatus = com.ecommerce.promotion.constant.Status.DANG_SU_DUNG")
     List<String> findActiveProductDetailIdsByPromotion(@Param("idPromotion") String idPromotion);
 
-    @Query("SELECT pdd FROM PromotionCampaignProduct pdd WHERE pdd.productVariantId = :productDetailId")
-    List<PromotionCampaignProduct> findAllByProductDetailId(@Param("productDetailId") String productDetailId);
-
     List<PromotionCampaignProduct> findByPromotionCampaign_IdOrderByCreatedDateDesc(String campaignId);
 
     List<PromotionCampaignProduct> findBySellerIdOrderByCreatedDateDesc(String sellerId);

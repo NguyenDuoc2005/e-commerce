@@ -1,15 +1,15 @@
 <template>
   <div class="add-discount-page p-6">
     <div class="breadcrumb-section">
-      <BreadcrumbDefault :pageTitle="'Thêm đợt giảm giá'" :routes="[
-        { path: '/admin/dot-giam-gia', name: 'Quản lý đợt giảm giá' },
-        { path: '/admin/add-dot-giam-gia', name: 'Thêm đợt giảm giá' },
+      <BreadcrumbDefault :pageTitle="'Thêm Campaign sàn'" :routes="[
+        { path: '/admin/campaigns', name: 'Campaign sàn' },
+        { path: '/admin/campaigns/new', name: 'Thêm Campaign sàn' },
       ]" />
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
       <div class="xl:col-span-1 bg-white rounded-lg shadow-sm border p-6">
-        <h2 class="text-lg font-semibold mb-4">Thông tin đợt giảm giá</h2>
+        <h2 class="text-lg font-semibold mb-4">Thông tin Campaign sàn</h2>
 
         <div class="space-y-4">
           <div>
@@ -54,7 +54,7 @@
               cancel-text="Hủy"
               style="background-color: #54bddb; border-color: #54bddb"
             >
-              Thêm mới đợt giảm giá
+              Thêm Campaign sàn
             </a-button>
           </a-popconfirm> -->
         </div>
@@ -82,7 +82,7 @@
               </div>
               <div class="col-span-1 text-center">STT</div>
               <div class="col-span-4 text-center">Tên sản phẩm</div>
-              <div class="col-span-2 text-center">Thương hiệu</div>
+              <div class="col-span-2 text-center">Danh mục</div>
               <div class="col-span-4 text-center">Trạng thái</div>
             </div>
           </div>
@@ -108,7 +108,7 @@
               <div class="col-span-1 text-center">{{ index + 1 }}</div>
               <div class="col-span-4 text-center">{{ product.ten }}</div>
               <div class="col-span-2 text-center">
-                {{ product.thuongHieu }}
+                {{ product.categoryName }}
               </div>
               <div class="col-span-4 text-center">
                 <a-tag :color="product.status == 'ACTIVE' ? 'green' : 'red'">
@@ -148,28 +148,6 @@
               <a-input v-model:value="productNameSearch" placeholder="Nhập tên sản phẩm..." size="large"
                 @input="handleDetailSearch"
                 class="w-full shadow-sm hover:shadow-md transition-shadow duration-200 hover-input" />
-            </div>
-
-            <div class="col-md-3 mb-3">
-              <label class="form-label">Kích cỡ</label>
-              <a-select v-model:value="selectedSize" placeholder="Chọn kích cỡ" size="large"
-                class="w-full shadow-sm hover:shadow-md transition-shadow duration-200" @change="handleDetailSearch"
-                :allowClear="true">
-                <a-select-option v-for="size in sizes" :key="size.id" :value="size.id">
-                  {{ size.ten }}
-                </a-select-option>
-              </a-select>
-            </div>
-
-            <div class="col-md-3 mb-3">
-              <label class="form-label">Màu sắc</label>
-              <a-select v-model:value="selectedColor" placeholder="Chọn màu sắc" size="large"
-                class="w-full shadow-sm hover:shadow-md transition-shadow duration-200" @change="handleDetailSearch"
-                :allowClear="true">
-                <a-select-option v-for="color in colors" :key="color.id" :value="color.id">
-                  {{ color.ten }}
-                </a-select-option>
-              </a-select>
             </div>
 
             <div class="col-md-2 mb-3" style="margin-top: 32px">
@@ -220,14 +198,13 @@
               </div>
               <div class="col-span-2 text-center">
                 <div class="w-10 h-10 bg-gray-200 rounded mx-auto flex items-center justify-center">
-                  <img v-if="detail.anh || detail.hinhAnh" :src="detail.anh || detail.hinhAnh"
+                  <img v-if="detail.anh" :src="detail.anh"
                     :alt="getProductName(detail)" class="w-full h-full object-cover rounded" @error="onImageError" />
                   <span v-else class="text-xs text-gray-400">N/A</span>
                 </div>
               </div>
               <div class="col-span-4 text-center">
-                {{ getProductName(detail) }} [{{ getColorCode(detail) }} -
-                {{ getSizeName(detail) }}]
+                {{ getProductName(detail) }} [{{ getVariantLabel(detail) }}]
               </div>
               <div class="col-span-2 text-center">{{ detail.soLuong }}</div>
               <div class="col-span-2 text-center text-red-500">
@@ -244,7 +221,7 @@
         <a-popconfirm title="Bạn có chắc chắn muốn lưu thay đổi?" @confirm="handleSubmit">
           <a-button type="primary" size="large" ok-text="Đồng ý" cancel-text="Hủy"
             style="background-color: #54bddb; border-color: #54bddb;margin-top: 2%;">
-            Thêm mới đợt giảm giá
+            Thêm Campaign sàn
           </a-button>
         </a-popconfirm>
       </div>
@@ -253,23 +230,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import { SearchOutlined } from "@ant-design/icons-vue";
 import {
-  GetSanPham,
-  getSanPhamChiTiets,
-  addDotGiamGia,
-  getColorsFromAPI,
-  getSizesFromAPI,
-  type DotGiamGiaResponse,
-  type DotGiamGiaRequest,
-  getSanPhamChiTietsByDot,
-} from "@/services/api/admin/dotgiamgia.api";
+  getCampaignProducts,
+  getCampaignProductVariants,
+  createAdminCampaign,
+  type AdminCampaignRequest,
+} from "@/services/api/admin/campaign.api";
 import type { Dayjs } from "dayjs";
 import BreadcrumbDefault from "@/components/ui/Breadcrumbs/BreadcrumbDefault.vue";
-import { GetSanPhams } from "@/services/api/admin/sanpham.api";
 
 const router = useRouter();
 
@@ -296,10 +268,6 @@ const loading = ref(false);
 
 // Detail search filters
 const productNameSearch = ref("");
-const selectedColor = ref(null);
-const selectedSize = ref(null);
-const sizes = ref<any[]>([]);
-const colors = ref<any[]>([]);
 
 // Pagination for product details
 const currentDetailPageIndex = ref(1);
@@ -309,8 +277,6 @@ const validateForm = () => {
   const errors = [];
   if (!formData.value.tenKhuyenMai) {
     errors.push("Tên khuyến mãi không được để trống.");
-  } else if (!/^[a-zA-Z0-9\s]*$/.test(formData.value.tenKhuyenMai)) {
-    errors.push("Tên khuyến mãi không được chứa ký tự đặc biệt.");
   }
   if (!formData.value.giaTriGiam) {
     errors.push("Giá trị giảm không được để trống.");
@@ -331,16 +297,10 @@ const validateForm = () => {
       errors.push("Ngày bắt đầu phải trước ngày kết thúc.");
     }
   }
+  if (!selectedProductDetails.value.some((detail) => detail.selected)) {
+    errors.push("Vui lòng chọn ít nhất một phân loại sản phẩm.");
+  }
   return errors;
-};
-
-const fetchColors = async () => {
-  colors.value = await getColorsFromAPI();
-};
-
-const fetchSizes = async () => {
-  const result = await getSizesFromAPI();
-  sizes.value = result;
 };
 
 // Watch for changes in search term and refetch products
@@ -350,13 +310,9 @@ watch(searchTerm, (newValue) => {
 });
 
 // Watch for changes in product detail filters and reset detail page index
-watch(
-  [productNameSearch, selectedColor, selectedSize],
-  () => {
-    currentDetailPageIndex.value = 1; // Reset to first page when filters change
-  },
-  { immediate: true }
-);
+watch(productNameSearch, () => {
+  currentDetailPageIndex.value = 1;
+}, { immediate: true });
 
 // API data
 const availableProducts = ref<any[]>([]);
@@ -374,32 +330,12 @@ const filteredProducts = computed(() => {
 
 // Computed property for filtering product details
 const filteredProductDetails = computed(() => {
-  console.log("Filtering with:", {
-    productNameSearch: productNameSearch.value,
-    selectedColor: selectedColor.value,
-    selectedSize: selectedSize.value,
-    totalDetails: selectedProductDetails.value.length,
-  });
-
   return selectedProductDetails.value.filter((detail) => {
-    // Product name search
     const productName = getProductName(detail).toLowerCase();
-    const searchMatch =
+    return (
       !productNameSearch.value ||
-      productName.includes(productNameSearch.value.toLowerCase());
-
-    // Size filter - more explicit null checking
-    let sizeMatch = true;
-    if (selectedSize.value !== null && selectedSize.value !== undefined) {
-      sizeMatch = detail.kichCo?.id === selectedSize.value;
-    }
-
-    // Color filter - more explicit null checking
-    let colorMatch = true;
-    if (selectedColor.value !== null && selectedColor.value !== undefined) {
-      colorMatch = detail.mauSac?.id === selectedColor.value;
-    }
-    return searchMatch && sizeMatch && colorMatch;
+      productName.includes(productNameSearch.value.toLowerCase())
+    );
   });
 });
 
@@ -449,33 +385,11 @@ const loadingAnyDetails = computed(() => {
 
 // Helper methods for displaying product details
 const getProductName = (detail: any): string => {
-  return detail.sanPham?.ten || detail.ten || "N/A";
+  return detail.productName || detail.sanPham?.ten || detail.ten || "N/A";
 };
 
-const getBrandName = (detail: any): string => {
-  return detail.sanPham?.thuongHieu?.ten || detail.thuongHieu?.ten || "N/A";
-};
-
-const getSizeName = (detail: any): string => {
-  return detail.kichCo?.ten || detail.size || "N/A";
-};
-
-const getColorCode = (detail: any): string => {
-  return detail.mauSac?.ten || detail.color || "#cccccc";
-};
-
-const getStatusText = (detail: any): string => {
-  const status = detail.status || detail.trangThai;
-  return status === "ACTIVE" || status === "Đang kinh doanh"
-    ? "Đang kinh doanh"
-    : "Ngừng kinh doanh";
-};
-
-const getStatusClass = (detail: any): string => {
-  const status = detail.status || detail.trangThai;
-  return status === "ACTIVE" || status === "Đang kinh doanh"
-    ? "bg-green-100 text-green-800"
-    : "bg-red-100 text-red-800";
+const getVariantLabel = (detail: any): string => {
+  return detail.variantLabel || detail.sku || "Mặc định";
 };
 
 const onImageError = (event: Event) => {
@@ -490,15 +404,7 @@ const handleDetailSearch = () => {
 
 const clearDetailFilters = () => {
   productNameSearch.value = "";
-  selectedColor.value = null;
-  selectedSize.value = null;
-  currentDetailPageIndex.value = 1; // Reset to first page
-  nextTick(() => {
-    console.log(
-      "Filters cleared, filtered results:",
-      filteredProductDetails.value.length
-    );
-  });
+  currentDetailPageIndex.value = 1;
 };
 
 const handleSubmit = async () => {
@@ -509,22 +415,19 @@ const handleSubmit = async () => {
     });
     return;
   }
-  const requestData: DotGiamGiaRequest = {
+  const requestData: AdminCampaignRequest = {
     name: formData.value.tenKhuyenMai,
     value: parseFloat(formData.value.giaTriGiam),
-    startDate: formData.value.ngayBatDau?.valueOf() || null,
-    endDate: formData.value.ngayKetThuc?.valueOf() || null,
+    startDate: formData.value.ngayBatDau!.valueOf(),
+    endDate: formData.value.ngayKetThuc!.valueOf(),
     idProductDetails: selectedProductDetails.value
       .filter((detail) => detail.selected) // Only include selected details
       .map((detail) => ({ id: detail.id })), // Map to IdProductDetail structure
   };
-  console.log("Request Data:", requestData);
-
   try {
-    const response = await addDotGiamGia(requestData);
-    console.log("Response from API:", response);
+    await createAdminCampaign(requestData);
     message.success({
-      content: "Thêm đợt giảm giá thành công!",
+      content: "Thêm Campaign sàn thành công!",
       duration: 1.5,
       style: {
         marginTop: "20vh",
@@ -533,13 +436,13 @@ const handleSubmit = async () => {
       },
     });
     setTimeout(() => {
-      router.push("/admin/dot-giam-gia");
+    router.push("/admin/campaigns");
     }, 1600);
   } catch (error: any) {
     if (error.response && error.response.data) {
       message.error(error.response.data.message);
     } else {
-      message.error("Lỗi khi thêm đợt giảm giá. Vui lòng thử lại.");
+      message.error("Lỗi khi thêm Campaign sàn. Vui lòng thử lại.");
     }
   }
 };
@@ -550,30 +453,20 @@ const fetchProductDetails = async (productId: string) => {
     loadingDetails.value.add(productId);
     console.log("Fetching details for product:", productId);
 
-    const response = await getSanPhamChiTietsByDot(productId);
+    const response = await getCampaignProductVariants(productId);
     console.log("Product details response:", response);
 
     if (response && Array.isArray(response) && response.length > 0) {
       const details = response.map((item) => ({
         id: item.id,
+        productId: item.productId || productId,
         status: item.status,
-        ma: item.ma,
-        giaBan: item.giaBan,
-        anh: item.anh,
-        soLuong: item.soLuong,
-        sanPham: {
-          id: item.sanPham.id,
-          ma: item.sanPham.ma,
-          ten: item.sanPham.ten,
-          moTa: item.sanPham.moTa,
-          thuongHieu: item.sanPham.thuongHieu,
-          xuatSu: item.sanPham.xuatSu,
-          danhMuc: item.sanPham.danhMuc,
-          loaiDe: item.sanPham.loaiDe,
-          chatLieu: item.sanPham.chatLieu,
-        },
-        kichCo: item.kichCo,
-        mauSac: item.mauSac,
+        sku: item.sku,
+        productName: item.productName,
+        variantLabel: item.variantLabel,
+        giaBan: Number(item.salePrice || 0),
+        anh: item.imageUrl,
+        soLuong: item.quantity || 0,
       }));
 
       details.forEach((detail) => {
@@ -583,7 +476,6 @@ const fetchProductDetails = async (productId: string) => {
         if (existingIndex === -1) {
           selectedProductDetails.value.push({
             ...detail,
-            productId: productId, // Reference to parent product
             selected: false, // Individual selection state for details
           });
         }
@@ -606,35 +498,25 @@ const fetchProductDetails = async (productId: string) => {
 const fetchProducts = async () => {
   try {
     loading.value = true;
-    const params = {
-      page: currentPage.value,
-      size: pageSize.value,
-      q: searchTerm.value,
-    };
+    const response = await getCampaignProducts();
 
-    console.log("Fetching products with params:", params);
-
-    const response = await GetSanPhams(params);
-    console.log("API Response:", response);
-
-    if (response) {
-      let products = [];
-      products = response.data.data;
-      availableProducts.value = products.map((product) => ({
+    if (Array.isArray(response)) {
+      const normalizedProducts = response.map((product) => ({
         id: product.id,
-        ma: product.code,
+        ma: product.code || product.id,
         ten: product.name,
+        categoryName: product.category?.name || "Chưa phân loại",
         status: product.status,
         trangThai:
           product.status === "ACTIVE" ? "Đang kinh doanh" : "Ngừng kinh doanh",
-        thuongHieu: product.tenThuongHieu,
-        moTa: product.moTa,
       }));
-
-      totalProducts.value =
-        response.data.totalElements || availableProducts.value.length;
-
-      console.log("Mapped products:", availableProducts.value);
+      const query = searchTerm.value.trim().toLowerCase();
+      const matches = normalizedProducts.filter((product) =>
+        !query || product.ma.toLowerCase().includes(query) || product.ten.toLowerCase().includes(query)
+      );
+      totalProducts.value = matches.length;
+      const start = (currentPage.value - 1) * pageSize.value;
+      availableProducts.value = matches.slice(start, start + pageSize.value);
     } else {
       console.warn("No response received");
       availableProducts.value = [];
@@ -734,8 +616,6 @@ const getDetailGlobalIndex = (index: number) => {
 
 onMounted(() => {
   fetchProducts();
-  fetchColors();
-  fetchSizes();
 });
 </script>
 

@@ -1,6 +1,6 @@
 import type { AxiosResponse } from "axios";
 import request from "@/services/request";
-import { PREFIX_API_CART_PERMITALL, PREFIX_API_SANPHAM_PERMITALL } from "@/constants/url";
+import { PREFIX_API_CART_PERMITALL } from "@/constants/url";
 import type { DefaultResponse, PaginationParams, PaginationResponse } from "@/types/api.common";
 
 export interface requestCartDetail {

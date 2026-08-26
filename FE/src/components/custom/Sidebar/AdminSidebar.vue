@@ -74,6 +74,11 @@ const menuGroups = ref([
         routeName: ROUTES_CONSTANTS.ADMIN.children.VOUCHER.name,
       },
       {
+        label: 'Campaign sàn',
+        icon: icon('M4 12h16M12 4v16M6 6l12 12M18 6L6 18'),
+        routeName: ROUTES_CONSTANTS.ADMIN.children.CAMPAIGNS.name,
+      },
+      {
         label: 'Flash sale sàn',
         icon: icon('M13 2L4 14h7l-1 8 9-12h-7l1-8z'),
         routeName: ROUTES_CONSTANTS.ADMIN.children.FLASH_SALES.name,

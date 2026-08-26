@@ -88,6 +88,7 @@
                 </div>
                 <a href="/thong-tin-ca-nhan" class="jp-dropdown-link">Trang cá nhân</a>
                 <a href="/don-mua" class="jp-dropdown-link">Đơn mua</a>
+                <a href="/tin-nhan" class="jp-dropdown-link">Tin nhắn</a>
                 <a :href="sellerEntryPath" class="jp-dropdown-link">{{ sellerEntryLabel }}</a>
                 <a href="/tra-cuu" class="jp-dropdown-link">Tra cứu đơn hàng</a>
                 <button class="jp-dropdown-link logout" @click="logout">Đăng xuất</button>

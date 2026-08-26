@@ -15,6 +15,7 @@
               <a-button v-if="authStore.isAuthenticated" :loading="followLoading" @click="toggleFollow">
                 {{ following ? 'Bo theo doi' : 'Theo doi shop' }}
               </a-button>
+              <a-button type="primary" @click="openChat">Chat với shop</a-button>
               <ReportButton target-type="SHOP" :target-id="shop.id" />
             </a-space>
           </div>
@@ -187,6 +188,16 @@ const toggleFollow = async () => {
 
 const goProduct = (id: string) => {
   router.push({ name: 'san-pham-chi-tiet', params: { idsp: id } })
+}
+
+const openChat = () => {
+  if (!shop.value) return
+  const target = { name: 'buyer-chat', query: { sellerId: shop.value.id } }
+  if (authStore.isAuthenticated) {
+    void router.push(target)
+    return
+  }
+  void router.push({ name: 'Login', query: { redirect: router.resolve(target).fullPath } })
 }
 
 onMounted(loadShop)

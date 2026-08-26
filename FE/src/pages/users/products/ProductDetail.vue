@@ -57,6 +57,7 @@
           <span>{{ shop.rating || 0 }} sao · {{ shop.ratingCount || 0 }} đánh giá shop</span>
           <span>{{ shop.followerCount || 0 }} người theo dõi · Đã bán {{ shop.soldCount || 0 }}</span>
         </div>
+        <button class="btn btn-primary" type="button" @click="openChat">Chat với shop</button>
         <button class="btn btn-outline-primary" type="button" @click="openShop">Xem shop</button>
         <ReportButton target-type="SHOP" :target-id="shop.id" />
       </section>
@@ -187,6 +188,16 @@ const buyNow = () => {
   void router.push('/thanh-toan')
 }
 const openShop = () => { if (shop.value) void router.push({ name: 'shop-detail', params: { sellerSlug: shop.value.sellerSlug } }) }
+const openChat = () => {
+  if (!shop.value) return
+  const target = { name: 'buyer-chat', query: { sellerId: shop.value.id } }
+  const user = localStorageAction.get(USER_INFO_STORAGE_KEY)
+  if (user?.userId) {
+    void router.push(target)
+    return
+  }
+  void router.push({ name: 'Login', query: { redirect: router.resolve(target).fullPath } })
+}
 const formatDate = (value: string) => value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(value)) : ''
 
 watch(current, variant => {

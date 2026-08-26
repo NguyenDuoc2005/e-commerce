@@ -1,6 +1,6 @@
 # HE THONG HIEN TAI - MARKETPLACE E-COMMERCE
 
-Tai lieu nay mo ta hien trang source tai thoi diem 2026-08-24 de lam nen cho viec thiet ke lai admin, seller center, buyer storefront va cac luong xu ly con thieu. Noi dung duoc doi chieu tu `docs/PROGRESS.md`, prompt marketplace, route FE, sidebar FE, controller/backend service va gateway route hien co.
+Tai lieu nay mo ta hien trang source tai thoi diem 2026-08-24 de lam nen cho viec thiet ke lai admin, seller center, buyer storefront va cac luong xu ly con thieu. Noi dung duoc doi chieu tu `docs/PROGRESS.md`, prompt marketplace, route FE, sidebar FE, controller/backend service va gateway route hien co. Cap nhat bo sung 2026-08-25: module Chat buyer-seller da duoc trien khai va runtime acceptance.
 
 ## 1. Ket luan nhanh
 
@@ -40,6 +40,7 @@ Buyer la nguoi mua hang tren storefront public. Buyer co the:
 - Checkout.
 - Xem lich su don mua.
 - Danh gia san pham/shop sau khi mua.
+- Chat truc tiep voi shop va theo doi tin chua doc.
 - Dang ky ban hang de tro thanh seller.
 
 Route FE chinh:
@@ -54,6 +55,7 @@ Route FE chinh:
 - `/don-mua`
 - `/don-mua-detail/:maHoaDon/:id`
 - `/thong-tin-ca-nhan`
+- `/tin-nhan`
 - `/dang-ky-ban-hang`
 - `/login`
 - `/register`
@@ -83,6 +85,7 @@ Route FE seller:
 - `/seller/vouchers`
 - `/seller/payout`
 - `/seller/reviews`
+- `/seller/chat`
 
 ### 2.3. Platform Admin
 
@@ -135,7 +138,7 @@ He thong la microservice Spring Boot, di qua `api-gateway`, dang ky Eureka.
 - `api-gateway`: route request, verify role admin/seller/buyer, inject `X-User-Id`, `X-Seller-Id`.
 - `auth-service`: login/register/change password, tao JWT, enrich role `SELLER` neu customer co approved seller.
 - `user-service`: customer, staff, profile, internal user lookup cho service khac.
-- `seller-service`: dang ky shop, duyet/khoa seller, public shop, follow shop, banner, review.
+- `seller-service`: dang ky shop, duyet/khoa seller, public shop, follow shop, banner, review va Chat buyer-seller.
 - `catalog-service`: danh muc, san pham, variant, image, thuoc tinh dong, truc bien the, public/seller/admin catalog API, internal snapshot cho cart/order.
 - `cart-service`: gio hang buyer, item theo product variant.
 - `order-service`: checkout, order history, sub-order seller, seller order workflow, thong ke.
@@ -160,7 +163,7 @@ He thong la microservice Spring Boot, di qua `api-gateway`, dang ky Eureka.
 - Cart: `/api/v1/permitall/cart/**`.
 - Notification: `/api/v1/notifications/**`.
 - Payout: `/api/v1/admin/payout/**`, `/api/v1/seller/payout/**`.
-- Seller: `/api/v1/sellers/**`, `/api/v1/seller/**`, `/api/v1/admin/sellers/**`, `/api/v1/admin/banners/**`, `/api/v1/permitall/shops/**`, `/api/v1/permitall/banners/**`, `/api/v1/permitall/reviews/**`.
+- Seller/Chat: `/api/v1/sellers/**`, `/api/v1/seller/**`, `/api/v1/buyer/chat/**`, `/api/v1/admin/sellers/**`, `/api/v1/admin/banners/**`, `/api/v1/permitall/shops/**`, `/api/v1/permitall/banners/**`, `/api/v1/permitall/reviews/**`.
 
 ### 3.3. Bao mat va context seller
 
@@ -280,6 +283,7 @@ Bang lien quan:
 - `seller_status_history`: lich su trang thai seller/shop.
 - `shop_follow`: buyer follow shop, unique theo `seller_id + customer_id`.
 - `danh_gia`: review san pham/shop.
+- `chat_conversation`, `chat_message`: conversation buyer-shop, message, unread/read state.
 - `platform_banner`: banner storefront.
 
 ### 5.2. Dang ky shop
@@ -794,6 +798,21 @@ Can thiet ke lai:
 
 - Ten path co `permitall` nhung follow can user context, nen nen doi ve protected buyer route hoac gateway buyer-auth path ro hon.
 
+### 10.3. Chat buyer-seller
+
+Backend trong `seller-service`:
+
+- Buyer: `POST/GET /api/v1/buyer/chat/conversations`, `GET/POST .../{id}/messages`, `POST .../{id}/read`.
+- Seller: `GET /api/v1/seller/chat/conversations`, `GET/POST .../{id}/messages`, `POST .../{id}/read`.
+- Mot conversation duy nhat cho moi cap `customer_id + seller_id`; chi shop `APPROVED` moi duoc bat dau chat.
+- Service kiem tra ownership o moi thao tac, luu unread rieng cho buyer/seller va tra 100 message gan nhat theo thu tu thoi gian.
+
+Frontend:
+
+- Buyer inbox `/tin-nhan`; Seller inbox `/seller/chat`.
+- Workspace dung chung polling 4 giay, unread badge, mark read, gui Enter va responsive.
+- Buyer mo conversation tu trang shop hoac card shop trong chi tiet san pham.
+
 ## 11. Banner va storefront content
 
 Backend:
@@ -939,6 +958,10 @@ Khuyen nghi:
   - `GET /api/v1/permitall/reviews/mine`
 - Profile:
   - `/api/v1/permitall/profile/**`
+- Chat buyer protected:
+  - `POST/GET /api/v1/buyer/chat/conversations`
+  - `GET/POST /api/v1/buyer/chat/conversations/{id}/messages`
+  - `POST /api/v1/buyer/chat/conversations/{id}/read`
 
 ### 15.2. Seller
 
@@ -970,6 +993,10 @@ Khuyen nghi:
 - Reviews:
   - `GET /api/v1/seller/reviews`
   - `PUT /api/v1/seller/reviews/{id}/reply`
+- Chat:
+  - `GET /api/v1/seller/chat/conversations`
+  - `GET/POST /api/v1/seller/chat/conversations/{id}/messages`
+  - `POST /api/v1/seller/chat/conversations/{id}/read`
 
 ### 15.3. Platform Admin
 
@@ -1422,6 +1449,16 @@ Bang `danh_gia`:
 - Review san pham/shop.
 - Unique theo `customer_id + don_hang_seller_id + product_detail_id`.
 - Co rating san pham, rating shop, comment, image URLs, reply seller.
+
+Bang `chat_conversation`:
+
+- Unique `customer_id + seller_id`; luu snapshot `buyer_name`, `shop_name`, `shop_logo_url`.
+- Luu `last_message`, `last_message_at`, `buyer_unread_count`, `seller_unread_count` de list inbox nhanh.
+
+Bang `chat_message`:
+
+- Thuoc `conversation_id`, sender `BUYER|SELLER`, noi dung toi da 2000 ky tu.
+- Co `created_at`, `read_at`; index theo conversation va thoi gian.
 
 Bang `platform_banner`:
 

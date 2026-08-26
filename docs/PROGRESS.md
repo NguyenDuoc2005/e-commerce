@@ -1,13 +1,13 @@
 # PROGRESS.md - Nhat ky tien do chuyen doi Marketplace
 
 ## Trang thai tong quan hien tai
-- Giai doan: Da hoan tat ca source va runtime acceptance cua PR NHOM 11 — nhom PR cuoi cung duoc dinh nghia trong Muc 6 cua prompt.
-- Task dang lam do (neu co): Khong. Migration payout da apply, runtime moi da restart va luong COMPLETE -> PENDING -> AVAILABLE -> PAID batch + soldCount public da duoc smoke test tren DB that.
-- Viec tiep theo can lam ngay: Nguoi dung chon backlog tiep theo vi prompt khong dinh nghia PR NHOM 12.
+- Giai doan: Da hoan tat source va runtime acceptance cho backlog 10 — Chat buyer-seller, sau khi hoan tat PR NHOM 1-11.
+- Task dang lam do (neu co): Khong. Chat REST polling, unread/read, UI buyer/seller va cac diem mo chat tu shop/san pham da smoke tren runtime that.
+- Viec tiep theo can lam ngay: Backlog 11 — Flash sale toan san; audit `promotion_campaign`, `promotion_campaign_product` va luong seller dang ky/admin duyet truoc khi code.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
-- Can chon backlog sau PR NHOM 11: Chat buyer-seller, Flash sale toan san, don route/security legacy `/permitall`, hay audit/cutover schema product con lai. Cac nhanh nay khac pham vi lon va prompt khong sap thu tu tiep.
+- Khong co cau hoi treo cho Chat. Backlog tiep theo theo thu tu checklist la Flash sale toan san.
 
 ## Checklist tinh nang
 - [x] Dang ky/dang nhap buyer, seller, platform admin
@@ -41,10 +41,51 @@
 - [x] Thuoc tinh dong: Platform Admin hau kiem/chuan hoa/gop/an
 - [x] Dispute: Buyer tao/trao doi, Seller phan hoi, Admin resolve/dong va payout adjustment
 - [x] Report: Buyer/Seller bao cao product/shop/review, Admin kiem duyet va thi hanh action
-- [ ] Chat buyer-seller
+- [x] Chat buyer-seller
 - [ ] Flash sale toan san
 
 ## Nhat ky chi tiet
+
+### [2026-08-25 18:04] Phien #44
+**Da lam:**
+- Doc lai ba tai lieu bat buoc va chon dung backlog ke tiep trong checklist: Chat buyer-seller, sau khi cac muc truoc da co source/runtime acceptance.
+- Dat module trong `seller-service`: them `chat_conversation`, `chat_message`, snapshot buyer/shop, mot conversation cho moi cap buyer-shop, toi da 100 tin moi nhat va kiem tra ownership cho ca hai role.
+- Implement API buyer/seller protected de tao/list conversation, doc/gui message va danh dau da doc; unread count tang cho dung nguoi nhan.
+- Them route gateway `/api/v1/buyer/chat/**`; `/api/v1/seller/chat/**` nam trong route seller protected san co. Gateway enforce role `USERS`/`SELLER` va inject user/seller context tu JWT.
+- Tao workspace chat dung chung tren FE voi polling 4 giay, danh sach conversation, unread badge, bubble tin nhan, Enter gui/Shift+Enter xuong dong va responsive mobile.
+- Them route `/tin-nhan`, `/seller/chat`, link Navbar buyer, menu Seller Center va nut `Chat voi shop` tren trang shop/chi tiet san pham; nguoi chua login duoc dua ve login voi redirect.
+- Tao migration thu cong `m12_chat_up.sql`. Runtime local dung Hibernate `ddl-auto=update` da tao schema tu entity khi restart seller-service; migration giu cho moi truong deploy co quan ly schema.
+- Build/restart rieng seller-service va gateway, giu nguyen MySQL Docker/volume; smoke API va Chrome headless hai role qua gateway/FE that. Sau acceptance da xoa dung conversation va 4 message smoke khoi DB, khong de lai du lieu buyer gia.
+
+**File da tao/sua chinh:**
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/{controller/ChatController.java,service/ChatService.java}`
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/{entity/ChatConversation.java,entity/ChatMessage.java}`
+- `backend-microservice/seller-service/src/main/java/com/ecommerce/seller/{repository/ChatConversationRepository.java,repository/ChatMessageRepository.java}`
+- `backend-microservice/seller-service/src/main/resources/db/migration/manual/m12_chat_up.sql`
+- `FE/src/components/chat/ChatWorkspace.vue`, `FE/src/services/api/chat/chat.api.ts`
+- `FE/src/pages/users/chat/BuyerChat.vue`, `FE/src/pages/seller/chat/SellerChat.vue`
+- Route/sidebar/navbar, login redirect va nut chat tren `ShopDetail.vue`, `ProductDetail.vue`.
+
+**Ket qua:** DONE backlog 10 Chat buyer-seller. API, authorization, unread/read, UI buyer/seller va entry point storefront deu hoat dong tren runtime that.
+
+**Kiem chung:**
+- `gradlew :seller-service:test :api-gateway:compileJava --no-daemon --max-workers=1`: PASS.
+- `gradlew :seller-service:bootJar :api-gateway:bootJar --no-daemon --max-workers=1`: PASS.
+- `vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS (chi con warning font/chunk size co san).
+- Runtime health seller-service/gateway: UP, port `8089`/`8080` LISTEN voi artifact moi.
+- API smoke: buyer send -> seller unread `1`; seller read -> `0`; seller reply -> buyer unread `1`; buyer read -> `0`; 4 message co sender sequence dung.
+- Browser smoke: `/tin-nhan` va `/seller/chat` deu hien conversation/message/composer that; 4/4 assertion PASS.
+- `git diff --check`: PASS.
+
+**Ghi chu/vuong mac:**
+- Ban dau dung REST polling 4 giay de phu hop kien truc hien tai, khong them WebSocket broker/Redis ngoai pham vi. Schema/API co the nang cap transport realtime sau ma khong doi ownership model.
+- API chi tra 100 tin gan nhat; khi can lich su dai se bo sung cursor pagination.
+
+**Viec tiep theo can lam ngay:**
+- Audit va trien khai backlog 11 Flash sale toan san theo `promotion_campaign`/`promotion_campaign_product`, seller dang ky va Platform Admin duyet.
+
+---
 
 ### [2026-08-25 19:45] Phien #43
 **Da lam:**

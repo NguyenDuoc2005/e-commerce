@@ -94,8 +94,10 @@ import { getUserInformation } from '@/utils/token.helper'
 import { router } from '@/routes/router'
 import { ROUTES_CONSTANTS } from '@/constants/path'
 import { useAuthStore } from '@/stores/auth'
+import { useRoute } from 'vue-router'
 
 const loading = ref(false)
+const route = useRoute()
 
 const form = reactive({
   email: '',
@@ -147,7 +149,11 @@ const onLogin = async () => {
       const targetRoute = roles.includes('SELLER')
         ? ROUTES_CONSTANTS.SELLER.children.DASHBOARD.name
         : ROUTES_CONSTANTS.USERS.children.TRANGCHU.name
-      router.push({ name: targetRoute }).then(() => {
+      const requestedRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+      const destination = requestedRedirect.startsWith('/') && !requestedRedirect.startsWith('//')
+        ? requestedRedirect
+        : { name: targetRoute }
+      router.push(destination).then(() => {
         window.location.reload();
       })
     } catch (err: any) {

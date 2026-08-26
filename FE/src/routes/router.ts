@@ -60,6 +60,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true },
       },
       {
+        path: ROUTES_CONSTANTS.USERS.children.CHAT.path,
+        name: ROUTES_CONSTANTS.USERS.children.CHAT.name,
+        component: () => import("@/pages/users/chat/BuyerChat.vue"),
+        meta: { requiresRole: ROLES.USERS, requiresAuth: true },
+      },
+      {
         path: ROUTES_CONSTANTS.USERS.children.LIENHE.path,
         name: ROUTES_CONSTANTS.USERS.children.LIENHE.name,
 
@@ -207,6 +213,12 @@ export const routes: RouteRecordRaw[] = [
         path: ROUTES_CONSTANTS.SELLER.children.DISPUTES.path,
         name: ROUTES_CONSTANTS.SELLER.children.DISPUTES.name,
         component: () => import("@/pages/seller/disputes/SellerDisputes.vue"),
+        meta: { requiresRole: 'SELLER', requiresAuth: true },
+      },
+      {
+        path: ROUTES_CONSTANTS.SELLER.children.CHAT.path,
+        name: ROUTES_CONSTANTS.SELLER.children.CHAT.name,
+        component: () => import("@/pages/seller/chat/SellerChat.vue"),
         meta: { requiresRole: 'SELLER', requiresAuth: true },
       },
     ],

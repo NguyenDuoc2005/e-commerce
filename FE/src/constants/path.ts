@@ -58,6 +58,10 @@ export const ROUTES_CONSTANTS = {
         path: 'khieu-nai',
         name: 'buyer-disputes'
       },
+      CHAT: {
+        path: 'tin-nhan',
+        name: 'buyer-chat'
+      },
       THONGTINCANHAN: {
         path: 'thong-tin-ca-nhan',
         name: 'thong-tin-ca-nhan'
@@ -195,6 +199,10 @@ export const ROUTES_CONSTANTS = {
       DISPUTES: {
         path: 'disputes',
         name: 'seller-disputes'
+      },
+      CHAT: {
+        path: 'chat',
+        name: 'seller-chat'
       },
       PROFILE: {
         path: 'profile',

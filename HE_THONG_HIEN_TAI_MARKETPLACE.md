@@ -1,6 +1,6 @@
 # HE THONG HIEN TAI - MARKETPLACE E-COMMERCE
 
-Tai lieu nay mo ta hien trang source marketplace va duoc doi chieu tu `docs/PROGRESS.md`, prompt, route FE, controller/backend service va gateway. Cap nhat 2026-08-26: Chat, Flash Sale va dot don route catalog/promotion legacy da co runtime acceptance.
+Tai lieu nay mo ta hien trang source marketplace va duoc doi chieu tu `docs/PROGRESS.md`, prompt, route FE, controller/backend service va gateway. Cap nhat 2026-08-26: Chat, Flash Sale, dot don route catalog/promotion legacy va audit role guard FE da co acceptance.
 
 ## 1. Ket luan nhanh
 
@@ -17,7 +17,7 @@ He thong hien tai da khong con la website ban giay 1 cua hang don thuan. Source 
 
 Phan ky thuat con can audit tiep:
 
-- Source route FE con mot so route chua gan `meta.requiresRole`; can audit router guard theo tung vai tro.
+- Route FE Admin/Seller va cac route Buyer protected da co `meta.requiresRole`; guard hien doc role/han token tu JWT, xoa auth storage hong/het han va chuyen dung trang login theo vai tro.
 - Cac path buyer can dang nhap van mang prefix `/permitall` (`cart`, `don-mua`, mot phan review/follow); can doi ten contract de tranh hieu nham bao mat.
 - Model seller/shop hien tai la 1 owner/customer co toi da 1 shop active/pending, chua co mo hinh 1 seller quan ly nhieu shop.
 - DB con bang/cot lich su; moi deprecation/xoa vat ly van phai audit FK va du lieu truoc.
@@ -1066,7 +1066,7 @@ Khuyen nghi:
 - Hard-code giay: mau sac, size, chat lieu, loai de, thuong hieu nhu entity/menu rieng.
 - Admin san-pham/san-pham-chi-tiet neu con la admin ban hang.
 - Admin dot giam gia cu neu chua convert campaign san.
-- Routes khong co meta `requiresRole` trong FE.
+- Route role FE: da audit va xu ly; Admin/Seller cung cac man Buyer can dang nhap deu co `meta.requiresRole`.
 - Gateway route cu khong con dung.
 
 ## 17. De xuat thiet ke lai Platform Admin
@@ -1281,7 +1281,7 @@ Flow de xuat:
 - Tach admin menu va seller menu.
 - Doi ten route/menu theo marketplace.
 - Remove/hide hoan toan POS/hoa don offline.
-- Audit route admin khong co `meta.requiresRole`.
+- Audit route Admin/Seller/Buyer protected va router guard theo JWT: DONE.
 - Tao man Category Management moi.
 - Hoan thien Product Attributes.
 - Hoan thien Seller Product Form.
@@ -2383,7 +2383,8 @@ Buyer khong nen:
    - Khong tron route buyer vao admin sidebar, tru link ve storefront co the de o user menu.
 
 4. Audit route FE:
-   - Moi route admin/seller phai co `meta.requiresRole`.
+   - DONE: moi route Admin/Seller co `meta.requiresRole`; cac route Buyer protected cung da gan role `USERS`.
+   - Guard kiem tra token con han, doc role tu JWT va redirect den login phu hop; gateway/backend van enforce quyen cuoi cung.
    - Route legacy redirect thi quyet dinh xoa hay giu alias.
 
 5. Audit gateway:

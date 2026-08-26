@@ -1,10 +1,19 @@
 import { ROUTES_CONSTANTS } from "@/constants/path";
 import { ROLES } from "@/constants/roles";
 import { createRouter, createWebHistory } from "vue-router";
-import type { RouteRecordRaw } from "vue-router";
-import { USER_INFO_STORAGE_KEY } from '@/constants/storageKey'
+import type { RouteMeta, RouteRecordRaw } from "vue-router";
+import {
+  ACCESS_TOKEN_STORAGE_KEY,
+  REFRESH_TOKEN_STORAGE_KEY,
+  USER_INFO_STORAGE_KEY,
+} from '@/constants/storageKey'
 import { localStorageAction } from '@/utils/storage'
 import type { UserInformation } from '@/types/auth.type'
+import { getExpireTime, getUserInformation } from '@/utils/token.helper'
+
+const BUYER_ROUTE_META = { requiresRole: ROLES.USERS, requiresAuth: true } satisfies RouteMeta
+const SELLER_ROUTE_META = { requiresRole: ROLES.SELLER, requiresAuth: true } satisfies RouteMeta
+const ADMIN_ROUTE_META = { requiresRole: ROLES.ADMIN, requiresAuth: true } satisfies RouteMeta
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -38,32 +47,33 @@ export const routes: RouteRecordRaw[] = [
         path: ROUTES_CONSTANTS.USERS.children.DANG_KY_BAN_HANG.path,
         name: ROUTES_CONSTANTS.USERS.children.DANG_KY_BAN_HANG.name,
         component: () => import("@/pages/users/seller/SellerRegistration.vue"),
+        meta: BUYER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.USERS.children.DONMUA.path,
         name: ROUTES_CONSTANTS.USERS.children.DONMUA.name,
 
         component: () => import("@/pages/users/orderhistory/OrderHistory.vue"),
-
+        meta: BUYER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.USERS.children.DONMUA_DETAIL.path,
         name: ROUTES_CONSTANTS.USERS.children.DONMUA_DETAIL.name,
 
         component: () => import("@/pages/users/orderhistory/OrderDetail.vue"),
-
+        meta: BUYER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.USERS.children.DISPUTES.path,
         name: ROUTES_CONSTANTS.USERS.children.DISPUTES.name,
         component: () => import("@/pages/users/disputes/BuyerDisputes.vue"),
-        meta: { requiresAuth: true },
+        meta: BUYER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.USERS.children.CHAT.path,
         name: ROUTES_CONSTANTS.USERS.children.CHAT.name,
         component: () => import("@/pages/users/chat/BuyerChat.vue"),
-        meta: { requiresRole: ROLES.USERS, requiresAuth: true },
+        meta: BUYER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.USERS.children.FLASH_SALE.path,
@@ -89,7 +99,7 @@ export const routes: RouteRecordRaw[] = [
         name: ROUTES_CONSTANTS.USERS.children.TRACUU.name,
 
         component: () => import("@/pages/users/home/TraCuu.vue"),
-
+        meta: BUYER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.USERS.children.SANPHAM.path,
@@ -110,6 +120,7 @@ export const routes: RouteRecordRaw[] = [
         path: ROUTES_CONSTANTS.USERS.children.THANHTOAN.path,
         name: ROUTES_CONSTANTS.USERS.children.THANHTOAN.name,
         component: () => import("@/pages/users/checkout/CheckoutView.vue"),
+        meta: BUYER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.USERS.children.THANHTOANTHANHCONG.path,
@@ -126,7 +137,8 @@ export const routes: RouteRecordRaw[] = [
       {
         path: ROUTES_CONSTANTS.USERS.children.THONGTINCANHAN.path,
         name: ROUTES_CONSTANTS.USERS.children.THONGTINCANHAN.name,
-        component: () => import('@/pages/users/profile/ProfileView.vue')
+        component: () => import('@/pages/users/profile/ProfileView.vue'),
+        meta: BUYER_ROUTE_META,
       },
 
     ]
@@ -162,75 +174,67 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.SELLER.path,
     redirect: `${ROUTES_CONSTANTS.SELLER.path}/${ROUTES_CONSTANTS.SELLER.children.DASHBOARD.path}`,
     component: () => import("@/layout/SellerCenterLayout.vue"),
+    meta: SELLER_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.SELLER.children.DASHBOARD.path,
         name: ROUTES_CONSTANTS.SELLER.children.DASHBOARD.name,
         component: () => import("@/pages/seller/dashboard/SellerDashboard.vue"),
-        meta: { requiresRole: 'SELLER', requiresAuth: true },
+        meta: SELLER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.SELLER.children.ORDERS.path,
         name: ROUTES_CONSTANTS.SELLER.children.ORDERS.name,
         component: () => import("@/pages/seller/orders/SellerOrders.vue"),
-        meta: {
-          requiresRole: 'SELLER',
-          requiresAuth: true,
-        },
+        meta: SELLER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.SELLER.children.PRODUCTS.path,
         name: ROUTES_CONSTANTS.SELLER.children.PRODUCTS.name,
         component: () => import("@/pages/seller/products/SellerProducts.vue"),
-        meta: { requiresRole: 'SELLER', requiresAuth: true },
+        meta: SELLER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.SELLER.children.VOUCHERS.path,
         name: ROUTES_CONSTANTS.SELLER.children.VOUCHERS.name,
         component: () => import("@/pages/seller/vouchers/SellerVouchers.vue"),
-        meta: {
-          requiresRole: 'SELLER',
-          requiresAuth: true,
-        },
+        meta: SELLER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.SELLER.children.FLASH_SALES.path,
         name: ROUTES_CONSTANTS.SELLER.children.FLASH_SALES.name,
         component: () => import("@/pages/seller/flash-sale/SellerFlashSales.vue"),
-        meta: { requiresRole: 'SELLER', requiresAuth: true },
+        meta: SELLER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.SELLER.children.PAYOUT.path,
         name: ROUTES_CONSTANTS.SELLER.children.PAYOUT.name,
         component: () => import("@/pages/seller/payout/SellerPayout.vue"),
-        meta: {
-          requiresRole: 'SELLER',
-          requiresAuth: true,
-        },
+        meta: SELLER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.SELLER.children.REVIEWS.path,
         name: ROUTES_CONSTANTS.SELLER.children.REVIEWS.name,
         component: () => import("@/pages/seller/reviews/SellerReviews.vue"),
-        meta: { requiresRole: 'SELLER', requiresAuth: true },
+        meta: SELLER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.SELLER.children.PROFILE.path,
         name: ROUTES_CONSTANTS.SELLER.children.PROFILE.name,
         component: () => import("@/pages/seller/profile/SellerProfile.vue"),
-        meta: { requiresRole: 'SELLER', requiresAuth: true },
+        meta: SELLER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.SELLER.children.DISPUTES.path,
         name: ROUTES_CONSTANTS.SELLER.children.DISPUTES.name,
         component: () => import("@/pages/seller/disputes/SellerDisputes.vue"),
-        meta: { requiresRole: 'SELLER', requiresAuth: true },
+        meta: SELLER_ROUTE_META,
       },
       {
         path: ROUTES_CONSTANTS.SELLER.children.CHAT.path,
         name: ROUTES_CONSTANTS.SELLER.children.CHAT.name,
         component: () => import("@/pages/seller/chat/SellerChat.vue"),
-        meta: { requiresRole: 'SELLER', requiresAuth: true },
+        meta: SELLER_ROUTE_META,
       },
     ],
   },
@@ -239,6 +243,7 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.THONG_KE.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.THONG_KE.path,
@@ -258,6 +263,7 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.CAMPAIGNS.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.CAMPAIGNS.path,
@@ -272,6 +278,7 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.CAMPAIGN_CREATE.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.CAMPAIGN_CREATE.path,
@@ -286,6 +293,7 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.CAMPAIGN_EDIT.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.CAMPAIGN_EDIT.path,
@@ -299,15 +307,13 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.KHACH_HANG.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.KHACH_HANG.path,
         name: ROUTES_CONSTANTS.ADMIN.children.KHACH_HANG.name,
         component: () => import("@/pages/admin/khachhang/KhachHang.vue"),
-        // meta: {
-        //   requiresRole: ROLES.ADMIN,
-        //   requiresAuth: true
-        // }
+        meta: ADMIN_ROUTE_META,
       },
     ],
   },
@@ -315,15 +321,13 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.NHAN_VIEN.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.NHAN_VIEN.path,
         name: ROUTES_CONSTANTS.ADMIN.children.NHAN_VIEN.name,
         component: () => import("@/pages/admin/nhanvien/NhanVien.vue"),
-        // meta: {
-        //   requiresRole: ROLES.ADMIN,
-        //   requiresAuth: true
-        // }
+        meta: ADMIN_ROUTE_META,
       },
     ],
   },
@@ -331,15 +335,13 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.THEM_NHAN_VIEN.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.THEM_NHAN_VIEN.path,
         name: ROUTES_CONSTANTS.ADMIN.children.THEM_NHAN_VIEN.name,
         component: () => import("@/pages/admin/nhanvien/NhanVienModal.vue"),
-        // meta: {
-        //   requiresRole: ROLES.ADMIN,
-        //   requiresAuth: true
-        // }
+        meta: ADMIN_ROUTE_META,
       },
     ],
   },
@@ -347,15 +349,13 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.THEM_KHACH_HANG.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.THEM_KHACH_HANG.path,
         name: ROUTES_CONSTANTS.ADMIN.children.THEM_KHACH_HANG.name,
         component: () => import("@/pages/admin/khachhang/KhachHangModal.vue"),
-        // meta: {
-        //   requiresRole: ROLES.ADMIN,
-        //   requiresAuth: true
-        // }
+        meta: ADMIN_ROUTE_META,
       },
     ],
   },
@@ -363,15 +363,13 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.VOUCHER.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.VOUCHER.path,
         name: ROUTES_CONSTANTS.ADMIN.children.VOUCHER.name,
         component: () => import("@/pages/admin/voucher/Voucher.vue"),
-        // meta: {
-        //   requiresRole: ROLES.ADMIN,
-        //   requiresAuth: true
-        // }
+        meta: ADMIN_ROUTE_META,
       },
     ],
   },
@@ -379,6 +377,7 @@ export const routes: RouteRecordRaw[] = [
     path: ROUTES_CONSTANTS.ADMIN.path,
     redirect: `${ROUTES_CONSTANTS.ADMIN.path}/${ROUTES_CONSTANTS.ADMIN.children.SELLER_APPROVAL.path}`,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.SELLER_APPROVAL.path,
@@ -394,6 +393,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.BANNERS.path,
@@ -406,6 +406,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.PAYOUT.path,
@@ -418,6 +419,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.REPORTS.path,
@@ -430,6 +432,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.DISPUTES.path,
@@ -442,6 +445,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.CATEGORIES.path,
@@ -454,6 +458,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: ROUTES_CONSTANTS.ADMIN.path,
     component: () => import("@/layout/PlatformAdminLayout.vue"),
+    meta: ADMIN_ROUTE_META,
     children: [
       {
         path: ROUTES_CONSTANTS.ADMIN.children.PRODUCT_ATTRIBUTES.path,
@@ -470,13 +475,48 @@ export const router = createRouter({
   routes,
 });
 
-router.beforeEach((to) => {
-  const user = localStorageAction.get(USER_INFO_STORAGE_KEY) as UserInformation | null
-  if (to.meta.requiresAuth && !user) {
-    return { name: ROUTES_CONSTANTS.USERS.children.LOGIN.name, query: { redirect: to.fullPath } }
+const clearStoredAuth = () => {
+  localStorageAction.remove(USER_INFO_STORAGE_KEY)
+  localStorageAction.remove(ACCESS_TOKEN_STORAGE_KEY)
+  localStorageAction.remove(REFRESH_TOKEN_STORAGE_KEY)
+}
+
+const readStoredAccessToken = (): string | null => {
+  try {
+    return localStorageAction.get(ACCESS_TOKEN_STORAGE_KEY) as string | null
+  } catch {
+    clearStoredAuth()
+    return null
   }
+}
+
+const getActiveUser = (accessToken: string | null): UserInformation | null => {
+  if (!accessToken) return null
+  try {
+    const expiresAt = getExpireTime(accessToken) * 1000
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null
+    return getUserInformation(accessToken)
+  } catch {
+    return null
+  }
+}
+
+router.beforeEach((to) => {
   const requiredRole = to.meta.requiresRole as string | undefined
-  const roles = user?.roles?.length ? user.roles : user?.role ? [user.role] : []
+  const requiresAuth = Boolean(to.meta.requiresAuth || requiredRole)
+  if (!requiresAuth) return true
+
+  const user = getActiveUser(readStoredAccessToken())
+  if (!user) {
+    clearStoredAuth()
+    const loginRoute = requiredRole === ROLES.ADMIN
+      ? ROUTES_CONSTANTS.LOGIN.name
+      : ROUTES_CONSTANTS.USERS.children.LOGIN.name
+    return { name: loginRoute, query: { redirect: to.fullPath } }
+  }
+
+  localStorageAction.set(USER_INFO_STORAGE_KEY, user)
+  const roles = user.roles?.length ? user.roles : user.role ? [user.role] : []
   if (requiredRole && !roles.includes(requiredRole)) {
     return { name: ROUTES_CONSTANTS.FORBIDDEN.name }
   }

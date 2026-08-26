@@ -1,13 +1,14 @@
 # PROGRESS.md - Nhat ky tien do chuyen doi Marketplace
 
 ## Trang thai tong quan hien tai
-- Giai doan: Da hoan tat 11 backlog nghiep vu va audit bo sung dau tien — doi ten/don route legacy catalog/promotion.
-- Task dang lam do (neu co): Khong. Catalog storefront/Admin/Seller da chi dung route canonical; campaign san `STANDARD` da chuyen tu `dot-giam-gia` sang `/admin/campaigns` va da smoke runtime.
-- Viec tiep theo can lam ngay: Audit toan bo route FE con thieu `meta.requiresRole` theo Muc 16.3/21.1 cua tai lieu hien trang.
+- Giai doan: Da hoan tat 11 backlog nghiep vu va 2 audit bo sung: don route legacy catalog/promotion, sau do chuan hoa role guard FE.
+- Task dang lam do (neu co): Khong. Route Admin/Seller va cac route Buyer can dang nhap da co meta vai tro; guard doc role/han token tu JWT va da smoke tren production preview.
+- Viec tiep theo can lam ngay: Chuan hoa cac API buyer can dang nhap con mang prefix `/permitall` (`cart`, `don-mua`, review/follow) theo Muc 21.2/27 cua tai lieu hien trang.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
 - Khong co cau hoi treo cho route cleanup. Khong xoa bang/cot hay du lieu lich su; chi xoa route/file khong con controller/consumer sau audit dependency.
+- Khong co cau hoi treo cho audit role guard FE; gio hang khach va trang ket qua thanh toan duoc giu public co chu dich.
 
 ## Checklist tinh nang
 - [x] Dang ky/dang nhap buyer, seller, platform admin
@@ -36,6 +37,7 @@
 - [x] PR NHOM 6: Admin hau kiem thuoc tinh day du 5 tab
 - [x] PR NHOM 11: Payout pending -> available -> paid theo batch, lich su chi tra va soldCount that
 - [x] Audit bo sung 1: Doi ten/don route legacy catalog va promotion; campaign san dung `/admin/campaigns`
+- [x] Audit bo sung 2: Gan role meta cho Admin/Seller/Buyer protected route va harden router guard theo JWT
 - [ ] Chuan hoa san pham: schema target + reset seed demo da nganh, xoa 6 bang hard-code
 - [x] Thuoc tinh dong: Seller suggestion/autocomplete/tu them tren form san pham
 - [x] Thuoc tinh dong: Buyer filter theo danh muc va product detail
@@ -46,6 +48,37 @@
 - [x] Flash sale toan san
 
 ## Nhat ky chi tiet
+
+### [2026-08-26 10:20] Phien #47
+**Da lam:**
+- Doc lai ba tai lieu bat buoc va chon dung viec ke tiep tu Phien #46: audit `meta.requiresRole` va router guard FE.
+- Chuan hoa meta dung chung cho `ADMIN`, `SELLER`, `USERS`; gan meta tai tat ca parent Admin/Seller va cac route Buyer can dang nhap: dang ky ban hang, don mua/chi tiet, khieu nai, chat, tra cuu, thanh toan va thong tin ca nhan.
+- Giu public co chu dich cho gio hang khach va trang thanh toan thanh cong; cac route storefront xem san pham/shop/Flash Sale van public.
+- Harden guard: lay user/roles truc tiep tu access token, kiem tra `exp`, xoa auth storage khi token hong/het han, dua Admin ve `/admin/login` va Buyer/Seller ve `/login` kem `redirect`.
+- Sua login Admin chi tiep tuc den `redirect` noi bo `/admin/**` an toan sau khi dang nhap; neu khong co thi ve thong ke.
+
+**File da sua:**
+- `FE/src/routes/router.ts`.
+- `FE/src/pages/auth/LoginAdmin.vue`.
+- `HE_THONG_HIEN_TAI_MARKETPLACE.md`, `docs/PROGRESS.md`.
+
+**Ket qua:** DONE audit bo sung 2. Toan bo route Admin/Seller duoc bao ve theo role meta; route Buyer protected khong con render khi chua co JWT hop le.
+
+**Kiem chung:**
+- Static route audit: 16/16 parent Admin co `ADMIN_ROUTE_META`, 1/1 parent va 10/10 child Seller co `SELLER_ROUTE_META`, 8 route Buyer protected co `BUYER_ROUTE_META`.
+- `vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS (chi con warning font/chunk size co san).
+- Chrome headless tren production preview: `/admin` -> login Admin; `/thong-tin-ca-nhan` -> login Buyer; `/gio-hang` van render cho guest.
+- Khong co file/profile Chrome hay process preview tam con lai sau smoke.
+
+**Ghi chu/vuong mac:**
+- FE guard la lop UX/phong thu bo sung; gateway/backend van la noi enforce quyen cuoi cung. FE chi decode JWT de doc role/han dung, khong thay the viec verify chu ky tai server.
+- Chua doi contract `/permitall` cua buyer trong phien nay de khong tron scope; day la viec tiep theo da duoc ghi ro ben duoi.
+
+**Viec tiep theo can lam ngay:**
+- Audit va doi cac API buyer can dang nhap con mang prefix `/permitall` (`cart`, `don-mua`, review/follow) sang contract protected ro nghia, cap nhat gateway/backend/FE va regression guest cart.
+
+---
 
 ### [2026-08-26 10:01] Phien #46
 **Da lam:**

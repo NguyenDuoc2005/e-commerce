@@ -119,6 +119,7 @@ import { getUserInformation } from '@/utils/token.helper'
 import { useAuthStore } from '@/stores/auth'
 import { router } from '@/routes/router'
 import { ROUTES_CONSTANTS } from '@/constants/path'
+import { useRoute } from 'vue-router'
 
 const form = reactive({
   email: '',
@@ -138,6 +139,7 @@ const breadcrumbRoutes = [
 ]
 
 const authStore = useAuthStore()
+const route = useRoute()
 
 const togglePassword = () => {
   showPassword.value = !showPassword.value
@@ -181,7 +183,11 @@ const onLogin = async () => {
         refreshToken
       })
 
-      router.push({ name: ROUTES_CONSTANTS.ADMIN.children.THONG_KE.name })
+      const requestedRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+      const destination = requestedRedirect.startsWith('/admin/') && !requestedRedirect.startsWith('//')
+        ? requestedRedirect
+        : { name: ROUTES_CONSTANTS.ADMIN.children.THONG_KE.name }
+      router.push(destination)
     } 
   } catch (err: any) {
     const errorMessage = err?.response?.data?.message ?? 'Đã xảy ra lỗi. Vui lòng thử lại.'

@@ -1,14 +1,15 @@
 # PROGRESS.md - Nhat ky tien do chuyen doi Marketplace
 
 ## Trang thai tong quan hien tai
-- Giai doan: Da hoan tat 11 backlog nghiep vu va 2 audit bo sung: don route legacy catalog/promotion, sau do chuan hoa role guard FE.
-- Task dang lam do (neu co): Khong. Route Admin/Seller va cac route Buyer can dang nhap da co meta vai tro; guard doc role/han token tu JWT va da smoke tren production preview.
-- Viec tiep theo can lam ngay: Chuan hoa cac API buyer can dang nhap con mang prefix `/permitall` (`cart`, `don-mua`, review/follow) theo Muc 21.2/27 cua tai lieu hien trang.
+- Giai doan: Da hoan tat 11 backlog nghiep vu va 3 audit bo sung: route legacy, role guard FE va contract protected Buyer.
+- Task dang lam do (neu co): Khong. Cart/order/review/follow da nam duoi `/api/v1/buyer/**`; gateway enforce `USERS`, public shop/review van hoat dong va guest cart van render.
+- Viec tiep theo can lam ngay: Audit va trien khai "Chuan hoa san pham" con mo: chot schema target, migration an toan khong reset, seed demo da nganh va deprecate 6 bang hard-code sau khi kiem tra FK/du lieu.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
 - Khong co cau hoi treo cho route cleanup. Khong xoa bang/cot hay du lieu lich su; chi xoa route/file khong con controller/consumer sau audit dependency.
 - Khong co cau hoi treo cho audit role guard FE; gio hang khach va trang ket qua thanh toan duoc giu public co chu dich.
+- Khong co cau hoi treo cho contract Buyer; bon nhom API da tach ro public/protected ma khong thay doi du lieu nghiep vu.
 
 ## Checklist tinh nang
 - [x] Dang ky/dang nhap buyer, seller, platform admin
@@ -38,7 +39,8 @@
 - [x] PR NHOM 11: Payout pending -> available -> paid theo batch, lich su chi tra va soldCount that
 - [x] Audit bo sung 1: Doi ten/don route legacy catalog va promotion; campaign san dung `/admin/campaigns`
 - [x] Audit bo sung 2: Gan role meta cho Admin/Seller/Buyer protected route va harden router guard theo JWT
-- [ ] Chuan hoa san pham: schema target + reset seed demo da nganh, xoa 6 bang hard-code
+- [x] Audit bo sung 3: Doi cart/order/review/follow tu `/permitall` sang `/api/v1/buyer/**`
+- [ ] Chuan hoa san pham: schema target + migration an toan, seed demo da nganh, deprecate/xoa 6 bang hard-code sau audit
 - [x] Thuoc tinh dong: Seller suggestion/autocomplete/tu them tren form san pham
 - [x] Thuoc tinh dong: Buyer filter theo danh muc va product detail
 - [x] Thuoc tinh dong: Platform Admin hau kiem/chuan hoa/gop/an
@@ -48,6 +50,42 @@
 - [x] Flash sale toan san
 
 ## Nhat ky chi tiet
+
+### [2026-08-26 10:37] Phien #48
+**Da lam:**
+- Doc lai ba tai lieu bat buoc va chon dung viec ke tiep tu Phien #47: tach protected Buyer API khoi prefix `/permitall`.
+- Doi cart sang `/api/v1/buyer/cart`, lich su don mua sang `/api/v1/buyer/orders`, create/mine review sang `/api/v1/buyer/reviews`, follow shop sang `/api/v1/buyer/shops/{sellerId}/follow` tren controller, gateway va FE.
+- Giu dung public contract cho `GET /api/v1/permitall/reviews` va `/api/v1/permitall/shops/**`; rut gon gateway guard de moi `/api/v1/buyer/**` cung enforce role `USERS` va inject `X-User-Id`.
+- Chuyen FE cart/order API tu folder `services/api/permitall` sang `services/api/buyer`; guest cart tiep tuc dung localStorage va chi goi server khi co user.
+- Trong audit phat hien FE payment history goi sai alias `/lich_su_thanh_toan`; chuyen ve mapping controller dang ton tai `/payment_history/{id}` cung prefix buyer moi.
+- Build/restart dung gateway, cart-service, order-service, seller-service; cart/order/seller dung MySQL Docker cong 3307 nhu runtime da chot, khong reset DB va smoke chi dung GET.
+
+**File da tao/sua:**
+- `backend-microservice/api-gateway/src/main/{java/com/ecommerce/gateway/security/AdminAuthorizationFilter.java,resources/application.yml}`.
+- Controller route cua `cart-service`, `order-service`, `seller-service`.
+- `FE/src/constants/url.ts`, `FE/src/services/api/buyer/{cart,orders}` va cac consumer cart/order/review/follow.
+- `HE_THONG_HIEN_TAI_MARKETPLACE.md`, `docs/PROGRESS.md`.
+
+**Ket qua:** DONE audit bo sung 3. Bon nhom protected Buyer API khong con mang ten `/permitall`; public review/shop va guest cart khong bi regression.
+
+**Kiem chung:**
+- `vue-tsc --noEmit`: PASS.
+- `npm run build`: PASS (chi con warning font/chunk size co san).
+- `gradlew :api-gateway:test :cart-service:test :order-service:test :seller-service:test --no-daemon --max-workers=1`: PASS; gateway khong co test source, ba service con lai test pass.
+- `gradlew :api-gateway:bootJar :cart-service:bootJar :order-service:bootJar :seller-service:bootJar --no-daemon --max-workers=1`: PASS.
+- Runtime gateway voi JWT tam ky bang secret local: cart/order/review/follow moi deu HTTP 200; cung route khong JWT deu HTTP 401.
+- Public review va public shop HTTP 200. Route cart/order/review-mine/follow cu HTTP 404; POST review cu HTTP 405 vi URL nay chi con GET public.
+- Chrome headless production preview: `/gio-hang` guest render noi dung, khong redirect login/404 va app khong rong.
+
+**Ghi chu/vuong mac:**
+- JWT smoke chi tao trong bo nho PowerShell, het han sau 10 phut va khong ghi token ra file. Buyer ID tam chi dung cho GET, khong tao/sua/xoa du lieu.
+- Public `GET /api/v1/permitall/reviews` phai giu nguyen; chi create/mine la protected. Public shop cung giu nguyen, chi follow chuyen sang Buyer.
+- Runtime local dung MySQL Docker cong 3307 theo cac phien truoc; lan khoi dong dau phat hien default 3306 va da restart lai cart/order dung datasource truoc khi chot acceptance.
+
+**Viec tiep theo can lam ngay:**
+- Audit hang muc "Chuan hoa san pham": doi chieu schema/entity/du lieu live, chot migration an toan va seed demo da nganh; khong reset DB, khong xoa bang/cot khi chua kiem tra FK va du lieu lich su.
+
+---
 
 ### [2026-08-26 10:20] Phien #47
 **Da lam:**

@@ -1,7 +1,7 @@
 import type { AxiosResponse } from "axios";
 import request from "@/services/request";
-import { PREFIX_API_CART_PERMITALL } from "@/constants/url";
-import type { DefaultResponse, PaginationParams, PaginationResponse } from "@/types/api.common";
+import { PREFIX_API_BUYER_CART } from "@/constants/url";
+import type { DefaultResponse, PaginationResponse } from "@/types/api.common";
 
 export interface requestCartDetail {
   idCustomer?: string;
@@ -20,7 +20,7 @@ export interface requestCart {
 
 export const createCartDetail = async (data: requestCartDetail) => {
   const res = (await request({
-    url: `${PREFIX_API_CART_PERMITALL}`,
+    url: PREFIX_API_BUYER_CART,
     method: "POST",
     data,
   })) as AxiosResponse<DefaultResponse<null>>;
@@ -29,7 +29,7 @@ export const createCartDetail = async (data: requestCartDetail) => {
 
 export const getAllCart = async (data: requestCart) => {
   const res = (await request({
-    url: `${PREFIX_API_CART_PERMITALL}`,
+    url: PREFIX_API_BUYER_CART,
     method: "GET",
     params: data,
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<null>>>>;
@@ -38,7 +38,7 @@ export const getAllCart = async (data: requestCart) => {
 
 export const deleteCartDetail = async (id: string) => {
   const res = (await request({
-    url: `${PREFIX_API_CART_PERMITALL}/${id}`,
+    url: `${PREFIX_API_BUYER_CART}/${id}`,
     method: "PUT",
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<null>>>>;
   return res.data;

@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/permitall/don-mua")
+@RequestMapping("/api/v1/buyer/orders")
 public class DonMuaController {
 
     private final DonMuaService donMuaService;

@@ -45,6 +45,7 @@ export const PREFIX_API_CHANGE_PASSWORD = (PREFIX_API_AUTH + `/change-password`)
 
 // API PREFIX ADMIN
 export const PREFIX_API_ADMIN = `${API_URL}/admin` as string;
+export const PREFIX_API_BUYER = `${API_URL}/buyer` as string;
 
 // API PREFIX Permitall
 export const PREFIX_API_PERMITALL = `${API_URL}/permitall` as string;
@@ -68,10 +69,12 @@ export const PREFIX_API_BANNER_ADMIN = `${PREFIX_API_ADMIN}/banners` as string;
 export const PREFIX_API_PRODUCT_ATTRIBUTES_ADMIN = `${PREFIX_API_ADMIN}/product-attributes` as string;
 export const PREFIX_API_PRODUCT_VARIANT_AXES_ADMIN = `${PREFIX_API_ADMIN}/product-variant-axes` as string;
 export const PREFIX_API_BANNER_PERMITALL = `${PREFIX_API_PERMITALL}/banners` as string;
-// Permitall API PREFIX
-export const PREFIX_API_CART_PERMITALL = `${PREFIX_API_PERMITALL}/cart` as string;
+export const PREFIX_API_BUYER_CART = `${PREFIX_API_BUYER}/cart` as string;
+export const PREFIX_API_BUYER_ORDERS = `${PREFIX_API_BUYER}/orders` as string;
+export const PREFIX_API_BUYER_REVIEWS = `${PREFIX_API_BUYER}/reviews` as string;
+export const PREFIX_API_BUYER_SHOPS = `${PREFIX_API_BUYER}/shops` as string;
+
+// Truly public API prefixes
 export const PREFIX_API_SHOP_PERMITALL = `${PREFIX_API_PERMITALL}/shops` as string;
 
 export const PREFIX_API_PROFILE_PERMITALL = `${PREFIX_API_PERMITALL}/profile` as string;
-export const PREFIX_API_PROFILE_ORDER_HISTORY = `${PREFIX_API_PERMITALL}/don-mua` as string;
-export const PREFIX_API_PROFILE_ORDER_HISTORY_DETAIL = `${PREFIX_API_PERMITALL}/don-mua/:id` as string;

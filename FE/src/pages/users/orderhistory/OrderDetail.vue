@@ -414,7 +414,7 @@ import {
   type SanPhamResponse,
   type ParamsGetSanPham,
   themSanPhamOnl,
-} from "@/services/api/permitall/donmua/donmua.api";
+} from "@/services/api/buyer/orders/orders.api";
 import {
   getGHNProvinces,
   getGHNDistricts,

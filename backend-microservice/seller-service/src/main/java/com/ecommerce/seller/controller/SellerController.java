@@ -68,17 +68,17 @@ public class SellerController {
         return ResponseUtils.createResponseEntity(sellerService.publicProfiles(ids));
     }
 
-    @GetMapping("/api/v1/permitall/shops/{sellerId}/follow")
+    @GetMapping("/api/v1/buyer/shops/{sellerId}/follow")
     public ResponseEntity<?> followState(@PathVariable String sellerId, HttpServletRequest request) {
         return ResponseEntity.ok(Map.of("data", sellerService.followState(sellerId, principalResolver.customerId(request))));
     }
 
-    @PostMapping("/api/v1/permitall/shops/{sellerId}/follow")
+    @PostMapping("/api/v1/buyer/shops/{sellerId}/follow")
     public ResponseEntity<?> follow(@PathVariable String sellerId, HttpServletRequest request) {
         return ResponseEntity.ok(Map.of("data", sellerService.follow(sellerId, principalResolver.customerId(request))));
     }
 
-    @DeleteMapping("/api/v1/permitall/shops/{sellerId}/follow")
+    @DeleteMapping("/api/v1/buyer/shops/{sellerId}/follow")
     public ResponseEntity<?> unfollow(@PathVariable String sellerId, HttpServletRequest request) {
         return ResponseEntity.ok(Map.of("data", sellerService.unfollow(sellerId, principalResolver.customerId(request))));
     }

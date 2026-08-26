@@ -4,6 +4,7 @@ import {
   PREFIX_API_SELLER,
   PREFIX_API_SELLER_ADMIN,
   PREFIX_API_SELLER_PROFILE,
+  PREFIX_API_BUYER_SHOPS,
   PREFIX_API_SHOP_PERMITALL
 } from '@/constants/url'
 import type { DefaultResponse } from '@/types/api.common'
@@ -117,7 +118,7 @@ export interface ShopFollowState {
 
 export const getShopFollowState = async (sellerId: string) => {
   const res = (await request({
-    url: `${PREFIX_API_SHOP_PERMITALL}/${sellerId}/follow`,
+    url: `${PREFIX_API_BUYER_SHOPS}/${sellerId}/follow`,
     method: 'GET'
   })) as AxiosResponse<{ data: ShopFollowState }>
   return res.data
@@ -125,7 +126,7 @@ export const getShopFollowState = async (sellerId: string) => {
 
 export const followShop = async (sellerId: string) => {
   const res = (await request({
-    url: `${PREFIX_API_SHOP_PERMITALL}/${sellerId}/follow`,
+    url: `${PREFIX_API_BUYER_SHOPS}/${sellerId}/follow`,
     method: 'POST'
   })) as AxiosResponse<{ data: ShopFollowState }>
   return res.data
@@ -133,7 +134,7 @@ export const followShop = async (sellerId: string) => {
 
 export const unfollowShop = async (sellerId: string) => {
   const res = (await request({
-    url: `${PREFIX_API_SHOP_PERMITALL}/${sellerId}/follow`,
+    url: `${PREFIX_API_BUYER_SHOPS}/${sellerId}/follow`,
     method: 'DELETE'
   })) as AxiosResponse<{ data: ShopFollowState }>
   return res.data

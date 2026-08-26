@@ -23,11 +23,6 @@ public class AdminAuthorizationFilter implements WebFilter {
     private static final String ADMIN_PREFIX = "/api/v1/admin/";
     private static final String SELLER_PREFIX = "/api/v1/seller/";
     private static final String BUYER_PREFIX = "/api/v1/buyer/";
-    private static final List<String> BUYER_AUTH_PATHS = List.of(
-            "/api/v1/permitall/reviews",
-            "/api/v1/permitall/don-mua",
-            "/api/v1/permitall/cart"
-    );
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String ADMIN_ROLE = "ADMIN";
     private static final String SELLER_ROLE = "SELLER";
@@ -98,21 +93,7 @@ public class AdminAuthorizationFilter implements WebFilter {
             return false;
         }
         String path = exchange.getRequest().getURI().getPath();
-        if (path.equals("/api/v1/buyer") || path.startsWith(BUYER_PREFIX)) {
-            return true;
-        }
-        if (path.matches("/api/v1/permitall/shops/[^/]+/follow")) {
-            return true;
-        }
-        if (path.equals("/api/v1/permitall/reviews")) {
-            return HttpMethod.POST.equals(exchange.getRequest().getMethod());
-        }
-        if (path.equals("/api/v1/permitall/reviews/mine")) {
-            return HttpMethod.GET.equals(exchange.getRequest().getMethod());
-        }
-        return BUYER_AUTH_PATHS.stream()
-                .filter(candidate -> !candidate.equals("/api/v1/permitall/reviews"))
-                .anyMatch(candidate -> path.equals(candidate) || path.startsWith(candidate + "/"));
+        return path.equals("/api/v1/buyer") || path.startsWith(BUYER_PREFIX);
     }
 
     private boolean hasRole(Claims claims, String requiredRole) {

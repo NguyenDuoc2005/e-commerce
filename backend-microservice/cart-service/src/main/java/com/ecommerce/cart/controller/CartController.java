@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestHeader;
 
 @RestController
-@RequestMapping("/api/v1/permitall/cart")
+@RequestMapping("/api/v1/buyer/cart")
 public class CartController {
 
     private final CartService cartService;

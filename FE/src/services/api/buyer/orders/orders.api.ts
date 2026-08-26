@@ -1,6 +1,6 @@
 import type { AxiosResponse } from 'axios'
 import request from '@/services/request'
-import { PREFIX_API_PROFILE_ORDER_HISTORY} from '@/constants/url'
+import { PREFIX_API_BUYER_ORDERS } from '@/constants/url'
 import type {
   PaginationParams,
   DefaultResponse,
@@ -80,7 +80,7 @@ export interface GroupedOrder {
 
 export const getGroupedOrders = async () => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/grouped`,
+    url: `${PREFIX_API_BUYER_ORDERS}/grouped`,
     method: 'GET'
   })) as AxiosResponse<{ data: GroupedOrder[] }>
   return res.data
@@ -88,7 +88,7 @@ export const getGroupedOrders = async () => {
 
 export const getDonMua = async (params: DonMuaRequest) => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}`,
+    url: PREFIX_API_BUYER_ORDERS,
     method: 'GET',
     params: params
   })) as AxiosResponse<DefaultResponse<DonMuaResponse>>
@@ -98,7 +98,7 @@ export const getDonMua = async (params: DonMuaRequest) => {
 
 export const GetSanPhams = async (params: ParamsGetSanPham) => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/spct`,
+    url: `${PREFIX_API_BUYER_ORDERS}/spct`,
     method: 'GET',
     params: params
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<SanPhamResponse>>>>
@@ -108,7 +108,7 @@ export const GetSanPhams = async (params: ParamsGetSanPham) => {
 
 export const GetLSTT = async (id: string) => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/lich_su_thanh_toan/${id}`,
+    url: `${PREFIX_API_BUYER_ORDERS}/payment_history/${id}`,
     method: 'GET',
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<DonMuaResponse>>>>
 
@@ -117,7 +117,7 @@ export const GetLSTT = async (id: string) => {
 
 export const getDonMuaByCode = async (code: string) => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/all/${code}`,
+    url: `${PREFIX_API_BUYER_ORDERS}/all/${code}`,
     method: 'GET',
   })) as AxiosResponse<DefaultResponse<DonMuaResponse>>
 
@@ -126,7 +126,7 @@ export const getDonMuaByCode = async (code: string) => {
 
 export const themSanPhamOnl = async (data: ParamsGetSanPham) => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/them-san-pham`,
+    url: `${PREFIX_API_BUYER_ORDERS}/them-san-pham`,
     method: "POST",
     data: data,
   })) as AxiosResponse<DefaultResponse<DonMuaResponse>>;
@@ -137,7 +137,7 @@ export const themSanPhamOnl = async (data: ParamsGetSanPham) => {
 
 export const getHoaDonChiTiets = async (params: ParamsGetHoaDonCT) => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/all`,
+    url: `${PREFIX_API_BUYER_ORDERS}/all`,
     method: 'GET',
     params: params
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<DonMuaResponse>>>>
@@ -147,7 +147,7 @@ export const getHoaDonChiTiets = async (params: ParamsGetHoaDonCT) => {
 
 export const getSuaThongTin = async (params: ParamsGetHoaDonCT) => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/sua-thong-tin`,
+    url: `${PREFIX_API_BUYER_ORDERS}/sua-thong-tin`,
     method: 'POST',
     params: params
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<DonMuaResponse>>>>
@@ -157,7 +157,7 @@ export const getSuaThongTin = async (params: ParamsGetHoaDonCT) => {
 
 export const changeStatus = async (params: ParamsGetHoaDonCT) => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/change-status`,
+    url: `${PREFIX_API_BUYER_ORDERS}/change-status`,
     method: 'PUT',
     params: params
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<DonMuaResponse>>>>
@@ -168,7 +168,7 @@ export const changeStatus = async (params: ParamsGetHoaDonCT) => {
 
 export const GetLSTTHD = async (id: string) => {
   const res = (await request({
-    url: `${PREFIX_API_PROFILE_ORDER_HISTORY}/${id}`,
+    url: `${PREFIX_API_BUYER_ORDERS}/${id}`,
     method: 'GET',
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<DonMuaResponse>>>>
 

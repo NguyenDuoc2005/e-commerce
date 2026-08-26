@@ -29,7 +29,7 @@ public class ReviewController {
         this.principalResolver = principalResolver;
     }
 
-    @PostMapping("/api/v1/permitall/reviews")
+    @PostMapping("/api/v1/buyer/reviews")
     public ResponseEntity<?> create(@Valid @RequestBody ReviewRequest request, HttpServletRequest servletRequest) {
         return ResponseEntity.ok(Map.of("data", service.create(principalResolver.customerId(servletRequest), request)));
     }
@@ -42,7 +42,7 @@ public class ReviewController {
         return ResponseEntity.ok(Map.of("data", service.publicReviews(productId, sellerId)));
     }
 
-    @GetMapping("/api/v1/permitall/reviews/mine")
+    @GetMapping("/api/v1/buyer/reviews/mine")
     public ResponseEntity<?> customerReviews(HttpServletRequest request) {
         return ResponseEntity.ok(Map.of("data", service.customerReviews(principalResolver.customerId(request))));
     }

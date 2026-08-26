@@ -81,7 +81,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { getGroupedOrders, type GroupedOrder, type GroupedOrderItem, type GroupedSubOrder } from '@/services/api/permitall/donmua/donmua.api'
+import { getGroupedOrders, type GroupedOrder, type GroupedOrderItem, type GroupedSubOrder } from '@/services/api/buyer/orders/orders.api'
 import { createReview, getMyReviews } from '@/services/api/seller/review.api'
 
 const statuses = ['Cho xac nhan', 'Da xac nhan', 'Cho giao', 'Dang giao', 'Hoan thanh', 'Da huy']

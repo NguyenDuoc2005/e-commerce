@@ -1,6 +1,6 @@
 # HE THONG HIEN TAI - MARKETPLACE E-COMMERCE
 
-Tai lieu nay mo ta hien trang source marketplace va duoc doi chieu tu `docs/PROGRESS.md`, prompt, route FE, controller/backend service va gateway. Cap nhat 2026-08-26: Chat, Flash Sale, dot don route catalog/promotion legacy va audit role guard FE da co acceptance.
+Tai lieu nay mo ta hien trang source marketplace va duoc doi chieu tu `docs/PROGRESS.md`, prompt, route FE, controller/backend service va gateway. Cap nhat 2026-08-26: Chat, Flash Sale, dot don route catalog/promotion legacy, audit role guard FE va chuan hoa protected Buyer API da co acceptance.
 
 ## 1. Ket luan nhanh
 
@@ -18,7 +18,7 @@ He thong hien tai da khong con la website ban giay 1 cua hang don thuan. Source 
 Phan ky thuat con can audit tiep:
 
 - Route FE Admin/Seller va cac route Buyer protected da co `meta.requiresRole`; guard hien doc role/han token tu JWT, xoa auth storage hong/het han va chuyen dung trang login theo vai tro.
-- Cac path buyer can dang nhap van mang prefix `/permitall` (`cart`, `don-mua`, mot phan review/follow); can doi ten contract de tranh hieu nham bao mat.
+- Cart, order history, create/mine review va follow shop da chuyen sang `/api/v1/buyer/**`; `/permitall` chi con duoc giu cho public shop/review/catalog/banner/Flash Sale trong nhom da audit.
 - Model seller/shop hien tai la 1 owner/customer co toi da 1 shop active/pending, chua co mo hinh 1 seller quan ly nhieu shop.
 - DB con bang/cot lich su; moi deprecation/xoa vat ly van phai audit FK va du lieu truoc.
 
@@ -146,11 +146,11 @@ He thong la microservice Spring Boot, di qua `api-gateway`, dang ky Eureka.
   - Public: `/api/v1/permitall/products/**`, `/api/v1/permitall/categories/**`.
   - Seller: `/api/v1/seller/products/**` (gom CRUD, goi y, variant va low-stock).
 - Promotion: `/api/v1/admin/campaigns/**`, `/api/v1/admin/voucher/**`, `/api/v1/admin/flash-sales/**`, `/api/v1/seller/vouchers/**`, `/api/v1/seller/promotions/**`, `/api/v1/seller/flash-sales/**`, `/api/v1/permitall/flash-sales/**`.
-- Order: `/api/v1/admin/thong-ke/**`, `/api/v1/admin/disputes/**`, `/api/v1/permitall/don-mua/**`, `/api/orders/**`, `/api/v1/seller/orders/**`, `/api/v1/seller/disputes/**`, `/api/v1/buyer/disputes/**`.
-- Cart: `/api/v1/permitall/cart/**`.
+- Order: `/api/v1/admin/thong-ke/**`, `/api/v1/admin/disputes/**`, `/api/orders/**`, `/api/v1/seller/orders/**`, `/api/v1/seller/disputes/**`, `/api/v1/buyer/orders/**`, `/api/v1/buyer/disputes/**`.
+- Cart: `/api/v1/buyer/cart/**`.
 - Notification: `/api/v1/notifications/**`.
 - Payout: `/api/v1/admin/payout/**`, `/api/v1/seller/payout/**`.
-- Seller/Chat: `/api/v1/sellers/**`, `/api/v1/seller/**`, `/api/v1/buyer/chat/**`, `/api/v1/admin/sellers/**`, `/api/v1/admin/banners/**`, `/api/v1/permitall/shops/**`, `/api/v1/permitall/banners/**`, `/api/v1/permitall/reviews/**`.
+- Seller/Chat: `/api/v1/sellers/**`, `/api/v1/seller/**`, `/api/v1/buyer/chat/**`, `/api/v1/buyer/reviews/**`, `/api/v1/buyer/shops/**`, `/api/v1/admin/sellers/**`, `/api/v1/admin/banners/**`, `/api/v1/permitall/shops/**`, `/api/v1/permitall/banners/**`, `/api/v1/permitall/reviews/**`.
 
 ### 3.3. Bao mat va context seller
 
@@ -341,9 +341,9 @@ Backend:
 
 - `GET /api/v1/permitall/shops`
 - `GET /api/v1/permitall/shops/{slug}`
-- `GET /api/v1/permitall/shops/{sellerId}/follow`
-- `POST /api/v1/permitall/shops/{sellerId}/follow`
-- `DELETE /api/v1/permitall/shops/{sellerId}/follow`
+- `GET /api/v1/buyer/shops/{sellerId}/follow`
+- `POST /api/v1/buyer/shops/{sellerId}/follow`
+- `DELETE /api/v1/buyer/shops/{sellerId}/follow`
 
 Public shop response co:
 
@@ -558,9 +558,9 @@ Diem can thiet ke lai:
 
 Backend:
 
-- `GET /api/v1/permitall/cart`
-- `POST /api/v1/permitall/cart`
-- `PUT /api/v1/permitall/cart/{id}`
+- `GET /api/v1/buyer/cart`
+- `POST /api/v1/buyer/cart`
+- `PUT /api/v1/buyer/cart/{id}`
 - Internal: `DELETE /internal/carts/items`
 
 Entity:
@@ -618,7 +618,7 @@ Entity:
 
 Buyer:
 
-- `GET /api/v1/permitall/don-mua/**` cho lich su mua.
+- `GET /api/v1/buyer/orders/**` cho lich su mua.
 
 Seller:
 
@@ -753,9 +753,9 @@ Diem can thiet ke lai:
 
 Backend:
 
-- `POST /api/v1/permitall/reviews`
+- `POST /api/v1/buyer/reviews`
 - `GET /api/v1/permitall/reviews`
-- `GET /api/v1/permitall/reviews/mine`
+- `GET /api/v1/buyer/reviews/mine`
 - `GET /api/v1/seller/reviews`
 - `PUT /api/v1/seller/reviews/{id}/reply`
 
@@ -779,17 +779,15 @@ Can thiet ke lai:
 
 Backend:
 
-- `GET /api/v1/permitall/shops/{sellerId}/follow`
-- `POST /api/v1/permitall/shops/{sellerId}/follow`
-- `DELETE /api/v1/permitall/shops/{sellerId}/follow`
+- `GET /api/v1/buyer/shops/{sellerId}/follow`
+- `POST /api/v1/buyer/shops/{sellerId}/follow`
+- `DELETE /api/v1/buyer/shops/{sellerId}/follow`
 
 Entity:
 
 - `shop_follow`
 
-Can thiet ke lai:
-
-- Ten path co `permitall` nhung follow can user context, nen nen doi ve protected buyer route hoac gateway buyer-auth path ro hon.
+Hien trang: follow da nam trong buyer protected route; gateway enforce role `USERS` va inject `X-User-Id`.
 
 ### 10.3. Chat buyer-seller
 
@@ -936,19 +934,19 @@ Khuyen nghi:
 - Shop:
   - `GET /api/v1/permitall/shops`
   - `GET /api/v1/permitall/shops/{slug}`
-  - `GET/POST/DELETE /api/v1/permitall/shops/{sellerId}/follow`
+  - `GET/POST/DELETE /api/v1/buyer/shops/{sellerId}/follow`
 - Banner:
   - `GET /api/v1/permitall/banners`
 - Cart:
-  - `GET /api/v1/permitall/cart`
-  - `POST /api/v1/permitall/cart`
-  - `PUT /api/v1/permitall/cart/{id}`
+  - `GET /api/v1/buyer/cart`
+  - `POST /api/v1/buyer/cart`
+  - `PUT /api/v1/buyer/cart/{id}`
 - Order history:
-  - `/api/v1/permitall/don-mua/**`
+  - `/api/v1/buyer/orders/**`
 - Review:
-  - `POST /api/v1/permitall/reviews`
+  - `POST /api/v1/buyer/reviews`
   - `GET /api/v1/permitall/reviews`
-  - `GET /api/v1/permitall/reviews/mine`
+  - `GET /api/v1/buyer/reviews/mine`
 - Profile:
   - `/api/v1/permitall/profile/**`
 - Chat buyer protected:
@@ -1292,7 +1290,7 @@ Flow de xuat:
 
 - Remove route legacy khong dung.
 - Kiem tra controller admin ban-hang/hoa-don.
-- Chuan hoa `/permitall` vs protected buyer endpoints.
+- Chuan hoa cart/order/review/follow tu `/permitall` sang protected buyer endpoints: DONE.
 - Chuan hoa response envelope giua service.
 - Bo hard-code giay khoi catalog flow.
 - Doi ten API neu can: `seller` vs `shop` ro nghia.
@@ -1895,14 +1893,14 @@ sequenceDiagram
     participant CART as cart-service
     participant CAT as catalog-service
 
-    FE->>GW: POST /api/v1/permitall/cart variantId + quantity
+    FE->>GW: POST /api/v1/buyer/cart variantId + quantity
     GW->>CART: inject X-User-Id
     CART->>CAT: internal get variant/product snapshot
     CAT-->>CART: price, stock, sellerId, shop snapshot
     CART->>CART: upsert cart + cart_detail
     CART-->>FE: cart item
 
-    FE->>GW: GET /api/v1/permitall/cart
+    FE->>GW: GET /api/v1/buyer/cart
     GW->>CART: inject X-User-Id
     CART->>CART: load cart details by customer
     CART-->>FE: cart grouped or groupable by seller fields
@@ -2202,19 +2200,12 @@ Sai thiet ke pho bien:
 - Doi soat nen dua theo `order_seller`, khong theo `orders` goc.
 - Neu 1 checkout co 3 shop thi co 1 order goc va 3 sub-order.
 
-### 26.6. Permitall khong co nghia la khong can user trong moi case
+### 26.6. Public va Buyer protected da tach ro contract
 
-Mot so endpoint path co `/permitall` nhung van dung `X-User-Id`, vi lich su project dat ten nhu vay:
-
-- Cart.
-- Don mua.
-- Review create/mine.
-- Follow shop.
-
-Khi thiet ke lai API, nen tach ro:
-
-- Public truly public: product list, product detail, shop public, banners, public reviews.
-- Buyer protected: cart, checkout, order history, create review, follow shop.
+- Public truly public tiep tuc dung `/api/v1/permitall/**`: product list/detail, category, shop public, banners, Flash Sale va public reviews.
+- Buyer protected dung `/api/v1/buyer/**`: cart, order history, create/mine review, follow shop, dispute, report va chat.
+- Gateway enforce role `USERS` cho toan bo prefix `/api/v1/buyer/**` va inject `X-User-Id`; khong con danh sach ngoai le theo method/path duoi `/permitall` cho bon contract da audit.
+- Gio hang guest la state localStorage tren FE; chi dong bo sang `/api/v1/buyer/cart` sau khi co phien dang nhap.
 
 ## 27. So do quan he du lieu cot loi
 
@@ -2389,7 +2380,7 @@ Buyer khong nen:
 
 5. Audit gateway:
    - Xoa route POS neu bo module.
-   - Doi protected buyer route ra khoi `/permitall` neu co thoi gian.
+   - DONE: cart/order/review/follow da chuyen khoi `/permitall` sang `/api/v1/buyer/**`.
 
 6. Audit DB:
    - Kiem tra live schema co khop entity moi khong.

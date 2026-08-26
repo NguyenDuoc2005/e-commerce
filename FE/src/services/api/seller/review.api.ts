@@ -1,6 +1,6 @@
 import type { AxiosResponse } from 'axios'
 import request from '@/services/request'
-import { API_URL, PREFIX_API_PERMITALL } from '@/constants/url'
+import { API_URL, PREFIX_API_BUYER_REVIEWS, PREFIX_API_PERMITALL } from '@/constants/url'
 
 export interface Review {
   id: string
@@ -29,7 +29,7 @@ export interface CreateReviewRequest {
 }
 
 export const createReview = async (data: CreateReviewRequest) => {
-  const response = (await request({ url: `${PREFIX_API_PERMITALL}/reviews`, method: 'POST', data })) as AxiosResponse<{ data: Review }>
+  const response = (await request({ url: PREFIX_API_BUYER_REVIEWS, method: 'POST', data })) as AxiosResponse<{ data: Review }>
   return response.data
 }
 
@@ -39,7 +39,7 @@ export const getPublicReviews = async (params: { productId?: string; sellerId?: 
 }
 
 export const getMyReviews = async () => {
-  const response = (await request({ url: `${PREFIX_API_PERMITALL}/reviews/mine`, method: 'GET' })) as AxiosResponse<{ data: Review[] }>
+  const response = (await request({ url: `${PREFIX_API_BUYER_REVIEWS}/mine`, method: 'GET' })) as AxiosResponse<{ data: Review[] }>
   return response.data
 }
 

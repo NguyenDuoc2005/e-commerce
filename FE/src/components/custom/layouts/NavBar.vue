@@ -213,7 +213,7 @@ import { router } from '@/routes/router'
 import { useRoute } from 'vue-router'
 import { localStorageAction } from '@/utils/storage'
 import { USER_INFO_STORAGE_KEY, CART_STORAGE_KEY } from '@/constants/storageKey'
-import { getAllCart, type requestCart } from '@/services/api/permitall/cart/cart'
+import { getAllCart, type requestCart } from '@/services/api/buyer/cart/cart'
 import { getCategoryTree } from '@/services/api/catalog/catalog.api'
 
 // Normalize cart responses from monolith and microservice shapes.

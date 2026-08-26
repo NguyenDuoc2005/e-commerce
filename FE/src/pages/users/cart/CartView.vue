@@ -102,7 +102,7 @@
 <script setup lang="ts">
 import BreadCrumbUser from "@/components/ui/Breadcrumbs/BreadCrumbUser.vue";
 import { USER_INFO_STORAGE_KEY, CART_STORAGE_KEY, CHECKOUT_STORAGE_KEY } from "@/constants/storageKey";
-import { deleteCartDetail, getAllCart, createCartDetail, type requestCart } from "@/services/api/permitall/cart/cart";
+import { deleteCartDetail, getAllCart, createCartDetail, type requestCart } from "@/services/api/buyer/cart/cart";
 import { localStorageAction } from "@/utils/storage";
 import { ref, computed, reactive, onMounted } from "vue";
 import { useRouter } from "vue-router";

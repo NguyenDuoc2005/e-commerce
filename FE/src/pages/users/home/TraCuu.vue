@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { getDonMuaByCode } from "@/services/api/permitall/donmua/donmua.api"; // Giả sử bạn có API này
+import { getDonMuaByCode } from "@/services/api/buyer/orders/orders.api";
 import { message } from "ant-design-vue";
 import { useRouter } from "vue-router";
 

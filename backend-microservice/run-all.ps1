@@ -14,11 +14,46 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $projectDir = Join-Path $repoRoot "backend-microservice"
 $gradle = Join-Path $projectDir "gradlew.bat"
 $logDir = Join-Path $projectDir "logs"
-$java = if ($env:JAVA_HOME -and (Test-Path (Join-Path $env:JAVA_HOME "bin\java.exe"))) {
-    Join-Path $env:JAVA_HOME "bin\java.exe"
-} else {
-    (Get-Command java.exe -ErrorAction Stop).Source
+
+function Get-JavaMajorVersion {
+    param([string]$JavaExecutable)
+    if (-not (Test-Path -LiteralPath $JavaExecutable)) {
+        return 0
+    }
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $versionOutput = (& $JavaExecutable -version 2>&1 | Out-String)
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($versionOutput -match 'version\s+"(?<major>\d+)(?:\.(?<minor>\d+))?') {
+        $major = [int]$Matches.major
+        return $(if ($major -eq 1) { [int]$Matches.minor } else { $major })
+    }
+    return 0
 }
+
+$javaCandidates = [System.Collections.Generic.List[string]]::new()
+if ($env:JAVA_HOME) {
+    $javaCandidates.Add((Join-Path $env:JAVA_HOME "bin\java.exe"))
+}
+$jdkRoot = Join-Path $env:USERPROFILE ".jdks"
+if (Test-Path -LiteralPath $jdkRoot) {
+    Get-ChildItem -LiteralPath $jdkRoot -Directory | Sort-Object Name -Descending | ForEach-Object {
+        $javaCandidates.Add((Join-Path $_.FullName "bin\java.exe"))
+    }
+}
+$pathJava = Get-Command java.exe -ErrorAction SilentlyContinue
+if ($pathJava) {
+    $javaCandidates.Add($pathJava.Source)
+}
+$java = $javaCandidates | Where-Object { (Get-JavaMajorVersion $_) -ge 17 } | Select-Object -First 1
+if (-not $java) {
+    throw "Java 17 or newer is required. Install a JDK or set JAVA_HOME to a compatible version."
+}
+$env:JAVA_HOME = Split-Path (Split-Path $java -Parent) -Parent
+Write-Host "Using Java $(Get-JavaMajorVersion $java): $java"
 
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 

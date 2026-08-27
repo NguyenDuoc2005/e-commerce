@@ -42,8 +42,7 @@ public class PromotionCampaign extends PrimaryEntity {
     private String sellerId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "campaign_type", nullable = false, length = 32,
-            columnDefinition = "varchar(32) default 'STANDARD'")
+    @Column(name = "campaign_type", nullable = false, length = 32)
     private CampaignType campaignType = CampaignType.STANDARD;
 
     @Column(name = "registration_start_date")

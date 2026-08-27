@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -122,6 +123,28 @@ class ReportServiceTest {
         Map<String, Object> result = service.resolve("r-1", "staff-1", resolution("NO_ACTION"));
 
         assertEquals("DISMISSED", result.get("status"));
+    }
+
+    @Test
+    void keepsReportDetailAvailableWhenTargetLookupFails() {
+        Report report = report("PRODUCT", "deleted-product");
+        when(reportRepository.findById("r-1")).thenReturn(Optional.of(report));
+        when(catalogClient.getProduct("deleted-product")).thenThrow(new IllegalArgumentException("missing"));
+
+        Map<String, Object> result = service.adminDetail("r-1");
+
+        Map<?, ?> target = (Map<?, ?>) result.get("target");
+        assertEquals(true, target.get("unavailable"));
+        assertEquals("deleted-product", target.get("id"));
+    }
+
+    @Test
+    void rejectsInvalidAdminFilters() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> service.adminList("UNKNOWN", null, null, null));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> service.adminList(null, null, LocalDate.of(2026, 8, 27), LocalDate.of(2026, 8, 26)));
+        verify(reportRepository, never()).findAllByOrderByCreatedAtDesc();
     }
 
     private CreateReportRequest request(String type, String id) {

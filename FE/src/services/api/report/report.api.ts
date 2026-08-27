@@ -7,7 +7,9 @@ export interface ReportItem {
   id: string; reporterId: string; reporterType: 'BUYER' | 'SELLER'; targetType: ReportTargetType; targetId: string
   reasonCode: string; description?: string; evidenceUrls?: string[]; status: 'PENDING' | 'REVIEWING' | 'ACTION_TAKEN' | 'DISMISSED'
   actionTaken?: string; resolutionNote?: string; reviewedByStaffId?: string; reviewedAt?: string; createdAt: string
-  target?: Record<string, any>
+  target?: Record<string, unknown> & {
+    unavailable?: boolean; lookupError?: string; name?: string; shopName?: string; comment?: string; email?: string
+  }
 }
 export interface CreateReportPayload { targetType: ReportTargetType; targetId: string; reasonCode: string; description?: string; evidenceUrls?: string[] }
 

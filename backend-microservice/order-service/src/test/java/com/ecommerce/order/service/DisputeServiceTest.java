@@ -3,6 +3,7 @@ package com.ecommerce.order.service;
 import com.ecommerce.order.client.PayoutClient;
 import com.ecommerce.order.entity.Dispute;
 import com.ecommerce.order.model.request.CreateDisputeRequest;
+import com.ecommerce.order.model.request.DisputeMessageRequest;
 import com.ecommerce.order.model.request.ResolveDisputeRequest;
 import com.ecommerce.order.repository.DisputeMessageRepository;
 import com.ecommerce.order.repository.DisputeRepository;
@@ -78,6 +79,51 @@ class DisputeServiceTest {
         verify(payoutClient).applyDisputeAdjustment(captor.capture());
         assertEquals("d-1", captor.getValue().get("disputeId"));
         assertEquals(250_000D, captor.getValue().get("refundAmount"));
+    }
+
+    @Test
+    void adminCanTakeReviewImmediatelyForOpenDispute() {
+        Dispute dispute = dispute("OPEN");
+        when(disputeRepository.findById("d-1")).thenReturn(Optional.of(dispute));
+        when(disputeRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepository.findByDisputeIdOrderByCreatedAtAsc("d-1")).thenReturn(List.of());
+        stubOrder(4);
+
+        Map<String, Object> result = service.takeReview("staff-1", "d-1");
+
+        assertEquals("UNDER_ADMIN_REVIEW", result.get("status"));
+        assertEquals("staff-1", result.get("resolvedByStaffId"));
+    }
+
+    @Test
+    void adminCanMessageCaseAfterTakingReview() {
+        Dispute dispute = dispute("UNDER_ADMIN_REVIEW");
+        when(disputeRepository.findById("d-1")).thenReturn(Optional.of(dispute));
+        when(messageRepository.findByDisputeIdOrderByCreatedAtAsc("d-1")).thenReturn(List.of());
+        when(messageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        stubOrder(4);
+        DisputeMessageRequest request = new DisputeMessageRequest();
+        request.setMessage("Vui long bo sung bang chung");
+
+        service.adminMessage("staff-1", "d-1", request);
+
+        verify(messageRepository).save(argThat(message -> "ADMIN".equals(message.getSenderType())
+                && "staff-1".equals(message.getSenderId())
+                && "Vui long bo sung bang chung".equals(message.getMessage())));
+    }
+
+    @Test
+    void adminListCanSortStreamResultWithoutUnsupportedOperation() {
+        Dispute resolved = dispute("RESOLVED_REJECT_BUYER");
+        resolved.setId("d-2");
+        resolved.setCreatedAt(Instant.now().plusSeconds(10));
+        Dispute open = dispute("OPEN");
+        when(disputeRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(resolved, open));
+
+        List<Map<String, Object>> result = service.adminList(null, null, null, null);
+
+        assertEquals(List.of("OPEN", "RESOLVED_REJECT_BUYER"),
+                result.stream().map(item -> item.get("status")).toList());
     }
 
     private void stubOrder(int status) {

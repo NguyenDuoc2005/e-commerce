@@ -2,8 +2,8 @@
 
 ## Trang thai tong quan hien tai
 - Giai doan: Da hoan tat toan bo checklist marketplace, gom 11 backlog nghiep vu, 3 audit bo sung va chuan hoa product canonical theo migration an toan.
-- Task dang lam do (neu co): Da fix xong FE cho loi cot rong tren toan bo danh sach Admin co the kiem chung; `/admin/disputes` va `/admin/reports` dang bi chan boi schema live BE thieu bang.
-- Viec tiep theo can lam ngay: Apply/repair migration tao `ecommerce_order.dispute` va `ecommerce_seller.report`, sau do runtime smoke lai hai trang Admin tuong ung.
+- Task dang lam do (neu co): Da sua va runtime verify `/admin/reports`; `/admin/disputes` van bi chan boi schema live BE thieu bang.
+- Viec tiep theo can lam ngay: Apply/repair migration tao `ecommerce_order.dispute`, sau do runtime smoke lai trang Admin tranh chap.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
@@ -52,6 +52,22 @@
 - [x] Audit/fix mapping va render cot cho toan bo table/list Platform Admin
 
 ## Nhat ky chi tiet
+
+### [2026-08-26 14:30] Phien #52
+**Da lam:**
+- Xac dinh loi goc `/admin/reports` HTTP 500: Hibernate quote cac SQL type fragment thanh `` `TEXT` ``/`` `JSON` ``, lenh tao bang `ecommerce_seller.report` that bai.
+- Bat `globally_quoted_identifiers_skip_column_definitions` de Hibernate tao DDL dung tren MySQL va restart seller-service bang jar moi; bang `report` duoc tao additive, khong xoa hay sua du lieu cu.
+- Harden Report API: validate status/target/date filter, bat buoc admin token co `userId`, va van tra chi tiet ho so khi doi tuong nguon da bi xoa hoac service lien quan tam gian doan.
+- Hoan thien UI kiem duyet: loading/error state rieng, thong ke nhanh, filter/reset + validate khoang ngay, nhan tieng Viet, mau trang thai, link bang chung an toan, thong tin nguoi xu ly, mo ta tac dong va confirm truoc khi chot.
+
+**Kiem chung:**
+- `vue-tsc --noEmit`: PASS; `npm run build`: PASS (chi warning font/chunk co san).
+- `gradlew :seller-service:test --no-daemon --max-workers=1`: PASS.
+- Runtime seller-service health UP; schema `ecommerce_seller.report` ton tai voi 14 cot va dung type `text`/`json`; `GET :8089/api/v1/admin/reports` tra HTTP 200 `[]`; filter ngay nguoc tra HTTP 400 dung contract; gateway khong token van tra 401.
+
+**Ghi chu:**
+- Khong co report demo trong DB live nen smoke list hien trang thai rong dung thiet ke; khong chen du lieu test vao DB.
+- `/admin/disputes` la blocker schema rieng, khong nam trong pham vi sua man kiem duyet noi dung lan nay.
 
 ### [2026-08-26 13:54] Phien #51
 **Da lam:**

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS dispute (
     dispute_type VARCHAR(40) NOT NULL,
     reason VARCHAR(255) NOT NULL,
     description TEXT NULL,
-    evidence_urls JSON NULL,
+    evidence_urls TEXT NULL,
     status VARCHAR(40) NOT NULL DEFAULT 'OPEN',
     requested_amount DOUBLE NULL,
     resolved_amount DOUBLE NULL,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS dispute_message (
     sender_type VARCHAR(15) NOT NULL,
     sender_id VARCHAR(36) NOT NULL,
     message TEXT NOT NULL,
-    attachment_urls JSON NULL,
+    attachment_urls TEXT NULL,
     created_at DATETIME(6) NOT NULL,
     INDEX idx_dispute_message_created (dispute_id, created_at),
     CONSTRAINT fk_dispute_message_dispute FOREIGN KEY (dispute_id) REFERENCES dispute(id)

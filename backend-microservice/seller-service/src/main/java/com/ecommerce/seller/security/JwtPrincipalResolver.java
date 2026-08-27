@@ -29,7 +29,11 @@ public class JwtPrincipalResolver {
 
     public String staffId(HttpServletRequest request) {
         Claims claims = claims(request);
-        return claims.get("userId", String.class);
+        String staffId = claims.get("userId", String.class);
+        if (staffId == null || staffId.isBlank()) {
+            throw new IllegalArgumentException("Token khong co userId");
+        }
+        return staffId;
     }
 
     public String sellerId(HttpServletRequest request) {

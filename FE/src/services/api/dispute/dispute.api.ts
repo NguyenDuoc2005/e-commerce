@@ -29,5 +29,6 @@ export const respondSellerDispute = (id: string, data: { message: string; attach
 export const adminDisputes = (params?: { status?: string; sellerId?: string; dateFrom?: string; dateTo?: string }) => call<Dispute[]>(`${API_URL}/admin/disputes`, 'GET', undefined, params)
 export const adminDisputeDetail = (id: string) => call<Dispute>(`${API_URL}/admin/disputes/${id}`)
 export const takeDisputeReview = (id: string) => call<Dispute>(`${API_URL}/admin/disputes/${id}/take-review`, 'POST')
+export const sendAdminDisputeMessage = (id: string, data: { message: string; attachmentUrls?: string[] }) => call<Dispute>(`${API_URL}/admin/disputes/${id}/messages`, 'POST', data)
 export const resolveDispute = (id: string, data: { decision: string; resolvedAmount?: number; note: string }) => call<Dispute>(`${API_URL}/admin/disputes/${id}/resolve`, 'POST', data)
 export const closeDispute = (id: string) => call<Dispute>(`${API_URL}/admin/disputes/${id}/close`, 'POST')

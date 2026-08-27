@@ -49,7 +49,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
                 JOIN orders o ON o.id = os.order_id
                 WHERE os.seller_id = ?
                   AND (? IS NULL OR os.order_status = ?)
-                  AND (? = '' OR LOWER(o.code) LIKE LOWER(CONCAT('%', ?, '%')) OR LOWER(o.receiver_name) LIKE LOWER(CONCAT('%', ?, '%')))
+                  AND (? = '' OR LOWER(o.code) LIKE LOWER(CONCAT('%', ?, '%')) OR LOWER(o.customer_name) LIKE LOWER(CONCAT('%', ?, '%')))
                 ORDER BY os.created_date DESC
                 """, sellerId, status, status, keyword, keyword, keyword);
     }

@@ -1,6 +1,7 @@
 package com.ecommerce.order.controller;
 
 import com.ecommerce.order.model.request.ResolveDisputeRequest;
+import com.ecommerce.order.model.request.DisputeMessageRequest;
 import com.ecommerce.order.service.DisputeService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -23,6 +24,9 @@ public class AdminDisputeController {
     @GetMapping("/{id}") public ResponseEntity<?> detail(@PathVariable String id) { return ResponseEntity.ok(service.adminDetail(id)); }
     @PostMapping("/{id}/take-review") public ResponseEntity<?> takeReview(@PathVariable String id, HttpServletRequest request) {
         return ResponseEntity.ok(service.takeReview(staffId(request), id));
+    }
+    @PostMapping("/{id}/messages") public ResponseEntity<?> message(@PathVariable String id, @Valid @RequestBody DisputeMessageRequest body, HttpServletRequest request) {
+        return ResponseEntity.ok(service.adminMessage(staffId(request), id, body));
     }
     @PostMapping("/{id}/resolve") public ResponseEntity<?> resolve(@PathVariable String id, @Valid @RequestBody ResolveDisputeRequest body, HttpServletRequest request) {
         return ResponseEntity.ok(service.resolve(staffId(request), id, body));

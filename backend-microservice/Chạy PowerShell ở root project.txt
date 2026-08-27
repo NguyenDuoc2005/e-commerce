@@ -2,7 +2,13 @@ Chạy PowerShell ở root project:
 
   cd "C:\My Project\e-commerce"
 
-  Nếu dùng Docker MySQL của project:
+  Xóa sạch 8 database Docker, tạo data demo mới, chạy toàn bộ backend và tự kiểm tra:
+
+  powershell -ExecutionPolicy Bypass -File backend-microservice\reset-and-run-demo.ps1
+
+  Đây là lệnh khuyên dùng. Lệnh sẽ xóa dữ liệu cũ không thể hoàn tác.
+
+  Nếu chỉ muốn reset database Docker mà chưa chạy backend:
 
   powershell -ExecutionPolicy Bypass -File backend-microservice\reset-demo-databases.ps1 -UseDocker -Force
 
@@ -10,7 +16,7 @@ Chạy PowerShell ở root project:
 
   powershell -ExecutionPolicy Bypass -File backend-microservice\reset-demo-databases.ps1 -Force
 
-  Lệnh này sẽ drop sạch DB cũ, tạo lại các DB con, rồi insert data mẫu luôn.
+  Các lệnh reset sẽ drop sạch DB cũ, tạo lại các DB con, rồi insert data mẫu luôn.
 
   Sau đó chạy backend với Docker MySQL port 3307:
 

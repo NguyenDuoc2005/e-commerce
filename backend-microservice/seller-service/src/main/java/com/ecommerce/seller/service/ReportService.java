@@ -31,6 +31,7 @@ public class ReportService {
     private static final Set<String> TARGETS = Set.of("PRODUCT", "SHOP", "REVIEW", "USER");
     private static final Set<String> REASONS = Set.of("FAKE_PRODUCT", "PROHIBITED_ITEM", "COPYRIGHT", "FAKE_REVIEW", "SCAM", "OFFENSIVE_CONTENT", "OTHER");
     private static final Set<String> ACTIONS = Set.of("PRODUCT_DELISTED", "SHOP_SUSPENDED", "REVIEW_HIDDEN", "WARNING_SENT", "NO_ACTION");
+    private static final Set<String> STATUSES = Set.of("PENDING", "REVIEWING", "ACTION_TAKEN", "DISMISSED");
     private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "REVIEWING");
 
     private final ReportRepository reportRepository;
@@ -81,10 +82,21 @@ public class ReportService {
     }
 
     public List<Map<String, Object>> adminList(String status, String targetType, LocalDate dateFrom, LocalDate dateTo) {
+        String normalizedStatus = upper(status);
+        String normalizedTargetType = upper(targetType);
+        if (!blank(normalizedStatus) && !STATUSES.contains(normalizedStatus)) {
+            throw new IllegalArgumentException("Trang thai bao cao khong hop le");
+        }
+        if (!blank(normalizedTargetType) && !TARGETS.contains(normalizedTargetType)) {
+            throw new IllegalArgumentException("Loai doi tuong bao cao khong hop le");
+        }
+        if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo)) {
+            throw new IllegalArgumentException("Ngay bat dau khong duoc sau ngay ket thuc");
+        }
         ZoneId zone = ZoneId.systemDefault();
         return reportRepository.findAllByOrderByCreatedAtDesc().stream()
-                .filter(r -> blank(status) || r.getStatus().equalsIgnoreCase(status))
-                .filter(r -> blank(targetType) || r.getTargetType().equalsIgnoreCase(targetType))
+                .filter(r -> blank(normalizedStatus) || r.getStatus().equals(normalizedStatus))
+                .filter(r -> blank(normalizedTargetType) || r.getTargetType().equals(normalizedTargetType))
                 .filter(r -> dateFrom == null || !r.getCreatedAt().isBefore(dateFrom.atStartOfDay(zone).toInstant()))
                 .filter(r -> dateTo == null || r.getCreatedAt().isBefore(dateTo.plusDays(1).atStartOfDay(zone).toInstant()))
                 .map(this::summary).toList();
@@ -160,8 +172,26 @@ public class ReportService {
         map.put("description", report.getDescription());
         map.put("evidenceUrls", fromJson(report.getEvidenceUrls()));
         map.put("resolutionNote", report.getResolutionNote());
-        map.put("target", targetSnapshot(report.getTargetType(), report.getTargetId()));
+        map.put("target", moderationTargetSnapshot(report));
         return map;
+    }
+
+    /**
+     * A report is an audit record and must remain reviewable even when its target was
+     * deleted or another service is temporarily unavailable. Report creation still
+     * uses targetSnapshot directly so an invalid target cannot be reported.
+     */
+    private Map<String, Object> moderationTargetSnapshot(Report report) {
+        try {
+            return targetSnapshot(report.getTargetType(), report.getTargetId());
+        } catch (RuntimeException exception) {
+            Map<String, Object> fallback = new LinkedHashMap<>();
+            fallback.put("id", report.getTargetId());
+            fallback.put("targetType", report.getTargetType());
+            fallback.put("unavailable", true);
+            fallback.put("lookupError", "Khong the tai du lieu doi tuong tai thoi diem nay");
+            return fallback;
+        }
     }
 
     private Map<String, Object> summary(Report r) {

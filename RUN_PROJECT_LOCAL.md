@@ -98,6 +98,15 @@ Tai khoan demo sau khi seed:
 
 ## 5. Chay backend microservice
 
+Lenh khuyen nghi de chay toan bo backend trong mot lan (tu khoi dong Docker Desktop neu can, chay ha tang, build, chay 11 service va kiem tra health):
+
+```powershell
+cd "C:\My Project\e-commerce"
+powershell -ExecutionPolicy Bypass -File backend-microservice\start-backend.ps1
+```
+
+Lenh nay khong reset du lieu hien co.
+
 Build kiem tra truoc:
 
 ```powershell

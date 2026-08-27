@@ -139,7 +139,10 @@ export const getHoaDonChiTiets = async (params: ParamsGetHoaDonCT) => {
   const res = (await request({
     url: `${PREFIX_API_BUYER_ORDERS}/all`,
     method: 'GET',
-    params: params
+    params: {
+      ...params,
+      maOrder: params.maHoaDon
+    }
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<DonMuaResponse>>>>
 
   return res.data
@@ -149,7 +152,14 @@ export const getSuaThongTin = async (params: ParamsGetHoaDonCT) => {
   const res = (await request({
     url: `${PREFIX_API_BUYER_ORDERS}/sua-thong-tin`,
     method: 'POST',
-    params: params
+    params: {
+      ...params,
+      maOrder: (params as any).maHoaDon,
+      tenCustomer: (params as any).tenKhachHang,
+      sdtCustomer: (params as any).sdtKhachHang,
+      address: (params as any).diaChi,
+      phiVanCdistrict: (params as any).phiVanChuyen
+    }
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<DonMuaResponse>>>>
 
   return res.data
@@ -159,7 +169,10 @@ export const changeStatus = async (params: ParamsGetHoaDonCT) => {
   const res = (await request({
     url: `${PREFIX_API_BUYER_ORDERS}/change-status`,
     method: 'PUT',
-    params: params
+    params: {
+      ...params,
+      maOrder: (params as any).maHoaDon
+    }
   })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<DonMuaResponse>>>>
 
   return res.data

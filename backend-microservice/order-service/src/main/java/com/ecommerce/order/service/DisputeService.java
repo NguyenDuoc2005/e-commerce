@@ -120,7 +120,8 @@ public class DisputeService {
     }
 
     public List<Map<String, Object>> adminList(String status, String sellerId, LocalDate dateFrom, LocalDate dateTo) {
-        List<Map<String, Object>> result = filter(disputeRepository.findAllByOrderByCreatedAtDesc(), status, sellerId, dateFrom, dateTo);
+        List<Map<String, Object>> result = new ArrayList<>(filter(
+                disputeRepository.findAllByOrderByCreatedAtDesc(), status, sellerId, dateFrom, dateTo));
         result.sort(Comparator.<Map<String, Object>>comparingInt(item -> priority(text(item.get("status"))))
                 .thenComparing(item -> (Instant) item.get("createdAt"), Comparator.reverseOrder()));
         return result;
@@ -131,12 +132,22 @@ public class DisputeService {
     @Transactional
     public Map<String, Object> takeReview(String staffId, String id) {
         Dispute dispute = get(id);
-        if (!"SELLER_RESPONDED".equals(dispute.getStatus())) {
-            throw new IllegalArgumentException("Chi tiep nhan tranh chap da duoc nha ban phan hoi");
+        if (!Set.of("OPEN", "SELLER_RESPONDED").contains(dispute.getStatus())) {
+            throw new IllegalArgumentException("Chi tiep nhan tranh chap moi hoac da duoc nha ban phan hoi");
         }
         dispute.setStatus("UNDER_ADMIN_REVIEW");
         dispute.setResolvedByStaffId(staffId);
         return detail(disputeRepository.save(dispute));
+    }
+
+    @Transactional
+    public Map<String, Object> adminMessage(String staffId, String id, DisputeMessageRequest request) {
+        Dispute dispute = get(id);
+        if (!"UNDER_ADMIN_REVIEW".equals(dispute.getStatus())) {
+            throw new IllegalArgumentException("Admin can tiep nhan tranh chap truoc khi gui trao doi");
+        }
+        saveMessage(dispute, "ADMIN", staffId, request);
+        return detail(dispute);
     }
 
     @Transactional
@@ -180,7 +191,6 @@ public class DisputeService {
         Dispute dispute = get(id);
         if (!dispute.getStatus().startsWith("RESOLVED_")) throw new IllegalArgumentException("Chi dong tranh chap da co ket qua");
         dispute.setStatus("CLOSED");
-        dispute.setResolvedByStaffId(staffId);
         return detail(disputeRepository.save(dispute));
     }
 

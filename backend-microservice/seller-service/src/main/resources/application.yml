@@ -11,6 +11,9 @@ spring:
     properties:
       hibernate:
         globally_quoted_identifiers: true
+        # Column definitions such as TEXT/JSON are SQL fragments, not identifiers.
+        # Quoting them produces invalid MySQL DDL (for example `TEXT`).
+        globally_quoted_identifiers_skip_column_definitions: true
     show-sql: ${JPA_SHOW_SQL:false}
 
 server:

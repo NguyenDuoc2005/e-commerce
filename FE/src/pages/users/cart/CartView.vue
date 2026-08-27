@@ -159,18 +159,25 @@ const extractCartRows = (payload: any) => {
 const normalizeCartItem = (detail: any): CartItem => {
   const spct = detail.productVariant || detail.sanPhamChiTiet || {};
   const product = spct.product || spct.sanPham || {};
+  const selections = Array.isArray(spct.selections) ? spct.selections : [];
+  const colorSelection = selections.find((selection: any) =>
+    String(selection?.axisName || "").toLocaleLowerCase("vi-VN").includes("màu")
+  );
+  const sizeSelection = selections.find((selection: any) =>
+    String(selection?.axisName || "").toLocaleLowerCase("vi-VN").includes("kích")
+  );
   const sellerId = detail.sellerId || spct.sellerId || "UNKNOWN_SELLER";
   const price = Number(spct.giaBan || spct.salePrice || detail.price || 0);
   return {
     id: detail.id,
     idSP: spct.id || detail.productVariantId || detail.sanPhamChiTietId,
-    name: product.name || spct.name || spct.tenProduct || spct.tenSanPham || spct.ten || "Sản phẩm",
+    name: product.name || spct.productName || spct.name || spct.tenProduct || spct.tenSanPham || spct.ten || "Sản phẩm",
     originalPrice: price,
     discountPrice: Number(spct.dotGiamGia?.giaSau || spct.discountPrice || spct.salePrice || price),
     quantity: Number(detail.quantity || 1),
     imageUrl: spct.imageUrl || spct.anh || spct.hinhAnh || "",
-    color: spct.colorName || spct.tenColor || spct.tenMau || spct.mauSac?.ten || spct.tenMauSac || spct.mau || "-",
-    size: spct.sizeName || spct.tenSize || spct.kichThuoc || spct.kichCo?.ten || spct.tenKichCo || "-",
+    color: spct.colorName || spct.tenColor || spct.tenMau || spct.mauSac?.ten || spct.tenMauSac || spct.mau || colorSelection?.value || "-",
+    size: spct.sizeName || spct.tenSize || spct.kichThuoc || spct.kichCo?.ten || spct.tenKichCo || sizeSelection?.value || spct.variantLabel || "-",
     idChiTietSanPham: spct.id || detail.productVariantId || detail.sanPhamChiTietId,
     soLuongTrongKho: Number(spct.quantity || spct.soLuong || 0),
     sellerId,
@@ -194,22 +201,26 @@ const getAllProductByCart = async () => {
 const getTempCart = () => {
   const tempCart = localStorageAction.get(CART_STORAGE_KEY) || [];
   if (!Array.isArray(tempCart)) return [];
-  return tempCart.map((item: any, index: number) => ({
-    id: `temp_${index}_${item.idChiTietSanPham}`,
-    idSP: item.idChiTietSanPham,
-    name: item.tenSanPham,
-    originalPrice: Number(item.giaBan || 0),
-    discountPrice: Number(item.dotGiamGia?.giaSau || item.giaBan || 0),
-    quantity: Number(item.soLuongMua || 1),
-    imageUrl: item.hinhAnh,
-    color: item.mauSac?.tenMauSac || "-",
-    size: item.kichCo?.tenKichCo || "-",
-    idChiTietSanPham: item.idChiTietSanPham,
-    soLuongTrongKho: Number(item.soLuongTrongKho || 0),
-    sellerId: item.sellerId || "LOCAL_CART",
-    shopName: item.shopName || "Sản phẩm chưa đăng nhập",
-    sellerSlug: item.sellerSlug,
-  }));
+  return tempCart.map((item: any, index: number) => {
+    const variantId = item.idChiTietSanPham || item.idSPCT || item.idSP;
+    const price = Number(item.giaBan ?? item.originalPrice ?? item.price ?? 0);
+    return {
+      id: `temp_${index}_${variantId}`,
+      idSP: variantId,
+      name: item.tenSanPham || item.name || "Sản phẩm",
+      originalPrice: price,
+      discountPrice: Number(item.dotGiamGia?.giaSau ?? item.discountPrice ?? price),
+      quantity: Number(item.soLuongMua ?? item.quantity ?? 1),
+      imageUrl: item.hinhAnh || item.imageUrl || "",
+      color: item.mauSac?.tenMauSac || item.color || "-",
+      size: item.kichCo?.tenKichCo || item.size || item.variantLabel || "-",
+      idChiTietSanPham: variantId,
+      soLuongTrongKho: Number(item.soLuongTrongKho || 0),
+      sellerId: item.sellerId || "LOCAL_CART",
+      shopName: item.shopName || "Sản phẩm chưa đăng nhập",
+      sellerSlug: item.sellerSlug,
+    };
+  }).filter((item: CartItem) => Boolean(item.idSP));
 };
 
 const syncTempCart = async () => {

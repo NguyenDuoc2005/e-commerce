@@ -146,19 +146,40 @@ const available = (axisId: string, valueId: string) => variants.value.some(varia
   && (product.value?.variantAxes || []).filter(axis => axis.id !== axisId).every(axis => !selected[axis.id]
     || variant.selections.some(selection => selection.axisId === axis.id && selection.valueId === selected[axis.id])))
 const variantLabel = (variant: CatalogVariant) => variant.selections.map(selection => `${selection.axisName}: ${selection.value}`).join(' · ')
-const cartItem = () => ({
-  idSPCT: current.value?.id,
-  price: String(current.value?.salePrice || 0),
-  quantity: String(quantity.value),
-  variantLabel: variantLabel(current.value!),
-  selections: current.value?.selections || [],
-  productId: product.value?.id,
-  name: product.value?.name,
-  imageUrl: current.value?.imageUrl || selectedImage.value || product.value?.productImages?.[0]?.url,
-  sellerId: product.value?.sellerId,
-  shopName: shop.value?.shopName,
-  sellerSlug: shop.value?.sellerSlug
-})
+const cartItem = () => {
+  const variant = current.value!
+  const imageUrl = variant.imageUrl || selectedImage.value || product.value?.productImages?.[0]?.url
+  const color = variant.selections.find(selection => selection.axisName.toLocaleLowerCase('vi-VN').includes('màu'))?.value || '-'
+  const size = variant.selections.find(selection => selection.axisName.toLocaleLowerCase('vi-VN').includes('kích'))?.value || variantLabel(variant)
+  return {
+    id: `checkout_${variant.id}`,
+    idSP: variant.id,
+    idSPCT: variant.id,
+    idChiTietSanPham: variant.id,
+    idSanPham: product.value?.id,
+    productId: product.value?.id,
+    name: product.value?.name,
+    tenSanPham: product.value?.name,
+    originalPrice: variant.salePrice,
+    discountPrice: variant.salePrice,
+    giaBan: variant.salePrice,
+    price: String(variant.salePrice),
+    quantity: quantity.value,
+    soLuongMua: quantity.value,
+    soLuongTrongKho: variant.quantity,
+    imageUrl,
+    hinhAnh: imageUrl,
+    color,
+    size,
+    mauSac: { tenMauSac: color },
+    kichCo: { tenKichCo: size },
+    variantLabel: variantLabel(variant),
+    selections: variant.selections,
+    sellerId: product.value?.sellerId,
+    shopName: shop.value?.shopName,
+    sellerSlug: shop.value?.sellerSlug
+  }
+}
 
 const initializeSelection = () => {
   const preferred = variants.value.find(variant => variant.isDefault && variant.quantity > 0) || variants.value.find(variant => variant.quantity > 0)

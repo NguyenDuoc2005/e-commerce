@@ -55,6 +55,11 @@
                 </a-form-item>
               </div>
 
+              <div v-if="!ghnAvailable" class="col-12">
+                <a-alert type="warning" show-icon
+                  message="Dịch vụ địa chỉ GHN đang tạm không khả dụng. Hãy nhập đầy đủ địa chỉ cụ thể; phí ship tạm tính là 30.000₫." />
+              </div>
+
               <div class="col-12">
                 <a-form-item label="Ghi chú">
                   <a-textarea v-model:value="form.ghiChu" placeholder="Ghi chú thêm (nếu có)"
@@ -194,7 +199,7 @@ import {
 } from "@/services/api/ghn.api";
 import { localStorageAction } from "@/utils/storage";
 import { USER_INFO_STORAGE_KEY, CHECKOUT_STORAGE_KEY } from "@/constants/storageKey";
-import { getPGG, ThanhToan, getListPGG, getKhachHangDetail, ThanhToanVnPay } from "@/services/api/permitall/thanhtoan/thanhtoan.api";
+import { ThanhToan, getListPGG, getKhachHangDetail } from "@/services/api/permitall/thanhtoan/thanhtoan.api";
 
 // Interface definitions
 interface CartItem {
@@ -228,6 +233,11 @@ interface Voucher {
   ma: string;
   ten: string;
   giaTriGiamThucTe: number;
+  dieuKien: number;
+  giaGiam: number;
+  phanTramGiam: number;
+  kieuGiam: boolean;
+  ngayKetThuc?: string;
 }
 
 const showVoucherModal = ref(false);
@@ -288,6 +298,7 @@ const loadingProvinces = ref(false);
 const loadingDistricts = ref(false);
 const loadingWards = ref(false);
 const selectedServiceId = ref<number | null>(null);
+const ghnAvailable = ref(true);
 const loadingCheckout = ref(false);
 const showConfirmModal = ref(false);
 const idUser = localStorageAction.get(USER_INFO_STORAGE_KEY);
@@ -316,6 +327,63 @@ const wardOptions = computed(() =>
 // Cart items
 const listSanPham = ref<CartItem[]>([]);
 const giamGia = ref(0);
+
+const numberValue = (value: unknown, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const selectionValue = (item: any, keyword: string) => {
+  const selections = Array.isArray(item?.selections) ? item.selections : [];
+  return selections.find((selection: any) =>
+    String(selection?.axisName || "").toLocaleLowerCase("vi-VN").includes(keyword)
+  )?.value;
+};
+
+const normalizeCheckoutItem = (item: any, index: number): CartItem | null => {
+  const variant = item?.productVariant || item?.sanPhamChiTiet || {};
+  const variantId = item?.idSP || item?.idChiTietSanPham || item?.idSPCT
+    || item?.productVariantId || item?.sanPhamChiTietId || variant?.id;
+  if (!variantId) return null;
+
+  const originalPrice = numberValue(
+    item?.originalPrice ?? item?.giaBan ?? item?.price ?? variant?.salePrice
+  );
+  const discountPrice = numberValue(
+    item?.discountPrice ?? item?.dotGiamGia?.giaSau ?? variant?.discountPrice ?? variant?.salePrice,
+    originalPrice
+  );
+  const quantity = Math.max(1, Math.trunc(numberValue(item?.quantity ?? item?.soLuongMua, 1)));
+  const product = variant?.product || variant?.sanPham || {};
+
+  return {
+    id: String(item?.id || `checkout_${index}_${variantId}`),
+    idSP: String(variantId),
+    name: item?.name || item?.tenSanPham || product?.name || variant?.productName || "Sản phẩm",
+    originalPrice,
+    discountPrice,
+    quantity,
+    imageUrl: item?.imageUrl || item?.hinhAnh || variant?.imageUrl || "",
+    color: item?.color || item?.mauSac?.tenMauSac || selectionValue(item, "màu") || "-",
+    size: item?.size || item?.kichCo?.tenKichCo || selectionValue(item, "kích") || item?.variantLabel || "-",
+    idChiTietSanPham: String(variantId),
+    soLuongTrongKho: numberValue(item?.soLuongTrongKho ?? variant?.quantity),
+    sellerId: item?.sellerId || variant?.sellerId,
+    shopName: item?.shopName,
+    sellerSlug: item?.sellerSlug,
+  };
+};
+
+const normalizeVoucher = (voucher: any): Voucher => ({
+  ma: String(voucher?.ma ?? voucher?.code ?? ""),
+  ten: String(voucher?.ten ?? voucher?.name ?? voucher?.code ?? "Phiếu giảm giá"),
+  giaTriGiamThucTe: numberValue(voucher?.giaTriGiamThucTe ?? voucher?.actualDiscountValue),
+  dieuKien: numberValue(voucher?.dieuKien ?? voucher?.condition_amount),
+  giaGiam: numberValue(voucher?.giaGiam ?? voucher?.maxDiscountAmount ?? voucher?.max_discount_amount),
+  phanTramGiam: numberValue(voucher?.phanTramGiam ?? voucher?.discountValue ?? voucher?.discount_value),
+  kieuGiam: Boolean(voucher?.kieuGiam ?? voucher?.discountMethod ?? voucher?.discount_method),
+  ngayKetThuc: voucher?.ngayKetThuc ?? voucher?.end_date,
+});
 
 // Price calculations
 const getPrice = (item: CartItem) => {
@@ -368,7 +436,7 @@ const applyBestVoucher = async () => {
     };
 
     const found = await getListPGG(req);
-    vouchers.value = found.data || [];
+    vouchers.value = Array.isArray(found.data) ? found.data.map(normalizeVoucher).filter(voucher => voucher.ma) : [];
 
     if (!vouchers.value.length) {
       message.warning("Không có phiếu giảm giá nào áp dụng được!");
@@ -398,7 +466,7 @@ const handleShowVouchers = async () => {
     };
 
     const found = await getListPGG(req);
-    vouchers.value = found.data || [];
+    vouchers.value = Array.isArray(found.data) ? found.data.map(normalizeVoucher).filter(voucher => voucher.ma) : [];
 
     if (!vouchers.value.length) {
       message.warning("Không có phiếu giảm giá nào áp dụng được!");
@@ -443,7 +511,7 @@ const handleApplyDiscount = async () => {
     };
 
     const found = await getListPGG(req);
-    const voucher = found.data[0]; // Giả sử lấy được voucher cụ thể
+    const voucher = Array.isArray(found.data) ? normalizeVoucher(found.data[0]) : null;
     if (voucher) {
       giamGia.value = Math.min(voucher.giaTriGiamThucTe, tongTienTruocGiam.value);
       message.success(`✅ Cập nhật giảm giá: ${giamGia.value.toLocaleString("vi-VN")}₫`);
@@ -463,6 +531,13 @@ watch([tongTien, phiShip, giamGia], () => {
 });
 
 // Validation rules
+const requireGhnLocation = (messageText: string) => ({
+  trigger: "change",
+  validator: async (_rule: unknown, value: unknown) => {
+    if (ghnAvailable.value && !value) throw new Error(messageText);
+  },
+});
+
 const rules = {
   hoTen: [{ required: true, message: "Vui lòng nhập họ tên", trigger: "blur" }],
   soDienThoai: [{ required: true, message: "Vui lòng nhập số điện thoại", trigger: "blur" }],
@@ -470,9 +545,9 @@ const rules = {
     { required: true, message: "Vui lòng nhập email", trigger: "blur" },
     { type: "email", message: "Email không hợp lệ", trigger: "blur" }
   ],
-  tinh: [{ required: true, message: "Chọn tỉnh", trigger: "change" }],
-  huyen: [{ required: true, message: "Chọn huyện", trigger: "change" }],
-  phuong: [{ required: true, message: "Chọn phường", trigger: "change" }],
+  tinh: [requireGhnLocation("Chọn tỉnh")],
+  huyen: [requireGhnLocation("Chọn huyện")],
+  phuong: [requireGhnLocation("Chọn phường")],
   diaChi: [{ required: true, message: "Nhập địa chỉ cụ thể", trigger: "blur" }],
 };
 
@@ -480,20 +555,28 @@ onMounted(async () => {
   try {
     loadingProvinces.value = true;
     provinces.value = await getGHNProvinces(GHN_TOKEN);
+    ghnAvailable.value = provinces.value.length > 0;
   } catch (error) {
-    message.error("Không thể tải danh sách tỉnh/thành phố!");
+    ghnAvailable.value = false;
+    phiShip.value = 30000;
+    message.warning("Không thể tải địa chỉ GHN. Hệ thống sẽ dùng địa chỉ nhập tay và phí ship tạm tính 30.000₫.");
   } finally {
     loadingProvinces.value = false;
   }
 
   const storedItems = localStorageAction.get(CHECKOUT_STORAGE_KEY);
-  if (storedItems) {
-    listSanPham.value = storedItems;
+  if (Array.isArray(storedItems)) {
+    listSanPham.value = storedItems
+      .map(normalizeCheckoutItem)
+      .filter((item): item is CartItem => item !== null);
+  }
+  if (listSanPham.value.length > 0) {
     console.log("Dữ liệu sản phẩm từ CHECKOUT_STORAGE_KEY:", listSanPham.value);
   } else {
     console.warn("Không tìm thấy dữ liệu sản phẩm trong CHECKOUT_STORAGE_KEY.");
     message.warning("Không có sản phẩm để thanh toán. Vui lòng quay lại giỏ hàng!");
-    router.push("/gio-hang");
+    await router.push("/gio-hang");
+    return;
   }
 
   // Tự động áp dụng phiếu giảm giá tốt nhất mà không mở modal
@@ -507,10 +590,10 @@ const fetchProductDetails = async (id: string) => {
     const data = response.data;
 
     // Điền thông tin khách hàng vào form
-    form.value.hoTen = data.ten || "";
-    form.value.soDienThoai = data.sdt || "";
+    form.value.hoTen = data.ten || data.name || "";
+    form.value.soDienThoai = data.sdt || data.phoneNumber || "";
     form.value.email = data.email || "";
-    form.value.diaChi = data.diaChi || "";
+    form.value.diaChi = data.diaChi || data.address || "";
     form.value.tinh = null; // Sẽ được cập nhật sau khi lấy danh sách tỉnh
     form.value.huyen = null; // Sẽ được cập nhật sau khi lấy danh sách huyện
     form.value.phuong = null; // Sẽ được cập nhật sau khi lấy danh sách phường
@@ -568,8 +651,7 @@ const fetchProductDetails = async (id: string) => {
 };
 
 onMounted(async () => {
-
-  if (idKH.userId != null) {
+  if (idKH?.userId != null) {
     console.log("Fetching product details for user ID:", idKH.userId);
     fetchProductDetails(idKH.userId);
   }
@@ -654,7 +736,7 @@ const calculateShippingFee = async () => {
     phiShip.value = feeResponse.data.total;
     message.success(`Phí vận chuyển: ${phiShip.value.toLocaleString("vi-VN")}₫`);
   } catch (error) {
-    message.error("Không thể tính phí vận chuyển!");
+    message.warning("Không thể tính phí GHN, đang dùng mức tạm tính 30.000₫.");
     phiShip.value = 30000;
   }
 };
@@ -691,21 +773,34 @@ const performCheckout = async () => {
   try {
     loadingCheckout.value = true;
 
+    if (!listSanPham.value.length || listSanPham.value.some(item => !item.idSP || item.quantity <= 0)) {
+      message.error("Dữ liệu sản phẩm thanh toán không hợp lệ. Vui lòng chọn lại sản phẩm từ giỏ hàng!");
+      await router.push("/gio-hang");
+      return;
+    }
+
     const selectedProvince = provinces.value.find((p) => p.ProvinceID === form.value.tinh);
     const selectedDistrict = districts.value.find((d) => d.DistrictID === form.value.huyen);
     const selectedWard = wards.value.find((w) => w.WardCode === form.value.phuong);
 
     const ListSP = listSanPham.value.map(item => ({
-      id: item.idSP.toString(),
+      id: String(item.idSP),
       quantity: item.quantity,
     }));
+
+    const shippingAddress = [
+      form.value.diaChi,
+      selectedWard?.WardName,
+      selectedDistrict?.DistrictName,
+      selectedProvince?.ProvinceName,
+    ].filter(Boolean).join(", ");
 
     const orderData = {
       hoTen: form.value.hoTen,
       soDienThoai: form.value.soDienThoai,
       email: form.value.email,
-      address: `${form.value.diaChi}, ${selectedWard?.WardName}, ${selectedDistrict?.DistrictName}, ${selectedProvince?.ProvinceName}`,
-      diaChi: `${form.value.diaChi}, ${selectedWard?.WardName}, ${selectedDistrict?.DistrictName}, ${selectedProvince?.ProvinceName}`,
+      address: shippingAddress,
+      diaChi: shippingAddress,
       ghiChu: form.value.ghiChu,
       maGiamGia: form.value.maGiamGia,
       hinhThucThanhToan: form.value.thanhToan,
@@ -749,8 +844,8 @@ const performCheckout = async () => {
       localStorageAction.remove(CHECKOUT_STORAGE_KEY);
       router.push({ name: "thanh-toan-thanh-cong" });
     }
-  } catch (err) {
-    message.error("❌ Có lỗi xảy ra trong quá trình đặt hàng. Vui lòng thử lại!");
+  } catch (err: any) {
+    message.error(err?.response?.data?.message || "❌ Có lỗi xảy ra trong quá trình đặt hàng. Vui lòng thử lại!");
     console.error("Lỗi khi xử lý thanh toán:", err);
   } finally {
     loadingCheckout.value = false;

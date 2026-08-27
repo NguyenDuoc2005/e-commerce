@@ -1,25 +1,56 @@
 import type { AxiosResponse } from "axios";
 import request from "@/services/request";
-import type { DefaultResponse, PaginationParams, PaginationResponse, ResponseList } from "@/types/api.common";
+import type { DefaultResponse } from "@/types/api.common";
 import { API_URL_1 } from "@/constants/url";
 
-export interface ParamsPhieuGiamGia extends PaginationParams {
+export interface ParamsPhieuGiamGia {
   idKH?: string;
   idHD?: string | number | null;
   tongTien?: number | string | null;
 }
 
-export type PhieuGiamGiaResponse = ResponseList & {
+export interface PhieuGiamGiaResponse {
   id: string;
-  ma: string;
-  giaTriGiam: number;
-  laPhanTram: boolean;
-  giaTriGiamThucTe: number;
-};
+  code?: string;
+  name?: string;
+  discount_value?: number;
+  condition_amount?: number;
+  max_discount_amount?: number;
+  discount_method?: boolean;
+  end_date?: string;
+  actualDiscountValue?: number;
+  discountValue?: number;
+  maxDiscountAmount?: number;
+  discountMethod?: boolean;
+}
+
+export interface CheckoutResponse {
+  id?: string;
+  code?: string;
+  orderId?: string;
+  paymentUrl?: string;
+  [key: string]: unknown;
+}
+
+export interface CheckoutCustomerResponse {
+  id: string;
+  code?: string;
+  name?: string;
+  ten?: string;
+  email?: string;
+  phoneNumber?: string;
+  sdt?: string;
+  address?: string;
+  diaChi?: string;
+  tinh?: number | string;
+  huyen?: number | string;
+  xa?: string;
+}
 
 interface ParamsThanhToan {
   hoTen: string;
   soDienThoai: string;
+  email?: string;
   address?: string;
   diaChi: string;
   ghiChu: string;
@@ -44,7 +75,7 @@ export const ThanhToan = async (data: ParamsThanhToan) => {
     headers: {
       "Content-Type": "application/json", // Đảm bảo header đúng
     },
-  })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<PhieuGiamGiaResponse>>>>;
+  })) as AxiosResponse<CheckoutResponse>;
 
   return res.data;
 };
@@ -57,7 +88,7 @@ export const ThanhToanVnPay = async (data: ParamsThanhToan) => {
     headers: {
       "Content-Type": "application/json", // Đảm bảo header đúng
     },
-  })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<PhieuGiamGiaResponse>>>>;
+  })) as AxiosResponse<CheckoutResponse>;
 
   return res.data;
 };
@@ -67,7 +98,7 @@ export const getPGG = async (data: ParamsPhieuGiamGia) => {
     url: `${API_URL_1}/orders/pgg`,
     method: "POST",
     params: data,
-  })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<PhieuGiamGiaResponse>>>>;
+  })) as AxiosResponse<DefaultResponse<PhieuGiamGiaResponse>>;
 
   return res.data;
 };
@@ -76,7 +107,7 @@ export const getKhachHangDetail = async (id: string) => {
   const res = (await request({
     url: `${API_URL_1}/orders/khach-hang/${id}`,
     method: "POST",
-  })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<PhieuGiamGiaResponse>>>>;
+  })) as AxiosResponse<DefaultResponse<CheckoutCustomerResponse>>;
 
   return res.data;
 };
@@ -86,7 +117,7 @@ export const getListPGG = async (data: ParamsPhieuGiamGia) => {
     url: `${API_URL_1}/orders/pgg/list`,
     method: "POST",
     params: data, 
-  })) as AxiosResponse<DefaultResponse<PaginationResponse<Array<PhieuGiamGiaResponse>>>>;
+  })) as AxiosResponse<DefaultResponse<Array<PhieuGiamGiaResponse>>>;
 
   return res.data;
 };

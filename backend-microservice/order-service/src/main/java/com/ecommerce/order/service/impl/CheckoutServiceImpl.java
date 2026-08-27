@@ -72,6 +72,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Override
     @Transactional
     public Object createOrder(CheckoutRequest request) {
+        validateCheckoutRequest(request);
         if (!hasStock(request)) {
             clearCartItemsWhenOutOfStock(request);
             return null;
@@ -90,6 +91,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Override
     @Transactional
     public Map<String, String> createVNPayPaymentUrl(CheckoutRequest request, String ipAddr) {
+        validateCheckoutRequest(request);
         validateVNPayConfig();
         if (!hasStock(request)) {
             clearCartItemsWhenOutOfStock(request);
@@ -312,6 +314,30 @@ public class CheckoutServiceImpl implements CheckoutService {
             }
         }
         return true;
+    }
+
+    private void validateCheckoutRequest(CheckoutRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Du lieu dat hang khong hop le");
+        }
+        if (request.getProduct() == null || request.getProduct().isEmpty()) {
+            throw new IllegalArgumentException("Don hang phai co it nhat mot san pham");
+        }
+        for (CheckoutProductItem item : request.getProduct()) {
+            if (item == null || item.getId() == null || item.getId().isBlank()
+                    || item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new IllegalArgumentException("San pham dat hang khong hop le");
+            }
+        }
+        if (request.getHoTen() == null || request.getHoTen().isBlank()
+                || request.getSoDienThoai() == null || request.getSoDienThoai().isBlank()
+                || request.getAddress() == null || request.getAddress().isBlank()) {
+            throw new IllegalArgumentException("Thong tin nguoi nhan chua day du");
+        }
+        if (value(request.getTongTien()) < 0 || value(request.getPhiShip()) < 0
+                || value(request.getGiamGia()) < 0 || value(request.getTongCong()) < 0) {
+            throw new IllegalArgumentException("Tong tien don hang khong hop le");
+        }
     }
 
     private void clearCartItemsWhenOutOfStock(CheckoutRequest request) {

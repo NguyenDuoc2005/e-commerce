@@ -3,6 +3,7 @@ package com.ecommerce.order.service.impl;
 import com.ecommerce.order.client.PayoutClient;
 import com.ecommerce.order.client.NotificationClient;
 import com.ecommerce.order.client.CatalogClient;
+import com.ecommerce.order.client.PromotionClient;
 import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import com.ecommerce.order.constant.OrderStatusConstant;
 import com.ecommerce.order.repository.OrderSellerRepository;
@@ -26,15 +27,17 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     private final PayoutClient payoutClient;
     private final NotificationClient notificationClient;
     private final CatalogClient catalogClient;
+    private final PromotionClient promotionClient;
 
     public SellerOrderServiceImpl(JdbcTemplate jdbcTemplate, OrderSellerRepository orderSellerRepository,
                                   PayoutClient payoutClient, NotificationClient notificationClient,
-                                  CatalogClient catalogClient) {
+                                  CatalogClient catalogClient, PromotionClient promotionClient) {
         this.jdbcTemplate = jdbcTemplate;
         this.orderSellerRepository = orderSellerRepository;
         this.payoutClient = payoutClient;
         this.notificationClient = notificationClient;
         this.catalogClient = catalogClient;
+        this.promotionClient = promotionClient;
     }
 
     @Override
@@ -74,12 +77,21 @@ public class SellerOrderServiceImpl implements SellerOrderService {
         Map<String, Object> order = requireSellerOrder(sellerId, orderSellerId);
         int current = ((Number) order.get("order_status")).intValue();
         int next = nextStatus(current, action);
-        jdbcTemplate.update("UPDATE order_seller SET order_status = ? WHERE id = ? AND seller_id = ?", next, orderSellerId, sellerId);
-        if (next == OrderStatusConstant.HOAN_THANH.ordinal()) {
-            createPayoutReceivable(order, next);
+        CancelEffects cancelEffects = next == OrderStatusConstant.DA_HUY.ordinal()
+                ? applyCancellationSideEffects(order)
+                : CancelEffects.none();
+        try {
+            jdbcTemplate.update("UPDATE order_seller SET order_status = ? WHERE id = ? AND seller_id = ?", next, orderSellerId, sellerId);
+            if (next == OrderStatusConstant.HOAN_THANH.ordinal()) {
+                createPayoutReceivable(order, next);
+            }
+            aggregateRootStatus(String.valueOf(order.get("order_id")));
+            notifyBuyer(order, next);
+            return detail(sellerId, orderSellerId);
+        } catch (RuntimeException exception) {
+            compensateCancellation(cancelEffects, exception);
+            throw exception;
         }
-        notifyBuyer(order, next);
-        return detail(sellerId, orderSellerId);
     }
 
     @Override
@@ -149,7 +161,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT os.id, os.order_id, o.code AS order_code, os.seller_id, os.shop_name, os.seller_slug,
                        os.total_amount, os.shipping_fee, os.discount_amount, os.total_after_discount,
-                       os.order_status, os.created_date, o.customer_id, o.customer_name AS receiver_name,
+                       os.order_status, os.created_date, o.voucher_id, o.customer_id, o.customer_name AS receiver_name,
                        o.customer_phone AS receiver_phone, o.email, o.shipping_address
                 FROM order_seller os
                 JOIN orders o ON o.id = os.order_id
@@ -172,7 +184,8 @@ public class SellerOrderServiceImpl implements SellerOrderService {
             case "ready-to-ship" -> requireTransition(current, confirm, readyToShip);
             case "shipping" -> requireTransition(current, readyToShip, shipping);
             case "complete" -> requireTransition(current, shipping, completed);
-            case "cancel" -> current == completed ? fail() : cancelled;
+            case "cancel" -> current >= OrderStatusConstant.CHO_XAC_NHAN.ordinal() && current <= shipping
+                    ? cancelled : fail();
             default -> throw new IllegalArgumentException("Thao tac trang thai khong hop le");
         };
     }
@@ -185,7 +198,99 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     }
 
     private int fail() {
-        throw new IllegalArgumentException("Khong the huy sub-order da hoan thanh");
+        throw new IllegalArgumentException("Trang thai hien tai khong cho phep huy sub-order");
+    }
+
+    private void aggregateRootStatus(String orderId) {
+        List<Integer> statuses = jdbcTemplate.queryForList(
+                "SELECT order_status FROM order_seller WHERE order_id = ?", Integer.class, orderId);
+        if (statuses.isEmpty()) return;
+
+        int completed = OrderStatusConstant.HOAN_THANH.ordinal();
+        int cancelled = OrderStatusConstant.DA_HUY.ordinal();
+        int aggregate;
+        if (statuses.stream().allMatch(status -> status == completed)) {
+            aggregate = completed;
+        } else if (statuses.stream().allMatch(status -> status == cancelled)) {
+            aggregate = cancelled;
+        } else if (statuses.stream().allMatch(status -> status == completed || status == cancelled)) {
+            aggregate = completed;
+        } else if (statuses.stream().anyMatch(status -> status == OrderStatusConstant.DANG_GIAO.ordinal())) {
+            aggregate = OrderStatusConstant.DANG_GIAO.ordinal();
+        } else if (statuses.stream().anyMatch(status -> status == OrderStatusConstant.CHO_GIAO.ordinal())) {
+            aggregate = OrderStatusConstant.CHO_GIAO.ordinal();
+        } else if (statuses.stream().anyMatch(status -> status == OrderStatusConstant.DA_XAC_NHAN.ordinal())) {
+            aggregate = OrderStatusConstant.DA_XAC_NHAN.ordinal();
+        } else {
+            aggregate = OrderStatusConstant.CHO_XAC_NHAN.ordinal();
+        }
+
+        Integer current = jdbcTemplate.queryForObject(
+                "SELECT order_status FROM orders WHERE id = ? FOR UPDATE", Integer.class, orderId);
+        if (current != null && current != aggregate) {
+            jdbcTemplate.update("UPDATE orders SET order_status = ? WHERE id = ?", aggregate, orderId);
+            jdbcTemplate.update("""
+                    INSERT INTO order_status_history (order_id, status, payment_time, note)
+                    VALUES (?, ?, ?, ?)
+                    """, orderId, aggregate, java.time.LocalDateTime.now(), "Dong bo trang thai tu cac sub-order");
+        }
+    }
+
+    private CancelEffects applyCancellationSideEffects(Map<String, Object> order) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT product_variant_id, quantity
+                FROM order_item
+                WHERE order_seller_id = ?
+                """, order.get("id"));
+        List<RestoredItem> restored = new java.util.ArrayList<>();
+        String voucherId = null;
+        boolean voucherRestored = false;
+        try {
+            for (Map<String, Object> row : rows) {
+                RestoredItem item = new RestoredItem(
+                        String.valueOf(row.get("product_variant_id")),
+                        ((Number) row.get("quantity")).intValue());
+                catalogClient.adjustStock(item.variantId(), item.quantity());
+                restored.add(item);
+            }
+            Integer nonCancelledSiblings = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*) FROM order_seller
+                    WHERE order_id = ? AND id <> ? AND order_status <> ?
+                    """, Integer.class, order.get("order_id"), order.get("id"), OrderStatusConstant.DA_HUY.ordinal());
+            if ((nonCancelledSiblings == null || nonCancelledSiblings == 0) && order.get("voucher_id") != null) {
+                voucherId = String.valueOf(order.get("voucher_id"));
+                promotionClient.incrementVoucher(voucherId);
+                voucherRestored = true;
+            }
+            return new CancelEffects(restored, voucherId, voucherRestored);
+        } catch (RuntimeException exception) {
+            compensateCancellation(new CancelEffects(restored, voucherId, voucherRestored), exception);
+            throw exception;
+        }
+    }
+
+    private void compensateCancellation(CancelEffects effects, RuntimeException original) {
+        if (effects.voucherRestored() && effects.voucherId() != null) {
+            try {
+                promotionClient.decrementVoucher(effects.voucherId());
+            } catch (RuntimeException compensationFailure) {
+                original.addSuppressed(compensationFailure);
+            }
+        }
+        for (int index = effects.restoredItems().size() - 1; index >= 0; index--) {
+            RestoredItem item = effects.restoredItems().get(index);
+            try {
+                catalogClient.adjustStock(item.variantId(), -item.quantity());
+            } catch (RuntimeException compensationFailure) {
+                original.addSuppressed(compensationFailure);
+            }
+        }
+    }
+
+    private record RestoredItem(String variantId, int quantity) {}
+
+    private record CancelEffects(List<RestoredItem> restoredItems, String voucherId, boolean voucherRestored) {
+        private static CancelEffects none() { return new CancelEffects(List.of(), null, false); }
     }
 
     private void createPayoutReceivable(Map<String, Object> order, int status) {

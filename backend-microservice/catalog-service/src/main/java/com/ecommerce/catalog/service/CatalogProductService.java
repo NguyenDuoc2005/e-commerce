@@ -114,6 +114,7 @@ public class CatalogProductService {
     public Map<String, Object> create(String sellerId, ProductAggregateRequest request) {
         requireSeller(sellerId);
         validator.validate(request);
+        validateCreateIds(request);
         Product product = new Product();
         product.setSellerId(sellerId);
         product.setCode(request.getCode() == null || request.getCode().isBlank()
@@ -143,6 +144,7 @@ public class CatalogProductService {
         }
 
         if (replacing) {
+            validateReplacementIds(product.getId(), request);
             clearAggregate(product.getId());
         }
         product.setCategory(category);
@@ -188,6 +190,7 @@ public class CatalogProductService {
                 throw new IllegalArgumentException("DUPLICATE_PRODUCT_IMAGE_ORDER");
             }
             ProductImage image = new ProductImage();
+            reuseId(image, input.getId());
             image.setProduct(product);
             image.setUrl(input.getUrl().trim());
             image.setDisplayOrder(input.getDisplayOrder());
@@ -363,6 +366,7 @@ public class CatalogProductService {
         for (ProductAggregateRequest.AxisInput input : safe(axisInputs).stream()
                 .sorted(Comparator.comparing(ProductAggregateRequest.AxisInput::getDisplayOrder)).toList()) {
             ProductVariantAxis axis = new ProductVariantAxis();
+            reuseId(axis, input.getId());
             axis.setProduct(product);
             axis.setName(input.getName().trim());
             axis.setNormalizedName(ProductAggregateValidator.normalize(input.getName()));
@@ -376,6 +380,7 @@ public class CatalogProductService {
             axesByClientKey.put(input.getClientKey(), axis);
             for (ProductAggregateRequest.AxisValueInput valueInput : safe(input.getValues())) {
                 ProductVariantAxisValue value = new ProductVariantAxisValue();
+                reuseId(value, valueInput.getId());
                 value.setAxis(axis);
                 value.setValue(valueInput.getValue().trim());
                 value.setNormalizedValue(ProductAggregateValidator.normalize(valueInput.getValue()));
@@ -394,6 +399,7 @@ public class CatalogProductService {
                     .toList();
             if (selected.stream().anyMatch(Objects::isNull)) throw new IllegalArgumentException("VARIANT_MAPPING_INVALID");
             ProductVariant variant = new ProductVariant();
+            reuseId(variant, input.getId());
             variant.setProduct(product);
             variant.setSku(input.getSku().trim());
             variant.setSalePrice(input.getSalePrice());
@@ -416,6 +422,54 @@ public class CatalogProductService {
             }
         }
         mappingRepository.flush();
+    }
+
+    private void validateReplacementIds(String productId, ProductAggregateRequest request) {
+        Set<String> existingImageIds = imageRepository.findByProduct_IdOrderByDisplayOrderAsc(productId).stream()
+                .map(ProductImage::getId).collect(Collectors.toSet());
+        List<ProductVariantAxis> existingAxes = axisRepository.findByProduct_IdOrderByDisplayOrderAsc(productId);
+        Set<String> existingAxisIds = existingAxes.stream().map(ProductVariantAxis::getId).collect(Collectors.toSet());
+        Set<String> existingValueIds = existingAxes.isEmpty() ? Set.of() : axisValueRepository
+                .findByAxis_IdIn(existingAxisIds).stream().map(ProductVariantAxisValue::getId).collect(Collectors.toSet());
+        Set<String> existingVariantIds = variantRepository.findByProduct_IdOrderByCreatedDateDesc(productId).stream()
+                .map(ProductVariant::getId).collect(Collectors.toSet());
+
+        validateReusableIds(safe(request.getProductImages()).stream().map(ProductAggregateRequest.ImageInput::getId).toList(),
+                existingImageIds, "PRODUCT_IMAGE_ID_INVALID");
+        validateReusableIds(safe(request.getVariantAxes()).stream().map(ProductAggregateRequest.AxisInput::getId).toList(),
+                existingAxisIds, "VARIANT_AXIS_ID_INVALID");
+        validateReusableIds(safe(request.getVariantAxes()).stream().flatMap(axis -> safe(axis.getValues()).stream())
+                        .map(ProductAggregateRequest.AxisValueInput::getId).toList(),
+                existingValueIds, "VARIANT_AXIS_VALUE_ID_INVALID");
+        validateReusableIds(safe(request.getVariants()).stream().map(ProductAggregateRequest.VariantInput::getId).toList(),
+                existingVariantIds, "PRODUCT_VARIANT_ID_INVALID");
+    }
+
+    private void validateCreateIds(ProductAggregateRequest request) {
+        validateNoIds(safe(request.getProductImages()).stream().map(ProductAggregateRequest.ImageInput::getId).toList());
+        validateNoIds(safe(request.getVariantAxes()).stream().map(ProductAggregateRequest.AxisInput::getId).toList());
+        validateNoIds(safe(request.getVariantAxes()).stream().flatMap(axis -> safe(axis.getValues()).stream())
+                .map(ProductAggregateRequest.AxisValueInput::getId).toList());
+        validateNoIds(safe(request.getVariants()).stream().map(ProductAggregateRequest.VariantInput::getId).toList());
+    }
+
+    private void validateNoIds(List<String> requestedIds) {
+        if (requestedIds.stream().anyMatch(id -> id != null && !id.isBlank())) {
+            throw new IllegalArgumentException("PRODUCT_CREATE_ID_NOT_ALLOWED");
+        }
+    }
+
+    private void validateReusableIds(List<String> requestedIds, Set<String> existingIds, String error) {
+        Set<String> unique = new HashSet<>();
+        for (String id : requestedIds) {
+            if (id != null && !id.isBlank() && (!existingIds.contains(id) || !unique.add(id))) {
+                throw new IllegalArgumentException(error);
+            }
+        }
+    }
+
+    private void reuseId(com.ecommerce.catalog.entity.base.PrimaryEntity entity, String id) {
+        if (id != null && !id.isBlank()) entity.setId(id);
     }
 
     @Transactional(readOnly = true)
@@ -633,6 +687,20 @@ public class CatalogProductService {
         variantRepository.save(variant);
         enqueue(variant.getProduct().getId(), "ProductUpdated", buildSearchDocument(variant.getProduct()));
         return snapshot(variant);
+    }
+
+    @Transactional
+    public Map<String, Object> updateRating(String productId, double average, long count) {
+        if (!Double.isFinite(average) || average < 0D || average > 5D || count < 0L) {
+            throw new IllegalArgumentException("PRODUCT_RATING_INVALID");
+        }
+        Product product = productRepository.findLockedById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("PRODUCT_NOT_FOUND"));
+        product.setRatingAverage(java.math.BigDecimal.valueOf(average));
+        product.setRatingCount(count);
+        productRepository.save(product);
+        enqueue(productId, "ProductUpdated", buildSearchDocument(product));
+        return buildDetail(product);
     }
 
     @Transactional

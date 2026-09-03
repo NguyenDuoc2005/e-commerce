@@ -173,9 +173,13 @@ public class DisputeService {
             default -> throw new IllegalArgumentException("Quyet dinh xu ly khong hop le");
         }
         if (resolvedAmount > 0) {
+            double sellerFundedMaximum = Math.max(0D,
+                    number(order.get("totalAmount")).doubleValue()
+                            - number(order.get("discountAmount")).doubleValue());
+            double sellerAdjustment = Math.min(resolvedAmount, sellerFundedMaximum);
             payoutClient.applyDisputeAdjustment(Map.of(
                     "disputeId", dispute.getId(), "orderSellerId", dispute.getOrderSellerId(),
-                    "sellerId", dispute.getSellerId(), "refundAmount", resolvedAmount,
+                    "sellerId", dispute.getSellerId(), "refundAmount", sellerAdjustment,
                     "reason", request.getNote()
             ));
         }
@@ -241,7 +245,9 @@ public class DisputeService {
     private Map<String, Object> orderContext(String orderSellerId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT os.id AS orderSellerId, os.order_id AS orderId, os.seller_id AS sellerId,
-                       os.shop_name AS shopName, os.total_after_discount AS totalAfterDiscount,
+                       os.shop_name AS shopName, os.total_amount AS totalAmount,
+                       os.discount_amount AS discountAmount, os.shipping_fee AS shippingFee,
+                       os.total_after_discount AS totalAfterDiscount,
                        os.order_status AS orderStatus, o.customer_id AS customerId, o.code AS orderCode
                 FROM order_seller os JOIN orders o ON o.id = os.order_id WHERE os.id = ?
                 """, orderSellerId);

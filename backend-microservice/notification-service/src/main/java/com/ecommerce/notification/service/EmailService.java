@@ -1,6 +1,8 @@
 package com.ecommerce.notification.service;
 
 import com.ecommerce.notification.model.EmailRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,7 @@ import java.util.Properties;
 
 @Service
 public class EmailService {
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     @Value("${mail.host:smtp.gmail.com}")
     private String host;
@@ -30,6 +33,12 @@ public class EmailService {
     private String password;
 
     public void send(EmailRequest request) {
+        if (username == null || username.isBlank() || password == null || password.isBlank()) {
+            log.warn("Email delivery suppressed because SMTP credentials are not configured; recipient={}, subject={}",
+                    request.getTo(), request.getSubject());
+            return;
+        }
+
         Properties properties = new Properties();
         properties.put("mail.smtp.host", host);
         properties.put("mail.smtp.port", port);

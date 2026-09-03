@@ -3,8 +3,8 @@ package com.ecommerce.payout.controller;
 import com.ecommerce.payout.model.CommissionConfigRequest;
 import com.ecommerce.payout.model.PayoutBatchRequest;
 import com.ecommerce.payout.service.PayoutService;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,8 +47,9 @@ public class PayoutController {
     }
 
     @PostMapping("/api/v1/admin/payout/batches")
-    public ResponseEntity<?> createPayoutBatch(@RequestBody PayoutBatchRequest body, HttpServletRequest request) {
-        return ResponseEntity.ok(payoutService.createPayoutBatch(body, request.getHeader("X-Staff-Id")));
+    public ResponseEntity<?> createPayoutBatch(@RequestBody PayoutBatchRequest body,
+                                                @RequestHeader("X-User-Id") String staffId) {
+        return ResponseEntity.ok(payoutService.createPayoutBatch(body, staffId));
     }
 
     @PostMapping("/api/v1/admin/payout/receivables/{id}/pay")
@@ -57,20 +58,12 @@ public class PayoutController {
     }
 
     @GetMapping("/api/v1/seller/payout/wallet")
-    public ResponseEntity<?> sellerWallet(HttpServletRequest request) {
-        return ResponseEntity.ok(payoutService.sellerWallet(sellerId(request)));
+    public ResponseEntity<?> sellerWallet(@RequestHeader("X-Seller-Id") String sellerId) {
+        return ResponseEntity.ok(payoutService.sellerWallet(sellerId));
     }
 
     @GetMapping("/api/v1/seller/payout/receivables")
-    public ResponseEntity<?> sellerReceivables(HttpServletRequest request) {
-        return ResponseEntity.ok(payoutService.sellerReceivables(sellerId(request)));
-    }
-
-    private String sellerId(HttpServletRequest request) {
-        String sellerId = request.getHeader("X-Seller-Id");
-        if (sellerId == null || sellerId.isBlank()) {
-            throw new IllegalArgumentException("Missing seller context");
-        }
-        return sellerId;
+    public ResponseEntity<?> sellerReceivables(@RequestHeader("X-Seller-Id") String sellerId) {
+        return ResponseEntity.ok(payoutService.sellerReceivables(sellerId));
     }
 }

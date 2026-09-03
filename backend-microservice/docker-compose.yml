@@ -153,7 +153,7 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor
     ports:
-      - "8085:8080"
+      - "8093:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro

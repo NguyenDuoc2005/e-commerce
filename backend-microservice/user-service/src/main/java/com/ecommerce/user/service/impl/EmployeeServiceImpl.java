@@ -125,8 +125,8 @@ public class EmployeeServiceImpl implements EmployeeService {
     public boolean checkDuplicateField(String field, String value, String excludeId) {
         String normalizedExcludeId = excludeId == null ? "" : excludeId;
         return switch (field.toLowerCase()) {
-            case "identityNumber" -> nhanVienRepository.existsByIdentityNumberAndIdNot(value, normalizedExcludeId);
-            case "phoneNumber" -> nhanVienRepository.existsByPhoneNumberAndIdNot(value, normalizedExcludeId);
+            case "identitynumber" -> nhanVienRepository.existsByIdentityNumberAndIdNot(value, normalizedExcludeId);
+            case "phonenumber" -> nhanVienRepository.existsByPhoneNumberAndIdNot(value, normalizedExcludeId);
             case "email" -> nhanVienRepository.existsByEmailAndIdNot(value, normalizedExcludeId);
             default -> throw new IllegalArgumentException("Truong khong hop le: " + field);
         };

@@ -13,6 +13,7 @@
     "schema.ignore": "true",
     "write.method": "UPSERT",
     "behavior.on.null.values": "DELETE",
+    "behavior.on.malformed.documents": "IGNORE",
     "drop.invalid.message": "true",
     "errors.tolerance": "all",
     "errors.deadletterqueue.topic.name": "dlq.products.elasticsearch",

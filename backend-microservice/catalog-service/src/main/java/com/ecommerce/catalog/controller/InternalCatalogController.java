@@ -45,6 +45,16 @@ public class InternalCatalogController {
     @GetMapping("/product-variants/{variantId}")
     public Object variant(@PathVariable String variantId) { return service.variantSnapshot(variantId); }
 
+    @GetMapping("/product-details/{variantId}")
+    public Object productDetail(@PathVariable String variantId) { return service.variantSnapshot(variantId); }
+
+    @PostMapping("/products/{productId}/rating")
+    public Object updateRating(@PathVariable String productId,
+                               @RequestParam double average,
+                               @RequestParam long count) {
+        return service.updateRating(productId, average, count);
+    }
+
     @PostMapping("/product-variants/{variantId}/stock/adjust")
     public Object adjust(@PathVariable String variantId, @RequestParam int delta) { return service.adjustStock(variantId, delta); }
 }

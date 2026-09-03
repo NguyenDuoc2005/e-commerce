@@ -1,5 +1,6 @@
 package com.ecommerce.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.ecommerce.user.entity.base.PrimaryEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -51,6 +52,7 @@ public class Customer extends PrimaryEntity implements Serializable {
     private Boolean gender;
 
     @Column(name = "password")
+    @JsonIgnore
     private String password;
 
     public String getCode() { return code; }

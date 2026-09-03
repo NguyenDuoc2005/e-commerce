@@ -15,6 +15,7 @@ import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    @Transactional
     public ResponseObject<?> getAllProductCart(CartGetAllRequest req) {
         Cart cart = cartRepository.findByCustomerId(req.getIdUser()).orElseGet(() -> createCart(req.getIdUser()));
         List<Map<String, Object>> list = cartDetailRepository.getAllCart(cart.getId())
@@ -114,6 +116,12 @@ public class CartServiceImpl implements CartService {
     }
 
     private Map<String, Object> toCartResponse(CartDetail detail) {
+        CatalogVariantSnapshot currentVariant = findBySPCT(detail.getProductVariantId());
+        double currentLinePrice = currentVariant.salePrice().doubleValue() * detail.getQuantity();
+        if (Double.compare(detail.getPrice(), currentLinePrice) != 0) {
+            detail.setPrice(currentLinePrice);
+            cartDetailRepository.save(detail);
+        }
         Map<String, Object> row = new java.util.LinkedHashMap<>();
         row.put("id", detail.getId());
         row.put("quantity", detail.getQuantity());
@@ -123,7 +131,7 @@ public class CartServiceImpl implements CartService {
         row.put("sellerId", detail.getSellerId());
         row.put("shopName", detail.getShopName());
         row.put("sellerSlug", detail.getSellerSlug());
-        row.put("productVariant", findBySPCT(detail.getProductVariantId()));
+        row.put("productVariant", currentVariant);
         row.put("status", detail.getStatus());
         return row;
     }

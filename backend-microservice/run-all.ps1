@@ -97,7 +97,6 @@ function Start-ServiceProcess {
     }
 
     $outLogFile = Join-Path $logDir "$Name.out.log"
-    $errLogFile = Join-Path $logDir "$Name.err.log"
     $pidFile = Join-Path $logDir "$Name.pid"
     $cmdFile = Join-Path $logDir "$Name.run.cmd"
     $jar = Get-ChildItem -Path (Join-Path $projectDir "$Module\build\libs") -Filter "$Module-*.jar" -File |
@@ -120,10 +119,24 @@ $($envCommands -join "`r`n")
         "`"$cmdFile`""
     )
 
-    Set-Content -Path $errLogFile -Value "" -Encoding UTF8
-
     Set-Content -Path $pidFile -Value $process.Id
-    Write-Host "Started $Name, pid: $($process.Id), logs: $outLogFile / $errLogFile"
+    Write-Host "Started $Name, pid: $($process.Id), log: $outLogFile"
+}
+
+function New-ServiceCredential {
+    $bytes = New-Object byte[] 32
+    $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $generator.GetBytes($bytes)
+    } finally {
+        $generator.Dispose()
+    }
+    return [Convert]::ToBase64String($bytes)
+}
+
+$securityEnv = @{
+    SECURITY_GATEWAY_TOKEN = New-ServiceCredential
+    SECURITY_INTERNAL_SERVICE_TOKEN = New-ServiceCredential
 }
 
 $jdbcOptions = "createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
@@ -136,6 +149,8 @@ $orderJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_order`?$jdbcOptions"
 $sellerJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_seller`?$jdbcOptions"
 $payoutJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_payout`?$jdbcOptions"
 $dbEnv = @{
+    SECURITY_GATEWAY_TOKEN = $securityEnv.SECURITY_GATEWAY_TOKEN
+    SECURITY_INTERNAL_SERVICE_TOKEN = $securityEnv.SECURITY_INTERNAL_SERVICE_TOKEN
     AUTH_DATASOURCE_URL = $authJdbc
     AUTH_DATASOURCE_USERNAME = $DbUser
     AUTH_DATASOURCE_PASSWORD = $DbPassword
@@ -177,11 +192,13 @@ Start-ServiceProcess "payout-service" "payout-service" $dbEnv
 if ($WithNotification) {
     Start-ServiceProcess "notification-service" "notification-service" @{
         KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
+        SECURITY_GATEWAY_TOKEN = $securityEnv.SECURITY_GATEWAY_TOKEN
+        SECURITY_INTERNAL_SERVICE_TOKEN = $securityEnv.SECURITY_INTERNAL_SERVICE_TOKEN
     }
 }
 
 Start-Sleep -Seconds 18
-Start-ServiceProcess "api-gateway" "api-gateway"
+Start-ServiceProcess "api-gateway" "api-gateway" $securityEnv
 
 Write-Host ""
 Write-Host "Backend microservice startup requested."

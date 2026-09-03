@@ -3,6 +3,7 @@ package com.ecommerce.auth.controller;
 import com.ecommerce.auth.dto.request.ChangePasswordRequest;
 import com.ecommerce.auth.dto.request.LoginRequest;
 import com.ecommerce.auth.dto.request.RegisterRequest;
+import com.ecommerce.auth.dto.request.RefreshTokenRequest;
 import com.ecommerce.auth.security.LoginRoleContext;
 import com.ecommerce.auth.security.TokenProvider;
 import com.ecommerce.auth.service.AuthService;
@@ -59,6 +60,19 @@ public class AuthController {
     @PutMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         return ResponseUtils.createResponseEntity(authService.register(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(@RequestBody RefreshTokenRequest request) {
+        try {
+            return ResponseUtils.createResponseEntity(
+                    new ResponseObject<>(tokenProvider.refreshTokens(request.getRefreshToken()), HttpStatus.OK, "Lam moi token thanh cong")
+            );
+        } catch (IllegalArgumentException ex) {
+            return ResponseUtils.createResponseEntity(
+                    new ResponseObject<>(null, HttpStatus.UNAUTHORIZED, ex.getMessage())
+            );
+        }
     }
 
     @PostMapping("/change-password")

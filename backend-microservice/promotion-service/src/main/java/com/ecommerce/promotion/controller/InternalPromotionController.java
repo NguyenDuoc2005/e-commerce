@@ -88,6 +88,7 @@ public class InternalPromotionController {
         row.put("max_discount_amount", voucher.getMaxDiscountAmount());
         row.put("discount_type", voucher.getDiscountType());
         row.put("discount_method", voucher.getDiscountMethod());
+        row.put("seller_id", voucher.getSellerId());
         row.put("status", voucher.getStatus() == null ? null : voucher.getStatus().ordinal());
         return row;
     }

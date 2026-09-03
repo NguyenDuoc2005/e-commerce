@@ -8,11 +8,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
 
-@RestControllerAdvice(assignableTypes = {AdminFlashSaleController.class, SellerFlashSaleController.class, PublicFlashSaleController.class})
+@RestControllerAdvice(assignableTypes = {
+        AdminFlashSaleController.class, SellerFlashSaleController.class, PublicFlashSaleController.class,
+        AdminCampaignController.class, SellerPromotionController.class,
+        VoucherController.class, SellerVoucherController.class
+})
 public class PromotionExceptionHandler {
     @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class})
     public ResponseEntity<?> badRequest(Exception error) {
-        String message = error instanceof MethodArgumentNotValidException ? "Du lieu Flash sale khong hop le" : error.getMessage();
+        String message = error instanceof MethodArgumentNotValidException ? "Du lieu khuyen mai khong hop le" : error.getMessage();
         return ResponseEntity.badRequest().body(Map.of("message", message));
     }
 

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.view.RedirectView;
 
@@ -29,7 +30,12 @@ public class CheckoutController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<?> createOrder(@RequestBody CheckoutRequest order, HttpServletRequest request) {
+    public ResponseEntity<?> createOrder(
+            @RequestBody CheckoutRequest order,
+            @RequestHeader("X-User-Id") String customerId,
+            HttpServletRequest request
+    ) {
+        order.setCustomer(customerId);
         if ("VNPAY".equals(order.getHinhThucThanhToan())) {
             return ResponseEntity.ok(checkoutService.createVNPayPaymentUrl(order, request.getRemoteAddr()));
         }

@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -13,9 +14,18 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import org.springframework.web.reactive.function.client.WebClient;
+import com.ecommerce.common.security.InternalServiceTokenInterceptor;
 
 @Configuration
 public class SecurityConfig {
+
+    @Bean
+    @LoadBalanced
+    WebClient.Builder loadBalancedWebClientBuilder(
+            @org.springframework.beans.factory.annotation.Value("${security.internal-service-token}") String internalToken) {
+        return WebClient.builder().defaultHeader(InternalServiceTokenInterceptor.HEADER, internalToken);
+    }
 
     @Bean
     SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {

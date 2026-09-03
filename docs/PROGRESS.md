@@ -2,8 +2,8 @@
 
 ## Trang thai tong quan hien tai
 - Giai doan: Da hoan tat toan bo checklist marketplace, gom 11 backlog nghiep vu, 3 audit bo sung va chuan hoa product canonical theo migration an toan.
-- Task dang lam do (neu co): Da sua va runtime verify `/admin/reports`; `/admin/disputes` van bi chan boi schema live BE thieu bang.
-- Viec tiep theo can lam ngay: Apply/repair migration tao `ecommerce_order.dispute`, sau do runtime smoke lai trang Admin tranh chap.
+- Task dang lam do (neu co): Khong con; full E2E marketplace va 10 rui ro AGENTS.md da duoc runtime verify tren stack reset sach.
+- Viec tiep theo can lam ngay: Review/commit worktree; khong con blocker runtime trong pham vi AGENTS.md.
 
 ## Cau hoi / quyet dinh can nguoi dung xac nhan
 - Khong con cau hoi treo trong pham vi Muc 1 prompt moi; cac quyet dinh nghiep vu da duoc chot dut diem trong prompt.
@@ -52,6 +52,34 @@
 - [x] Audit/fix mapping va render cot cho toan bo table/list Platform Admin
 
 ## Nhat ky chi tiet
+
+### [2026-09-03] Phien #53 - Full E2E AGENTS.md
+**Da lam:**
+- Doc lai AGENTS.md, tai lieu as-is, progress va audit toan bo diff co san truoc khi tiep tuc.
+- Dung `reset-and-run-demo.ps1` de DROP/recreate dung 8 schema, build 11 module va khoi dong lai backend; FE tiep tuc chay tai 6688.
+- Xac nhan 11 actuator UP, 10 application Eureka UP, Kafka/Elasticsearch/Kafka Connect san sang; Elasticsearch yellow dung ky vong single-node.
+- Chay that qua gateway toan bo flow 3.1-3.11: auth/refresh/degraded seller, seller approval/reject/suspend, catalog/outbox/ownership/filter, cart multi-shop, COD/VNPay, compensation, seller order/payout, promotion/Flash Sale, follow/review/chat, dispute/report va Admin CRUD/banner/statistics.
+- Sua drift cua cac script E2E cu dang hard-code UUID/ma voucher tu seed lich su: truyen ID dong tu response/DB, dung seed canonical `3800...`, `WELCOME10`, `SHOP50`, va lay customerId tu JWT.
+- Them `e2e-full-regression.ps1` lam orchestrator full flow co safety check khi stop/restart service, health/Eureka check dau/cuoi, direct-service boundary va Kafka Connect independence.
+
+**Loi/rui ro source da co ban va trong worktree va duoc runtime verify:**
+- Refresh token co tokenType, refresh rotation va reject access token tai refresh endpoint.
+- Checkout bat buoc buyer JWT, customer lay tu gateway header, tong tien/voucher/seller scope do server tinh, VNPay verify HMAC/idempotent, co compensation stock/voucher/cart va rollback order khi remote call that bai.
+- Seller workflow enforce transition, cancel co compensation, root order aggregate theo sub-order; payout dung seller/staff context tin cay.
+- Internal review-catalog contract du hai endpoint va rating tao outbox; public detail an product INACTIVE.
+- Tat gateway discovery locator, them gateway/internal credential filter cho downstream, live-check seller status va khoa notification email public.
+- Cart bo qua gia client va refresh snapshot tu catalog; password Customer/Staff khong serialize; `.env.stage` dung port gateway/FE.
+
+**Kiem chung:**
+- Luuot rieng ban dau: tat cart-service o buoc cuoi checkout -> HTTP 500 co chu dich, stock/voucher/order count khong doi sau compensation; tat seller-service -> buyer login 200 chi co USERS; tat Kafka Connect -> public MySQL search van tra san pham.
+- CLEAN1 sau reset sach: `result=CLEAN`, pass day du 3.1-3.11 va rui ro security/compensation/search.
+- CLEAN2 sau reset sach rieng: `result=CLEAN`, pass day du cung tap assertion; order `df2a4c3c-96ab-4e07-9a7a-16dbb6cda4b7`, completed order `7bd73683-9f9a-4413-8d0e-521d5bda4ba6`.
+- DB cuoi CLEAN2: 15 orders, 19 order_seller, 8 receivable, 2 payout adjustment, 42 outbox, 7 dispute, 5 report; `mismatched_completed_roots=0`.
+- Final runtime: 11/11 actuator UP, Eureka 10/10, source/sink Kafka Connect RUNNING, FE HTTP 200, `git diff --check` khong co whitespace error.
+
+**Ghi chu:**
+- Log order-service co mot Connection refused toi cart-service la loi duoc tao co chu dich de verify compensation; flow sau do va health cuoi deu PASS.
+- `seller-service-moderation.out.log` la log cu ngay 26/08, khong thuoc process/log hien tai.
 
 ### [2026-08-26 14:30] Phien #52
 **Da lam:**

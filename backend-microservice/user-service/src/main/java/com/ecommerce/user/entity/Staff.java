@@ -1,5 +1,6 @@
 package com.ecommerce.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.ecommerce.user.constant.EntityRole;
 import com.ecommerce.user.constant.EntityVaiTro;
 import com.ecommerce.user.entity.base.PrimaryEntity;
@@ -59,6 +60,7 @@ public class Staff extends PrimaryEntity implements Serializable {
     private EntityRole role;
 
     @Column(name = "password")
+    @JsonIgnore
     private String password;
 
     public String getCode() { return code; }

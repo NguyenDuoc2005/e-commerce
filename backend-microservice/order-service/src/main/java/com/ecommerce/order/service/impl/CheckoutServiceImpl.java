@@ -13,6 +13,7 @@ import com.ecommerce.order.model.request.CheckoutProductItem;
 import com.ecommerce.order.model.request.CheckoutRequest;
 import com.ecommerce.order.model.request.VoucherPaymentRequest;
 import com.ecommerce.order.service.CheckoutService;
+import feign.FeignException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -60,6 +61,9 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Value("${vnpay.return-url:http://localhost:8386/api/orders/vnpay-return}")
     private String vnpReturnUrl;
 
+    @Value("${checkout.shipping-fee:30000}")
+    private double serverShippingFee;
+
     public CheckoutServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient, PromotionClient promotionClient, CartClient cartClient, UserClient userClient, com.ecommerce.order.client.SellerClient sellerClient) {
         this.jdbcTemplate = jdbcTemplate;
         this.catalogClient = catalogClient;
@@ -73,18 +77,17 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Transactional
     public Object createOrder(CheckoutRequest request) {
         validateCheckoutRequest(request);
+        prepareAuthoritativeTotals(request);
         if (!hasStock(request)) {
-            clearCartItemsWhenOutOfStock(request);
-            return null;
+            throw new IllegalArgumentException("INSUFFICIENT_STOCK");
         }
         String orderId = insertOrder(request, CHO_XAC_NHAN);
         insertStatusHistory(orderId, CHO_XAC_NHAN, "Don hang da duoc dat va cho duoc wardc nhan.");
         if (!"TIEN_MAT".equals(request.getHinhThucThanhToan())) {
             insertPayment(orderId, request.getTongCong(), "VNPAY".equals(request.getHinhThucThanhToan()) ? "CHUYEN_KHOAN" : "TIEN_MAT", null);
         }
-        applyVoucher(request.getMaGiamGia());
-        insertDetailsAndCommitInventory(orderId, request);
-        clearCartItems(request);
+        insertDetails(orderId, request, CHO_XAC_NHAN);
+        commitCheckoutSideEffects(request);
         return getOrder(orderId);
     }
 
@@ -92,10 +95,10 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Transactional
     public Map<String, String> createVNPayPaymentUrl(CheckoutRequest request, String ipAddr) {
         validateCheckoutRequest(request);
+        prepareAuthoritativeTotals(request);
         validateVNPayConfig();
         if (!hasStock(request)) {
-            clearCartItemsWhenOutOfStock(request);
-            return null;
+            throw new IllegalArgumentException("INSUFFICIENT_STOCK");
         }
         String orderId = insertOrder(request, LUU_TAM);
         insertPayment(orderId, request.getTongCong(), "VNPAY".equals(request.getHinhThucThanhToan()) ? "CHUYEN_KHOAN" : "TIEN_MAT", null);
@@ -142,19 +145,28 @@ public class CheckoutServiceImpl implements CheckoutService {
             return false;
         }
         String orderId = params.get("vnp_TxnRef");
+        Map<String, Object> existingOrder;
+        try {
+            existingOrder = jdbcTemplate.queryForMap("SELECT * FROM orders WHERE id = ? FOR UPDATE", orderId);
+        } catch (org.springframework.dao.EmptyResultDataAccessException exception) {
+            return false;
+        }
+        int currentStatus = intValue(existingOrder.get("order_status"));
+        if (currentStatus == CHO_XAC_NHAN) {
+            return true;
+        }
+        if (currentStatus != LUU_TAM) {
+            return false;
+        }
+        long expectedAmount = Math.round(doubleValue(existingOrder.get("total_after_discount")) * 100D);
+        if (!String.valueOf(expectedAmount).equals(params.get("vnp_Amount"))) {
+            return false;
+        }
         jdbcTemplate.update("UPDATE orders SET order_status = ? WHERE id = ?", CHO_XAC_NHAN, orderId);
         jdbcTemplate.update("UPDATE order_seller SET order_status = ? WHERE order_id = ?", CHO_XAC_NHAN, orderId);
         insertStatusHistory(orderId, CHO_XAC_NHAN, "Don hang da duoc dat va cho duoc wardc nhan.");
-        Map<String, Object> order = getOrder(orderId);
-        Object voucherId = order.get("voucher_id");
-        if (voucherId != null) {
-            promotionClient.decrementVoucher(String.valueOf(voucherId));
-        }
         List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT product_variant_id, quantity FROM order_item WHERE order_id = ?", orderId);
-        for (Map<String, Object> detail : details) {
-            catalogClient.adjustStock(String.valueOf(detail.get("product_variant_id")), -intValue(detail.get("quantity")));
-        }
-        clearCartItemsByOrder(orderId);
+        commitPaidOrderSideEffects(existingOrder, details, orderId);
         return true;
     }
 
@@ -232,22 +244,22 @@ public class CheckoutServiceImpl implements CheckoutService {
         return id;
     }
 
-    private void insertDetailsAndCommitInventory(String orderId, CheckoutRequest request) {
-        insertDetails(orderId, request, CHO_XAC_NHAN);
-        if (request.getProduct() != null) {
-            for (CheckoutProductItem item : request.getProduct()) {
-                catalogClient.adjustStock(item.getId(), -value(item.getQuantity()));
-            }
-        }
-    }
-
     private void insertDetails(String orderId, CheckoutRequest request, int orderSellerStatus) {
         if (request.getProduct() == null) {
             return;
         }
         Map<String, List<LineSnapshot>> grouped = groupItemsBySeller(request);
+        double totalItems = grouped.values().stream().flatMap(List::stream)
+                .mapToDouble(line -> line.product().salePrice().doubleValue() * value(line.item().getQuantity())).sum();
+        String voucherSellerId = voucherSellerId(request.getMaGiamGia());
         for (Map.Entry<String, List<LineSnapshot>> entry : grouped.entrySet()) {
-            String orderSellerId = insertOrderSeller(orderId, entry.getKey(), entry.getValue(), orderSellerStatus);
+            double sellerTotal = entry.getValue().stream()
+                    .mapToDouble(line -> line.product().salePrice().doubleValue() * value(line.item().getQuantity())).sum();
+            double shipping = totalItems == 0D ? 0D : request.getPhiShip() * sellerTotal / totalItems;
+            double discount = voucherSellerId == null
+                    ? (totalItems == 0D ? 0D : request.getGiamGia() * sellerTotal / totalItems)
+                    : (voucherSellerId.equals(entry.getKey()) ? request.getGiamGia() : 0D);
+            String orderSellerId = insertOrderSeller(orderId, entry.getKey(), entry.getValue(), orderSellerStatus, shipping, discount);
             for (LineSnapshot line : entry.getValue()) {
                 CheckoutProductItem item = line.item();
                 Double price = line.product().salePrice().doubleValue();
@@ -265,7 +277,15 @@ public class CheckoutServiceImpl implements CheckoutService {
             return grouped;
         }
         for (CheckoutProductItem item : request.getProduct()) {
-            CatalogVariantSnapshot product = catalogClient.getProductVariant(item.getId());
+            CatalogVariantSnapshot product;
+            try {
+                product = catalogClient.getProductVariant(item.getId());
+            } catch (FeignException exception) {
+                if (exception.status() == 400 || exception.status() == 404) {
+                    throw new IllegalArgumentException("San pham hoac bien the khong ton tai");
+                }
+                throw exception;
+            }
             String sellerId = product.sellerId();
             if (sellerId == null || sellerId.isBlank()) {
                 sellerId = "UNKNOWN_SELLER";
@@ -276,7 +296,8 @@ public class CheckoutServiceImpl implements CheckoutService {
         return grouped;
     }
 
-    private String insertOrderSeller(String orderId, String sellerId, List<LineSnapshot> lines, int status) {
+    private String insertOrderSeller(String orderId, String sellerId, List<LineSnapshot> lines, int status,
+                                     double shippingFee, double discountAmount) {
         String id = UUID.randomUUID().toString();
         double total = lines.stream()
                 .mapToDouble(line -> line.product().salePrice().doubleValue() * value(line.item().getQuantity()))
@@ -287,7 +308,8 @@ public class CheckoutServiceImpl implements CheckoutService {
         jdbcTemplate.update("""
                 INSERT INTO order_seller (id, order_id, seller_id, shop_name, seller_slug, total_amount, shipping_fee, discount_amount, total_after_discount, order_status, created_date)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, id, orderId, sellerId, shopName == null ? sellerId : shopName, sellerSlug, total, 0D, 0D, total, status, System.currentTimeMillis());
+                """, id, orderId, sellerId, shopName == null ? sellerId : shopName, sellerSlug, total,
+                shippingFee, discountAmount, Math.max(0D, total + shippingFee - discountAmount), status, System.currentTimeMillis());
         return id;
     }
 
@@ -340,11 +362,118 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
     }
 
-    private void clearCartItemsWhenOutOfStock(CheckoutRequest request) {
-        if (request.getProduct() == null) {
-            return;
+    private void prepareAuthoritativeTotals(CheckoutRequest request) {
+        Map<String, List<LineSnapshot>> grouped = groupItemsBySeller(request);
+        double itemSubtotal = grouped.values().stream().flatMap(List::stream)
+                .mapToDouble(line -> line.product().salePrice().doubleValue() * value(line.item().getQuantity())).sum();
+        double discount = 0D;
+        if (request.getMaGiamGia() != null && !request.getMaGiamGia().isBlank()) {
+            Map<String, Object> voucher = requireApplicableVoucher(request.getMaGiamGia(), request.getCustomer(), grouped, itemSubtotal);
+            String sellerId = stringValue(voucher.get("seller_id"));
+            double eligibleSubtotal = sellerId == null
+                    ? itemSubtotal
+                    : grouped.get(sellerId).stream()
+                            .mapToDouble(line -> line.product().salePrice().doubleValue() * value(line.item().getQuantity())).sum();
+            discount = discountValue(voucher, eligibleSubtotal);
         }
-        clearCartItems(request);
+        request.setTongTien(itemSubtotal);
+        request.setPhiShip(Math.max(0D, serverShippingFee));
+        request.setGiamGia(discount);
+        request.setTongCong(Math.max(0D, itemSubtotal + request.getPhiShip() - discount));
+    }
+
+    private Map<String, Object> requireApplicableVoucher(String code, String customerId,
+                                                          Map<String, List<LineSnapshot>> grouped, double itemSubtotal) {
+        Map<String, Object> voucher = promotionClient.getVoucherByCode(code);
+        if (voucher == null || voucher.isEmpty() || intValue(voucher.get("status")) != ACTIVE
+                || intValue(voucher.get("quantity")) <= 0) {
+            throw new IllegalArgumentException("VOUCHER_NOT_AVAILABLE");
+        }
+        String sellerId = stringValue(voucher.get("seller_id"));
+        if (sellerId != null && !grouped.containsKey(sellerId)) {
+            throw new IllegalArgumentException("VOUCHER_SELLER_MISMATCH");
+        }
+        double eligibleSubtotal = sellerId == null ? itemSubtotal : grouped.get(sellerId).stream()
+                .mapToDouble(line -> line.product().salePrice().doubleValue() * value(line.item().getQuantity())).sum();
+        if (eligibleSubtotal < doubleValue(voucher.get("condition_amount"))) {
+            throw new IllegalArgumentException("VOUCHER_MINIMUM_NOT_MET");
+        }
+        if (booleanValue(voucher.get("discount_type"))
+                && (customerId == null || !isVoucherAssigned(String.valueOf(voucher.get("id")), customerId))) {
+            throw new IllegalArgumentException("VOUCHER_NOT_ASSIGNED_TO_CUSTOMER");
+        }
+        if (customerId != null && voucherUsedByCustomer(String.valueOf(voucher.get("id")), customerId)) {
+            throw new IllegalArgumentException("VOUCHER_ALREADY_USED");
+        }
+        return voucher;
+    }
+
+    private String voucherSellerId(String code) {
+        if (code == null || code.isBlank()) return null;
+        Map<String, Object> voucher = promotionClient.getVoucherByCode(code);
+        return voucher == null ? null : stringValue(voucher.get("seller_id"));
+    }
+
+    private void commitCheckoutSideEffects(CheckoutRequest request) {
+        String voucherId = voucherId(request.getMaGiamGia());
+        boolean voucherApplied = false;
+        List<CheckoutProductItem> adjusted = new java.util.ArrayList<>();
+        try {
+            if (voucherId != null) {
+                promotionClient.decrementVoucher(voucherId);
+                voucherApplied = true;
+            }
+            for (CheckoutProductItem item : request.getProduct()) {
+                catalogClient.adjustStock(item.getId(), -value(item.getQuantity()));
+                adjusted.add(item);
+            }
+            clearCartItems(request);
+        } catch (RuntimeException exception) {
+            compensate(adjusted, voucherId, voucherApplied, exception);
+            throw exception;
+        }
+    }
+
+    private void commitPaidOrderSideEffects(Map<String, Object> order, List<Map<String, Object>> details, String orderId) {
+        String voucherId = order.get("voucher_id") == null ? null : String.valueOf(order.get("voucher_id"));
+        boolean voucherApplied = false;
+        List<CheckoutProductItem> adjusted = new java.util.ArrayList<>();
+        try {
+            if (voucherId != null) {
+                promotionClient.decrementVoucher(voucherId);
+                voucherApplied = true;
+            }
+            for (Map<String, Object> detail : details) {
+                CheckoutProductItem item = new CheckoutProductItem();
+                item.setId(String.valueOf(detail.get("product_variant_id")));
+                item.setQuantity(intValue(detail.get("quantity")));
+                catalogClient.adjustStock(item.getId(), -value(item.getQuantity()));
+                adjusted.add(item);
+            }
+            clearCartItemsByOrder(orderId);
+        } catch (RuntimeException exception) {
+            compensate(adjusted, voucherId, voucherApplied, exception);
+            throw exception;
+        }
+    }
+
+    private void compensate(List<CheckoutProductItem> adjusted, String voucherId, boolean voucherApplied,
+                            RuntimeException original) {
+        for (int index = adjusted.size() - 1; index >= 0; index--) {
+            CheckoutProductItem item = adjusted.get(index);
+            try {
+                catalogClient.adjustStock(item.getId(), value(item.getQuantity()));
+            } catch (RuntimeException compensationFailure) {
+                original.addSuppressed(compensationFailure);
+            }
+        }
+        if (voucherApplied) {
+            try {
+                promotionClient.incrementVoucher(voucherId);
+            } catch (RuntimeException compensationFailure) {
+                original.addSuppressed(compensationFailure);
+            }
+        }
     }
 
     private void clearCartItems(CheckoutRequest request) {

@@ -3,6 +3,8 @@ package com.ecommerce.order.controller;
 import com.ecommerce.order.model.request.CheckoutRequest;
 import com.ecommerce.order.model.request.VoucherPaymentRequest;
 import com.ecommerce.order.service.CheckoutService;
+import com.ecommerce.order.service.CheckoutIdempotencyConflictException;
+import com.ecommerce.order.service.CheckoutIdempotencyCoordinator;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,20 +26,30 @@ import java.util.Map;
 public class CheckoutController {
 
     private final CheckoutService checkoutService;
+    private final CheckoutIdempotencyCoordinator idempotencyCoordinator;
 
-    public CheckoutController(CheckoutService checkoutService) {
+    public CheckoutController(CheckoutService checkoutService, CheckoutIdempotencyCoordinator idempotencyCoordinator) {
         this.checkoutService = checkoutService;
+        this.idempotencyCoordinator = idempotencyCoordinator;
     }
 
     @PostMapping("/create")
     public ResponseEntity<?> createOrder(
             @RequestBody CheckoutRequest order,
             @RequestHeader("X-User-Id") String customerId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             HttpServletRequest request
     ) {
         order.setCustomer(customerId);
         if ("VNPAY".equals(order.getHinhThucThanhToan())) {
             return ResponseEntity.ok(checkoutService.createVNPayPaymentUrl(order, request.getRemoteAddr()));
+        }
+        if ("TIEN_MAT".equalsIgnoreCase(order.getHinhThucThanhToan())) {
+            if (idempotencyKey == null || idempotencyKey.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Idempotency-Key bat buoc cho checkout COD"));
+            }
+            return ResponseEntity.ok(idempotencyCoordinator.execute(customerId, idempotencyKey.trim(),
+                    () -> checkoutService.createOrder(order)));
         }
         return ResponseEntity.ok(checkoutService.createOrder(order));
     }
@@ -72,5 +84,10 @@ public class CheckoutController {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<?> handleInvalidCheckout(IllegalArgumentException exception) {
         return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+    }
+
+    @ExceptionHandler(CheckoutIdempotencyConflictException.class)
+    public ResponseEntity<?> handleIdempotencyConflict(CheckoutIdempotencyConflictException exception) {
+        return ResponseEntity.status(409).body(Map.of("message", exception.getMessage()));
     }
 }

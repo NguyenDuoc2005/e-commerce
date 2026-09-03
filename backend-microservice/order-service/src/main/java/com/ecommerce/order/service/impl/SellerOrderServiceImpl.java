@@ -10,6 +10,7 @@ import com.ecommerce.order.repository.OrderSellerRepository;
 import com.ecommerce.order.service.SellerOrderService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
@@ -29,6 +30,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     private final CatalogClient catalogClient;
     private final PromotionClient promotionClient;
 
+    @Autowired
     public SellerOrderServiceImpl(JdbcTemplate jdbcTemplate, OrderSellerRepository orderSellerRepository,
                                   PayoutClient payoutClient, NotificationClient notificationClient,
                                   CatalogClient catalogClient, PromotionClient promotionClient) {
@@ -38,6 +40,13 @@ public class SellerOrderServiceImpl implements SellerOrderService {
         this.notificationClient = notificationClient;
         this.catalogClient = catalogClient;
         this.promotionClient = promotionClient;
+    }
+
+    /** Backward-compatible constructor for read-only callers that do not use promotion side effects. */
+    public SellerOrderServiceImpl(JdbcTemplate jdbcTemplate, OrderSellerRepository orderSellerRepository,
+                                  PayoutClient payoutClient, NotificationClient notificationClient,
+                                  CatalogClient catalogClient) {
+        this(jdbcTemplate, orderSellerRepository, payoutClient, notificationClient, catalogClient, null);
     }
 
     @Override

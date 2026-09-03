@@ -201,6 +201,8 @@ import { localStorageAction } from "@/utils/storage";
 import { USER_INFO_STORAGE_KEY, CHECKOUT_STORAGE_KEY } from "@/constants/storageKey";
 import { ThanhToan, getListPGG, getKhachHangDetail } from "@/services/api/permitall/thanhtoan/thanhtoan.api";
 
+const checkoutIdempotencyKey = ref(crypto.randomUUID());
+
 // Interface definitions
 interface CartItem {
   id: string;
@@ -818,7 +820,12 @@ const performCheckout = async () => {
 
     console.log("Dữ liệu gửi đi:", JSON.stringify(orderData, null, 2));
 
-    const response = await ThanhToan(orderData);
+    // Reuse the same key for retries of this checkout attempt so a timeout
+    // cannot create a second COD order. A new page/checkout gets a new key.
+    const idempotencyKey = form.value.thanhToan === "TIEN_MAT"
+      ? checkoutIdempotencyKey.value
+      : undefined;
+    const response = await ThanhToan(orderData, idempotencyKey);
 
     console.log("Phản hồi từ API ThanhToan:", response);
 

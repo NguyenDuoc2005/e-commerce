@@ -13,6 +13,7 @@ import com.ecommerce.order.model.request.CheckoutProductItem;
 import com.ecommerce.order.model.request.CheckoutRequest;
 import com.ecommerce.order.model.request.VoucherPaymentRequest;
 import com.ecommerce.order.service.CheckoutService;
+import com.ecommerce.order.service.OrderCheckoutSagaExecutor;
 import feign.FeignException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -48,6 +49,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final CartClient cartClient;
     private final UserClient userClient;
     private final com.ecommerce.order.client.SellerClient sellerClient;
+    private final OrderCheckoutSagaExecutor sagaExecutor;
 
     @Value("${vnpay.tmn-code:}")
     private String vnpTmnCode;
@@ -64,13 +66,14 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Value("${checkout.shipping-fee:30000}")
     private double serverShippingFee;
 
-    public CheckoutServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient, PromotionClient promotionClient, CartClient cartClient, UserClient userClient, com.ecommerce.order.client.SellerClient sellerClient) {
+    public CheckoutServiceImpl(JdbcTemplate jdbcTemplate, CatalogClient catalogClient, PromotionClient promotionClient, CartClient cartClient, UserClient userClient, com.ecommerce.order.client.SellerClient sellerClient, OrderCheckoutSagaExecutor sagaExecutor) {
         this.jdbcTemplate = jdbcTemplate;
         this.catalogClient = catalogClient;
         this.promotionClient = promotionClient;
         this.cartClient = cartClient;
         this.userClient = userClient;
         this.sellerClient = sellerClient;
+        this.sagaExecutor = sagaExecutor;
     }
 
     @Override
@@ -87,7 +90,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             insertPayment(orderId, request.getTongCong(), "VNPAY".equals(request.getHinhThucThanhToan()) ? "CHUYEN_KHOAN" : "TIEN_MAT", null);
         }
         insertDetails(orderId, request, CHO_XAC_NHAN);
-        commitCheckoutSideEffects(request);
+        commitCheckoutSideEffects(orderId, request);
         return getOrder(orderId);
     }
 
@@ -414,24 +417,8 @@ public class CheckoutServiceImpl implements CheckoutService {
         return voucher == null ? null : stringValue(voucher.get("seller_id"));
     }
 
-    private void commitCheckoutSideEffects(CheckoutRequest request) {
-        String voucherId = voucherId(request.getMaGiamGia());
-        boolean voucherApplied = false;
-        List<CheckoutProductItem> adjusted = new java.util.ArrayList<>();
-        try {
-            if (voucherId != null) {
-                promotionClient.decrementVoucher(voucherId);
-                voucherApplied = true;
-            }
-            for (CheckoutProductItem item : request.getProduct()) {
-                catalogClient.adjustStock(item.getId(), -value(item.getQuantity()));
-                adjusted.add(item);
-            }
-            clearCartItems(request);
-        } catch (RuntimeException exception) {
-            compensate(adjusted, voucherId, voucherApplied, exception);
-            throw exception;
-        }
+    private void commitCheckoutSideEffects(String orderId, CheckoutRequest request) {
+        sagaExecutor.execute(orderId, request);
     }
 
     private void commitPaidOrderSideEffects(Map<String, Object> order, List<Map<String, Object>> details, String orderId) {
@@ -476,13 +463,6 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
     }
 
-    private void clearCartItems(CheckoutRequest request) {
-        if (request.getCustomer() == null || request.getProduct() == null || isRetailCustomer(request.getCustomer())) {
-            return;
-        }
-        cartClient.deleteItems(request.getCustomer(), request.getProduct().stream().map(CheckoutProductItem::getId).toList());
-    }
-
     private void clearCartItemsByOrder(String orderId) {
         Map<String, Object> order = getOrder(orderId);
         Object customerId = order.get("customer_id");
@@ -491,13 +471,6 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
         List<Map<String, Object>> details = jdbcTemplate.queryForList("SELECT product_variant_id FROM order_item WHERE order_id = ?", orderId);
         cartClient.deleteItems(String.valueOf(customerId), details.stream().map(detail -> String.valueOf(detail.get("product_variant_id"))).toList());
-    }
-
-    private void applyVoucher(String code) {
-        String voucherId = voucherId(code);
-        if (voucherId != null) {
-            promotionClient.decrementVoucher(voucherId);
-        }
     }
 
     private String voucherId(String code) {
@@ -585,10 +558,6 @@ public class CheckoutServiceImpl implements CheckoutService {
             return number.intValue() != 0;
         }
         return Boolean.parseBoolean(String.valueOf(value));
-    }
-
-    private static boolean isRetailCustomer(String customer) {
-        return "khach le".equalsIgnoreCase(customer) || "khÃƒÂ¡ch lÃ¡ÂºÂ»".equals(customer);
     }
 
     private static int intValue(Object value) {

@@ -8,6 +8,7 @@ import com.ecommerce.order.client.SellerClient;
 import com.ecommerce.order.client.UserClient;
 import com.ecommerce.order.model.request.CheckoutProductItem;
 import com.ecommerce.order.model.request.CheckoutRequest;
+import com.ecommerce.order.service.OrderCheckoutSagaExecutor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,9 +19,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -33,13 +34,14 @@ class CheckoutServiceImplTest {
     @Mock private CartClient cartClient;
     @Mock private UserClient userClient;
     @Mock private SellerClient sellerClient;
+    @Mock private OrderCheckoutSagaExecutor sagaExecutor;
 
     private CheckoutServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new CheckoutServiceImpl(
-                jdbcTemplate, catalogClient, promotionClient, cartClient, userClient, sellerClient);
+                jdbcTemplate, catalogClient, promotionClient, cartClient, userClient, sellerClient, sagaExecutor);
     }
 
     @Test
@@ -53,15 +55,15 @@ class CheckoutServiceImplTest {
     }
 
     @Test
-    void acceptsCanonicalVariantIdAndReturnsNullWhenStockIsInsufficient() {
+    void rejectsCheckoutWhenStockIsInsufficient() {
         CheckoutRequest request = validRequest();
         when(catalogClient.getProductVariant("variant-1")).thenReturn(new CatalogVariantSnapshot(
                 "variant-1", "product-1", "seller-1", "SKU-1", "Product", "Default",
                 List.of(), BigDecimal.valueOf(100_000), 0, null, "ACTIVE"));
 
-        assertNull(service.createOrder(request));
+        assertThrows(IllegalArgumentException.class, () -> service.createOrder(request));
 
-        verify(catalogClient).getProductVariant("variant-1");
+        verify(catalogClient, times(2)).getProductVariant("variant-1");
         verifyNoInteractions(jdbcTemplate, promotionClient, cartClient);
     }
 

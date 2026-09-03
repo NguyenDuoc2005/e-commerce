@@ -67,13 +67,14 @@ interface ParamsThanhToan {
   KhachHang: string;
 }
 
-export const ThanhToan = async (data: ParamsThanhToan) => {
+export const ThanhToan = async (data: ParamsThanhToan, idempotencyKey?: string) => {
   const res = (await request({
     url: `${API_URL_1}/orders/create`,
     method: "POST",
     data: data, // Sử dụng 'data' thay vì 'params' để gửi body JSON
     headers: {
       "Content-Type": "application/json", // Đảm bảo header đúng
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
   })) as AxiosResponse<CheckoutResponse>;
 

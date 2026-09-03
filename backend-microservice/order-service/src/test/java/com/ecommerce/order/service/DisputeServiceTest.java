@@ -131,7 +131,8 @@ class DisputeServiceTest {
             String sql = invocation.getArgument(0);
             if (sql.contains("FROM order_seller")) {
                 return List.of(Map.of("orderSellerId", "os-1", "orderId", "o-1", "sellerId", "seller-1",
-                        "shopName", "Demo Shop", "totalAfterDiscount", 1_000_000D, "orderStatus", status,
+                        "shopName", "Demo Shop", "totalAmount", 1_000_000D, "discountAmount", 0D,
+                        "totalAfterDiscount", 1_000_000D, "orderStatus", status,
                         "customerId", "buyer-1", "orderCode", "ORD-1"));
             }
             return List.of();

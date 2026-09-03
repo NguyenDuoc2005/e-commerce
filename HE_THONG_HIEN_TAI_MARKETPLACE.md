@@ -1,6 +1,6 @@
 # HỆ THỐNG HIỆN TẠI – MARKETPLACE E-COMMERCE
 
-> Tài liệu mô tả đúng trạng thái **as-is** của repository và môi trường local tại ngày **27/08/2026**. Nội dung được đối chiếu từ source FE, controller/service/entity backend, gateway, cấu hình chạy, SQL migration/seed và database Docker đang được các service sử dụng tại `localhost:3307`.
+> Tài liệu mô tả trạng thái **as-is** của repository tại ngày **03/09/2026**. Nội dung được đối chiếu lại từ source FE, controller/service/entity backend, gateway, cấu hình chạy, SQL migration/seed và hai lượt full E2E liên tiếp trên database reset sạch. Source code là nguồn sự thật cao hơn snapshot runtime và dữ liệu demo.
 >
 > Đây không phải tài liệu backlog hoặc thiết kế mong muốn. Các điểm chưa hoàn chỉnh được gom riêng tại mục **Giới hạn và rủi ro hiện tại**.
 
@@ -25,6 +25,9 @@ Các đặc điểm marketplace đã có thật trong source:
 - Mỗi seller xử lý sub-order của mình; khi hoàn thành sẽ tạo khoản phải trả và tính hoa hồng.
 - Có voucher sàn/voucher shop, campaign thường, Flash Sale toàn sàn có quy trình seller đăng ký và admin duyệt.
 - Có review sản phẩm/shop, follow shop, chat buyer–seller, dispute theo sub-order và report nội dung.
+- Checkout đã bắt buộc buyer JWT, lấy `customerId` từ gateway, tự tính lại giá/voucher/phí ship ở server, phân bổ tiền theo seller và có bù trừ đồng bộ khi side effect xuyên service lỗi.
+- Gateway đã tắt discovery locator; protected/internal endpoint ở downstream yêu cầu credential do gateway hoặc service nội bộ cấp. Seller route còn live-check trạng thái shop nên token cũ bị chặn ngay sau khi suspend.
+- Refresh token, review–catalog internal contract, root-order aggregation và các moderation action đã có implementation thực tế và đã được chạy E2E.
 
 ## 2. Kiến trúc tổng thể
 
@@ -41,26 +44,26 @@ flowchart LR
     GW --> PAYOUT[payout-service]
     GW --> NOTIFY[notification-service]
 
-    AUTH -. Feign .-> USER
-    AUTH -. Feign .-> SELLER
-    CART -. Feign .-> CATALOG
-    CART -. Feign .-> SELLER
-    PROMO -. Feign .-> CATALOG
-    USER -. Feign .-> ORDER
-    ORDER -. Feign .-> USER
-    ORDER -. Feign .-> CATALOG
-    ORDER -. Feign .-> PROMO
-    ORDER -. Feign .-> CART
-    ORDER -. Feign .-> SELLER
-    ORDER -. Feign .-> PAYOUT
-    ORDER -. Feign .-> NOTIFY
-    SELLER -. Feign .-> USER
-    SELLER -. Feign .-> CATALOG
-    SELLER -. Feign .-> ORDER
-    SELLER -. Feign .-> NOTIFY
-    PAYOUT -. Feign .-> SELLER
-    PAYOUT -. Feign .-> USER
-    PAYOUT -. Feign .-> NOTIFY
+    AUTH -. Feign + internal credential .-> USER
+    AUTH -. Feign + internal credential .-> SELLER
+    CART -. Feign + internal credential .-> CATALOG
+    CART -. Feign + internal credential .-> SELLER
+    PROMO -. Feign + internal credential .-> CATALOG
+    USER -. Feign + internal credential .-> ORDER
+    ORDER -. Feign + internal credential .-> USER
+    ORDER -. Feign + internal credential .-> CATALOG
+    ORDER -. Feign + internal credential .-> PROMO
+    ORDER -. Feign + internal credential .-> CART
+    ORDER -. Feign + internal credential .-> SELLER
+    ORDER -. Feign + internal credential .-> PAYOUT
+    ORDER -. Feign + internal credential .-> NOTIFY
+    SELLER -. Feign + internal credential .-> USER
+    SELLER -. Feign + internal credential .-> CATALOG
+    SELLER -. Feign + internal credential .-> ORDER
+    SELLER -. Feign + internal credential .-> NOTIFY
+    PAYOUT -. Feign + internal credential .-> SELLER
+    PAYOUT -. Feign + internal credential .-> USER
+    PAYOUT -. Feign + internal credential .-> NOTIFY
 
     CATALOG --> MYSQL[(MySQL 8.4)]
     USER --> MYSQL
@@ -85,7 +88,7 @@ flowchart LR
 - Giao tiếp đồng bộ nội bộ: OpenFeign qua tên service Eureka.
 - Database: MySQL 8.4, tách schema theo domain.
 - Thanh toán: VNPay sandbox ở `order-service`.
-- Vận chuyển: FE gọi trực tiếp GHN API.
+- Vận chuyển: FE gọi trực tiếp GHN để lấy địa chỉ/ước tính phí; `order-service` không tin phí từ FE mà dùng `checkout.shipping-fee`, mặc định 30.000đ.
 - Messaging/search infrastructure: Kafka KRaft, Debezium/Kafka Connect và Elasticsearch.
 - Quan sát hệ thống: Spring Actuator, Micrometer/Prometheus; Docker Compose có cấu hình Prometheus, Grafana, Filebeat, Logstash, Kibana, node-exporter và cAdvisor.
 
@@ -93,12 +96,12 @@ flowchart LR
 
 | Thành phần | Cổng | Database | Trách nhiệm hiện tại |
 |---|---:|---|---|
-| `api-gateway` | 8080 | Không | Route public API, xác thực JWT theo prefix, inject marketplace context |
-| `auth-service` | 8081 | `ecommerce_auth` nhưng hiện không có bảng nghiệp vụ | Login/register/change password, phát JWT; dữ liệu tài khoản lấy từ `user-service` |
+| `api-gateway` | 8080 | Không | Route public API, xác thực JWT theo prefix, live-check seller, inject marketplace context và gateway credential |
+| `auth-service` | 8081 | `ecommerce_auth` nhưng hiện không có bảng nghiệp vụ | Login/register/change password/refresh, phát JWT; dữ liệu tài khoản lấy từ `user-service` |
 | `user-service` | 8082 | `ecommerce_user` | Customer, staff, profile và internal auth lookup |
 | `catalog-service` | 8083 | `ecommerce_catalog` | Category, product aggregate, SKU, stock, thuộc tính động, search public và outbox |
 | `promotion-service` | 8085 | `ecommerce_promotion` | Voucher, campaign seller/admin và Flash Sale toàn sàn |
-| `order-service` | 8086 | `ecommerce_order` | Checkout, VNPay, đơn buyer, sub-order seller, thống kê và dispute |
+| `order-service` | 8086 | `ecommerce_order` | Checkout authoritative, VNPay, đơn buyer, sub-order seller, thống kê, compensation và dispute |
 | `cart-service` | 8087 | `ecommerce_cart` | Giỏ hàng buyer và snapshot shop trên cart item |
 | `notification-service` | 8088 | Không | Gửi email qua REST hoặc Kafka consumer |
 | `seller-service` | 8089 | `ecommerce_seller` | Shop/seller, duyệt seller, banner, follow, review, chat và report |
@@ -128,11 +131,12 @@ Seller không có tài khoản đăng nhập riêng. Buyer và seller dùng cùn
 
 ### 3.2. Nội dung JWT
 
-Access token tồn tại 2 giờ; refresh token được phát với hạn 7 ngày. Các claim chính:
+Access token tồn tại 2 giờ; refresh token tồn tại 7 ngày. Cả hai đều là JWT stateless và có claim `tokenType` tương ứng `ACCESS` hoặc `REFRESH`. Các claim chính:
 
 - `email`, `userId`, `fullName`, `pictureUrl`.
 - `role`: vai trò chính, buyer là `USERS`, admin là `ADMIN`.
 - `roles`: danh sách vai trò; buyer có shop approved sẽ có `USERS`, `SELLER`.
+- `tokenType`: gateway chỉ chấp nhận `ACCESS` cho protected API; endpoint refresh chỉ chấp nhận `REFRESH`.
 - Khi là seller: `sellerId`, `sellerStatus`, `sellerSlug`, `shopName`.
 
 `auth-service` không lưu user riêng. Nó gọi:
@@ -142,6 +146,8 @@ Access token tồn tại 2 giờ; refresh token được phát với hạn 7 ng�
 
 Nếu `seller-service` tạm lỗi, buyer vẫn login được nhưng token không có role `SELLER`.
 
+`POST /api/v1/auth/refresh` kiểm tra chữ ký, hạn token và `tokenType`, đọc lại customer/staff đang active, enrich lại seller context rồi trả một cặp access/refresh mới. Vì token chưa được lưu server-side, refresh token cũ chưa bị revoke sau khi đổi token và vẫn dùng được tới khi hết hạn.
+
 ### 3.3. Gateway authorization
 
 Gateway áp quy tắc theo prefix:
@@ -149,19 +155,32 @@ Gateway áp quy tắc theo prefix:
 - `/api/v1/admin/**` cần role `ADMIN`.
 - `/api/v1/seller/**` cần role `SELLER` và claim `sellerId`.
 - `/api/v1/buyer/**` cần role `USERS`.
+- `/api/orders/**` cần role `USERS`, ngoại trừ callback public `GET /api/orders/vnpay-return`.
+- `POST /api/v1/notifications/email` cần role `ADMIN` khi gọi qua gateway.
 - `OPTIONS` được bỏ qua để phục vụ CORS.
 
 Sau khi xác thực, gateway inject:
 
 - `X-User-Id` từ claim `userId`.
 - `X-Seller-Id` từ claim `sellerId`.
+- `X-Gateway-Token` là credential sinh ngẫu nhiên mỗi lần `run-all.ps1` khởi động stack.
+
+Gateway xóa các header marketplace/credential do client tự gửi trước khi inject giá trị tin cậy. Với seller route, gateway gọi `seller-service` bằng internal credential để kiểm tra shop vẫn `APPROVED`; shop bị suspend làm token cũ bị từ chối `403` ngay, còn seller-service không khả dụng làm request trả `503`.
+
+Các downstream service vẫn để Spring authorization ở mức `permitAll`, nhưng `TrustedRequestFilter` đứng trước controller để bắt buộc:
+
+- protected admin/seller/buyer/checkout path phải có gateway credential;
+- `/internal/**` phải có `X-Internal-Service-Token` do Feign interceptor gắn;
+- notification email chấp nhận gateway credential hoặc internal credential.
+
+Gateway discovery locator hiện `enabled: false`, nên không có route động dạng `/{service-id}/internal/**`.
 
 FE cũng có route guard theo role và kiểm tra thời hạn token, nhưng gateway/backend mới là lớp cần quyết định quyền cuối cùng.
 
 Hai ngoại lệ contract cần hiểu đúng:
 
-- `/api/v1/sellers/register-shop` và `/api/v1/sellers/my-shop` không nằm dưới buyer prefix. `seller-service` tự parse và xác minh Bearer JWT để lấy customer ID.
-- `/api/orders/**` là contract checkout legacy nằm ngoài `/api/v1/buyer/**`, vì vậy gateway hiện không bắt buộc JWT cho prefix này.
+- `/api/v1/sellers/register-shop` và `/api/v1/sellers/my-shop` không nằm dưới buyer prefix. `seller-service` tự parse và xác minh chữ ký/hạn Bearer JWT để lấy customer ID; resolver hiện chưa kiểm tra `tokenType` hoặc role `USERS`.
+- `/api/orders/**` vẫn là prefix legacy, nhưng đã được gateway và downstream xếp vào protected buyer path; `CheckoutController` luôn ghi đè customer trong body bằng `X-User-Id`.
 
 ## 4. Mô hình seller và shop
 
@@ -362,6 +381,7 @@ sequenceDiagram
 - Login buyer chỉ tìm customer active.
 - Login admin chỉ tìm staff active.
 - Buyer có seller approved nhận thêm role và seller context.
+- Refresh đọc lại trạng thái tài khoản/seller, phân biệt đúng loại token và rotate cả cặp token.
 - FE có hai màn login: `/login` và `/admin/login`.
 
 ### 6.2. Đăng ký và duyệt shop
@@ -407,7 +427,8 @@ Buyer đăng nhập:
 2. `cart-service` tìm hoặc tạo `cart` theo customer.
 3. Khi thêm variant, service gọi catalog lấy giá/tồn kho/seller.
 4. Service snapshot seller/shop vào `cart_detail`.
-5. Response gồm `items` và `shopGroups` theo seller.
+5. Mỗi lần đọc giỏ, service lấy lại variant hiện tại và cập nhật `cart_detail.price` nếu giá catalog đã đổi; giá do client gửi không được dùng làm nguồn tính tiền.
+6. Response gồm `items` và `shopGroups` theo seller.
 
 Guest storefront:
 
@@ -429,23 +450,26 @@ sequenceDiagram
     participant V as VNPay
 
     B->>FE: xác nhận checkout
-    FE->>O: POST /api/orders/create
-    O->>C: kiểm tra variant và stock
-    O->>P: tra voucher
+    FE->>O: POST /api/orders/create + Bearer token
+    O->>O: lấy customer từ X-User-Id, bỏ customer/tổng tiền client
+    O->>C: lấy giá, seller, category và kiểm tra stock
+    O->>P: xác minh voucher, customer, seller scope
     O->>S: lấy snapshot shop
-    O->>O: tạo orders
+    O->>O: tính subtotal + ship cấu hình - discount
+    O->>O: tạo orders trong transaction local
     O->>O: group item theo seller
-    O->>O: tạo order_seller + order_item
+    O->>O: tạo order_seller + order_item, phân bổ ship/discount
     alt COD
         O->>P: giảm quantity voucher
         O->>C: trừ tồn kho
         O->>CART: xóa item đã checkout
-        O-->>FE: order
+        O-->>FE: order hoặc rollback + bù trừ khi lỗi
     else VNPay
         O-->>FE: paymentUrl
         FE->>V: redirect thanh toán
         V->>O: GET /api/orders/vnpay-return
-        O->>O: verify HMAC và chuyển LUU_TAM -> CHO_XAC_NHAN
+        O->>O: verify HMAC, response, amount và trạng thái
+        O->>O: chuyển LUU_TAM -> CHO_XAC_NHAN idempotent
         O->>P: giảm voucher
         O->>C: trừ tồn kho
         O->>CART: xóa item
@@ -471,6 +495,16 @@ Status enum order lưu theo ordinal:
 | 4 | `HOAN_THANH` |
 | 5 | `DA_HUY` |
 | 6 | `LUU_TAM` |
+
+Quy tắc tính tiền hiện tại:
+
+- Client vẫn gửi các field legacy `tongTien/phiShip/giamGia/tongCong` để giữ contract, nhưng backend ghi đè toàn bộ.
+- Subtotal lấy từ `CatalogVariantSnapshot.salePrice × quantity`; `customerId` luôn lấy từ header gateway.
+- Phí ship lấy từ `checkout.shipping-fee` của backend, mặc định 30.000đ. Kết quả GHN do FE tính chưa đi vào nguồn giá server.
+- Voucher sàn được phân bổ theo tỷ trọng subtotal; voucher shop chỉ giảm cho đúng `order_seller` của shop đó. Điều kiện tối thiểu, quantity, customer assignment và lịch sử dùng đều được kiểm tra.
+- Phí ship được phân bổ theo tỷ trọng subtotal xuống từng `order_seller`; mỗi sub-order lưu đủ `total_amount`, `shipping_fee`, `discount_amount`, `total_after_discount`.
+
+COD chỉ commit order khi giảm voucher, trừ stock và xóa đúng variant khỏi cart đều hoàn tất. Nếu call xuyên service lỗi, order transaction rollback và code cố gắng hoàn stock/voucher đã thay đổi. VNPay chỉ chạy các side effect này sau callback HMAC hợp lệ; callback lặp cho order đã `CHO_XAC_NHAN` trả thành công mà không trừ lần hai. Callback sai HMAC/response/amount không chuyển trạng thái và không trừ stock/voucher/cart.
 
 Buyer chỉ được hủy khi root order và toàn bộ sub-order còn `CHO_XAC_NHAN`. Luồng hủy hoàn lại stock, tăng lại quantity voucher, chuyển root/sub-order sang `DA_HUY` và ghi history.
 
@@ -499,6 +533,8 @@ Khi một sub-order chuyển `HOAN_THANH`:
 5. Sau hold period mặc định 7 ngày, scheduler chuyển khoản đủ điều kiện sang `AVAILABLE` và dời tiền từ pending sang available.
 6. Admin tạo payout batch; receivable thành `PAID`, ví giảm available và tăng paid.
 7. Email thanh toán cho seller được gửi best-effort.
+
+Sau mỗi transition của seller, `order-service` aggregate lại root status từ toàn bộ `order_seller` và ghi `order_status_history` nếu root thay đổi. Khi seller hủy sub-order, stock của riêng sub-order được hoàn; voucher chỉ được hoàn khi không còn sibling sub-order chưa hủy. Các side effect hủy cũng có bù trừ ngược nếu bước sau thất bại.
 
 ### 6.8. Voucher, promotion và Flash Sale
 
@@ -542,6 +578,7 @@ Review:
 - Lưu cả `product_rating` và `shop_rating`.
 - Seller có thể reply review của shop mình.
 - Public có thể lấy review theo product hoặc seller.
+- `seller-service` lấy variant qua `GET /internal/catalog/product-details/{variantId}` và đồng bộ rating qua `POST /internal/catalog/products/{productId}/rating`; catalog cập nhật aggregate rating và ghi `ProductUpdated` vào outbox.
 
 Chat:
 
@@ -574,7 +611,7 @@ Nếu quyết định hoàn toàn phần/một phần, order service gọi payou
 - Receivable `AVAILABLE`: giảm available/released tương ứng.
 - Receivable `PAID`: ghi âm vào pending để bù bằng receivable tương lai.
 
-Report là luồng moderation riêng cho target `PRODUCT`, `SHOP`, `REVIEW`, `USER`. Admin có thể review rồi resolve bằng action `PRODUCT_DELISTED`, `SHOP_SUSPENDED`, `REVIEW_HIDDEN`, `WARNING_SENT` hoặc `NO_ACTION`.
+Report là luồng moderation riêng cho target `PRODUCT`, `SHOP`, `REVIEW`, `USER`. Admin review rồi resolve bằng action `PRODUCT_DELISTED`, `SHOP_SUSPENDED`, `REVIEW_HIDDEN`, `WARNING_SENT` hoặc `NO_ACTION`. Ba action moderation đầu thực sự gọi catalog/seller/review domain để delist sản phẩm, suspend shop hoặc ẩn review; `WARNING_SENT` gửi email và `NO_ACTION` đóng report ở trạng thái `DISMISSED`.
 
 ## 7. API contract hiện tại
 
@@ -585,6 +622,7 @@ Tất cả public traffic thông thường đi qua `http://localhost:8080`.
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/login-admin`
 - `PUT /api/v1/auth/register`
+- `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/change-password`
 - Admin customer: `/api/v1/admin/khach-hang/**`
 - Admin staff: `/api/v1/admin/nhan-vien/**`
@@ -629,7 +667,7 @@ Admin:
 ### 7.4. Cart, order và dispute
 
 - Buyer cart: `/api/v1/buyer/cart/**`
-- Checkout/VNPay/voucher lookup legacy: `/api/orders/**`
+- Checkout/VNPay/voucher lookup legacy: `/api/orders/**` (buyer JWT, trừ public VNPay return)
 - Buyer order: `/api/v1/buyer/orders/**`
 - Seller order/dashboard/status: `/api/v1/seller/orders/**`
 - Admin statistics: `/api/v1/admin/thong-ke/**`
@@ -648,7 +686,7 @@ Admin:
 - Public Flash Sale: `/api/v1/permitall/flash-sales/**`
 - Admin payout: `/api/v1/admin/payout/**`
 - Seller payout: `/api/v1/seller/payout/**`
-- Email REST: `POST /api/v1/notifications/email`
+- Email REST: `POST /api/v1/notifications/email` (admin qua gateway hoặc internal service credential)
 
 ### 7.6. Internal service API
 
@@ -662,7 +700,7 @@ Các prefix internal không nằm trong danh sách route tĩnh công khai của 
 - `/internal/orders/**`
 - `/internal/payout/**`
 
-Chúng phục vụ Feign giữa service và hiện dựa vào network boundary, chưa có service-to-service authentication riêng. Đồng thời gateway đang bật discovery locator; nếu không chặn route động theo service ID ở môi trường triển khai, internal path vẫn có khả năng bị truy cập qua dạng `/{service-id}/internal/**`.
+Chúng phục vụ Feign giữa service. Mỗi Feign client được `InternalServiceTokenInterceptor` gắn `X-Internal-Service-Token`; `TrustedRequestFilter` tại downstream từ chối internal request thiếu/sai credential. Gateway discovery locator đã tắt, nên dạng `/{service-id}/internal/**` trả `404` thay vì tạo route động.
 
 ## 8. Frontend hiện tại
 
@@ -725,7 +763,7 @@ Tất cả yêu cầu role `ADMIN`:
 - `/admin/nhan-vien`, `/admin/them-nhan-vien`
 - `/admin/login`
 
-FE dùng `VITE_BASE_URL_SERVER=http://localhost:8080`, lưu access token/refresh token/user info trong localStorage và gắn Bearer token qua Axios interceptor.
+FE dùng `VITE_BASE_URL_SERVER=http://localhost:8080`, lưu access token/refresh token/user info trong localStorage và gắn Bearer token qua Axios interceptor. Khi gặp `401` ngoài trang login, interceptor gọi refresh, lưu lại cả access/refresh token cùng user claims rồi retry request một lần. `.env.stage` hiện cũng trỏ backend về `8080` và client về `6688`.
 
 ## 9. Search, Kafka và observability
 
@@ -745,19 +783,18 @@ catalog transaction
 
 Payload canonical chứa product/category, attributes nested và variants nested. `ProductDeleted` dùng payload null/tombstone để xóa document.
 
-Trạng thái runtime tại thời điểm kiểm tra:
+Trạng thái trong hai lượt E2E sạch ngày 03/09/2026:
 
-- Elasticsearch `9200` đang UP.
-- Alias `products` đang trỏ `products_v2`; index có 4 document.
-- Kafka `9092` đang UP.
-- Kafka Connect REST `8084` đang DOWN, nên CDC/sink không chạy liên tục tại snapshot này.
-- Public catalog API vẫn đọc MySQL, không phụ thuộc Elasticsearch.
+- Kafka `9092`, Elasticsearch `9200` và Kafka Connect REST `8084` đều sẵn sàng; source/sink connector ở trạng thái `RUNNING`.
+- Elasticsearch single-node báo `yellow`, phù hợp với cấu hình replica của môi trường một node.
+- E2E đã chủ động dừng Kafka Connect rồi gọi public product API thành công, sau đó bật lại connector. Public catalog API vẫn đọc MySQL và không phụ thuộc Elasticsearch/Kafka Connect.
+- Đây là hạ tầng phục vụ index/search pipeline, không phải read path của storefront hiện tại.
 
 ### 9.2. Email
 
 `notification-service` hỗ trợ:
 
-- REST `POST /api/v1/notifications/email`.
+- REST `POST /api/v1/notifications/email`; admin gọi qua gateway, service nghiệp vụ gọi bằng internal credential.
 - Kafka consumer topic mặc định `email-notification`.
 
 Các luồng seller/order/payout trong source hiện gọi notification đồng bộ bằng Feign REST và đều bắt lỗi để email không rollback transaction nghiệp vụ.
@@ -767,91 +804,90 @@ Các luồng seller/order/payout trong source hiện gọi notification đồng 
 - Tất cả Spring service expose `/actuator/health`, `/actuator/info`, `/actuator/prometheus`, `/actuator/metrics`.
 - Docker Compose có Prometheus, Grafana, Filebeat, Logstash, Kibana, node-exporter và cAdvisor, nhưng không phải tất cả container đều đang chạy ở snapshot hiện tại.
 
-## 10. Trạng thái runtime đã kiểm tra ngày 27/08/2026
+## 10. Runtime và E2E gần nhất – 03/09/2026
 
-Các kiểm tra read-only đã xác nhận:
+Stack đã được dựng từ database reset sạch bằng `reset-and-run-demo.ps1`, build lại 11 module rồi chạy toàn bộ flow qua gateway. Kết quả:
 
-- FE `http://127.0.0.1:6688` trả HTTP 200.
-- Gateway `8080`, Eureka `8761` và toàn bộ service `8081/8082/8083/8085/8086/8087/8088/8089/8091` đều báo actuator `UP`.
-- Eureka có đủ 10 application backend: gateway, auth, user, catalog, promotion, cart, order, notification, seller, payout.
-- Public API products, category tree, shops, banners và Flash Sale đều trả HTTP 200 qua gateway.
-- Các process đang chạy dùng datasource `localhost:3307`, tức MySQL Docker.
-- MySQL Docker có đủ 8 schema marketplace; `ecommerce_auth` không có bảng nghiệp vụ.
+- 11/11 actuator báo `UP`: gateway, Eureka và 9 domain service.
+- Eureka có đủ 10 application: gateway, auth, user, catalog, promotion, cart, order, notification, seller và payout.
+- FE `6688` trả HTTP 200; Kafka, Elasticsearch và Kafka Connect sẵn sàng trong lượt chạy.
+- Toàn bộ nhóm flow 3.1–3.11 trong `AGENTS.md` đã chạy qua request thật và kiểm tra state DB: auth/refresh/degraded login, seller lifecycle, catalog/search/outbox, cart, COD/VNPay/compensation, order/payout, promotion/Flash Sale, social, dispute/report và admin/banner.
+- Hai lượt độc lập `CLEAN1` và `CLEAN2` sau reset sạch đều kết thúc `result=CLEAN`; health/Eureka đầu và cuối lượt đều đạt.
+- Security smoke: direct protected/internal service trả `401`, discovery route qua gateway trả `404`, anonymous notification email trả `401`.
+- Failure smoke: tắt cart-service ở cuối checkout làm request lỗi có chủ đích nhưng stock, voucher và số order không đổi sau rollback/compensation; tắt seller-service vẫn cho buyer login với duy nhất role `USERS`; tắt Kafka Connect không làm public product read path hỏng.
 
-Snapshot dữ liệu demo đã quan sát, chỉ để xác nhận liên kết luồng chứ không phải invariant:
+Snapshot DB cuối lượt `CLEAN2`, chỉ là bằng chứng kiểm thử chứ không phải invariant dữ liệu:
 
-- 3 customer, 2 staff, 3 seller.
-- 8 category, 4 product, 12 variant.
-- 2 cart, 3 cart item.
-- 5 root order, 7 sub-order, 7 order item.
-- 4 dispute.
-- 4 voucher, 4 promotion campaign.
-- 2 seller wallet, 5 receivable.
+- 15 `orders`, 19 `order_seller`.
+- 8 `seller_receivable`, 2 `payout_adjustment`.
+- 42 event catalog `outbox`, 7 `dispute`, 5 `report`.
+- `mismatched_completed_roots=0`.
+
+Trạng thái port/process sau một phiên có thể thay đổi vì script E2E có chủ động stop/start service. Vì vậy các con số trên mô tả lần full-run gần nhất, không thay cho kiểm tra actuator khi bắt đầu phiên phát triển mới.
 
 ## 11. Giới hạn và rủi ro hiện tại
 
-Đây là các giới hạn được xác minh trực tiếp từ source/config hiện tại.
+Đây là trạng thái sau khi kiểm chứng lại 10 rủi ro của snapshot cũ. “Đã fix” nghĩa là có implementation trong source và đã có assertion E2E tương ứng, không có nghĩa hệ thống đã đạt mức production ở mọi khía cạnh.
 
-### 11.1. Checkout chưa phải server-authoritative hoàn toàn
+### 11.1. Trạng thái 10 rủi ro đã biết
 
-- FE gửi `tongTien`, `phiShip`, `giamGia`, `tongCong`; backend kiểm tra không âm nhưng chưa tự tính lại toàn bộ từ catalog/promotion/shipping.
-- Backend lấy giá variant từ catalog khi ghi `order_item`, nhưng tổng root order vẫn lấy từ request.
-- Khi tạo mới, mỗi `order_seller` hiện ghi `shipping_fee=0`, `discount_amount=0`, `total_after_discount=item total`; chưa phân bổ phí ship/voucher root xuống shop.
-- Checkout chỉ nhận một mã voucher và chưa xác minh voucher shop có cùng seller với item/sub-order tương ứng.
-- `/api/orders/**` chưa nằm trong buyer authorization prefix; customer ID cũng được nhận từ body request.
-- `POST /api/v1/notifications/email` được gateway route nhưng không thuộc prefix role-protected, nên hiện có thể bị gọi công khai qua gateway.
-- GHN token, shop ID và địa chỉ gửi đang hard-code trong FE; phí ship có fallback cố định 30.000đ.
+| # | Rủi ro cũ | Trạng thái hiện tại | Bằng chứng chính |
+|---:|---|---|---|
+| 1 | Checkout tin tổng tiền client/voucher sai seller | **Đã fix** | `prepareAuthoritativeTotals`, `requireApplicableVoucher`, phân bổ ship/discount theo `order_seller`; E2E gửi số giả vẫn ghi tổng server |
+| 2 | Không có saga/compensation | **Đã bổ sung durable log + reconciliation cho COD** | `order_saga_step` lưu từng bước, retry tối đa 3 lần/request và job 15 phút; failure smoke giữ nguyên stock/voucher/order count. Chưa phải distributed saga cho VNPay và chưa có idempotency key tổng quát |
+| 3 | Root/sub-order lệch status | **Đã fix** | `aggregateRootStatus` chạy sau seller transition; CLEAN2 có `mismatched_completed_roots=0` |
+| 4 | Thiếu auth refresh | **Đã fix** | `POST /api/v1/auth/refresh`, kiểm tra `tokenType`, reload account/seller và trả cặp token mới; FE retry một lần |
+| 5 | Lệch review–catalog internal contract | **Đã fix** | Đủ hai endpoint product-detail/rating; rating update ghi outbox `ProductUpdated` |
+| 6 | Downstream/internal chỉ dựa network boundary | **Đã fix cho boundary local hiện tại** | `TrustedRequestFilter`, Feign internal credential, gateway strip header, discovery locator off; direct smoke `401`, discovery smoke `404` |
+| 7 | Suspend seller nhưng token cũ còn dùng được | **Đã fix cho seller route** | Gateway live-check seller `APPROVED` trên mỗi `/api/v1/seller/**`; token cũ sau suspend trả `403` |
+| 8 | Notification email public | **Đã fix** | Gateway yêu cầu `ADMIN`; downstream chỉ nhận gateway/internal credential; anonymous/direct smoke `401` |
+| 9 | Search pipeline không phải read path chính | **Vẫn đúng theo thiết kế hiện tại** | Public products đọc MySQL; E2E tắt Kafka Connect vẫn đọc được. Đây là giới hạn scale, không phải lỗi availability của storefront |
+| 10 | Contract/UX legacy và `.env.stage` sai | **Fix một phần** | `.env.stage` đã đúng `8080/6688`; các prefix/field/profile/cart/OAuth legacy bên dưới vẫn còn |
 
-### 11.2. Không có distributed transaction/saga cho checkout
+### 11.2. Distributed consistency và idempotency còn giới hạn
 
-MySQL transaction của `order-service` không bao phủ catalog, promotion và cart. Các thao tác trừ stock, giảm voucher, xóa cart là REST call sang service khác; lỗi giữa chừng có thể tạo partial state. Chưa có idempotency key, reservation, saga/compensation hoặc order event outbox cho luồng này.
+- COD hiện có `checkout_idempotency_key` bắt buộc ở header `Idempotency-Key`; request trùng `COMPLETED` trả lại order cũ, request trùng `IN_PROGRESS` trả `409`, và request `FAILED` có thể chạy lại. Cơ chế này chỉ áp dụng COD, không áp dụng VNPay.
+- Compensation COD đã có log durable, retry 3 lần với backoff `1s/3s/5s` trong request và reconciliation job mỗi 15 phút; sau 5 lượt job (tối đa 15 attempt tích lũy) vẫn giữ `COMPENSATION_FAILED` để retry tay qua internal endpoint.
+- Compensation vẫn là các REST call đồng bộ. Nếu stock side effect thất bại giữa một batch nhiều variant, schema hiện chỉ log ở mức step (chưa có child record theo từng variant), nên cần reconciliation/đối soát kỹ trước production.
+- COD vẫn chưa có idempotency key ở các contract khác ngoài `POST /api/orders/create`, và chưa có distributed transaction.
+- VNPay callback đã idempotent khi order ở `CHO_XAC_NHAN`, nhưng order `LUU_TAM` bị bỏ dở/sai callback chưa có scheduler expire/cleanup.
+- Tồn kho chỉ được kiểm tra khi tạo URL VNPay và chỉ trừ sau callback thành công; chưa có stock reservation trong thời gian người mua thanh toán.
+- Quy tắc “voucher đã dùng” hiện chỉ đếm order `HOAN_THANH`; cùng customer vẫn có thể tạo nhiều order chưa hoàn thành bằng một voucher nếu quantity tổng còn đủ.
 
-### 11.3. Root order và sub-order có thể lệch trạng thái
+### 11.3. Shipping và money model còn đơn giản
 
-Seller workflow chỉ update `order_seller.order_status`. Chưa có hàm aggregate trạng thái các sub-order để cập nhật lại `orders.order_status`; buyer có thể nhìn root status không phản ánh đầy đủ từng shop.
+- Backend đã authoritative nhưng phí ship hiện là một mức cấu hình `checkout.shipping-fee` mặc định 30.000đ cho toàn checkout, chưa gọi hãng vận chuyển theo từng shop/địa chỉ/cân nặng.
+- FE vẫn gọi GHN trực tiếp và đang chứa GHN token/shop ID trong source. Kết quả phí GHN chỉ mang tính hiển thị vì backend ghi đè bằng mức cấu hình.
+- Checkout chỉ hỗ trợ một voucher cho toàn root order. Việc phân bổ dùng `double` và tỷ trọng, chưa có money type/rounding policy thống nhất cho tổng nhiều seller.
 
-### 11.4. Refresh token contract chưa hoàn chỉnh
+### 11.4. Security còn việc phải làm trước production
 
-Auth phát refresh token và FE gọi `POST /api/v1/auth/refresh` khi gặp 401, nhưng `AuthController` hiện không có endpoint refresh. Khi access token hết hạn, refresh tự động sẽ thất bại rồi FE logout.
+- Gateway/internal credential là shared bearer secret qua header, chưa phải mTLS hoặc workload identity. `run-all.ps1` sinh credential ngẫu nhiên, nhưng file `.run.cmd` local vẫn chứa credential của phiên đang chạy.
+- JWT, MySQL, VNPay và GHN vẫn có default/credential development trong config hoặc FE source; phải chuyển sang secret manager/environment và rotate trước triển khai thật.
+- Access/refresh token là JWT stateless, chưa có server-side session/revocation. Refresh “rotation” trả token mới nhưng token cũ chưa bị vô hiệu ngay; buyer/admin bị khóa cũng chưa được live-check trên mọi request như seller.
+- FE lưu access/refresh token trong localStorage, nên tác động của XSS cao hơn mô hình cookie `HttpOnly`.
+- Mọi staff active đăng nhập qua `/login-admin` hiện được phát role `ADMIN`; chưa có RBAC chi tiết theo `role_type` cho từng nhóm vận hành.
+- Hai route plural `/api/v1/sellers/register-shop` và `/api/v1/sellers/my-shop` tự parse JWT ngoài gateway protected prefix nhưng chưa kiểm tra `tokenType=ACCESS` hay role `USERS`; refresh token hoặc token admin có chữ ký hợp lệ vẫn có thể đi tới logic owner.
+- `/api/v1/permitall/profile/**` còn cho đọc lịch sử và `POST` tạo/cập nhật customer bằng ID từ request mà không có buyer authorization. Đây là public-write/IDOR legacy cần ưu tiên tách sang `/api/v1/buyer/profile` và lấy owner từ JWT.
+- Các endpoint legacy `/api/orders/khach-hang/{id}` và voucher lookup nhận customer ID từ path/form. Gateway đã yêu cầu buyer JWT, nhưng controller chưa ràng buộc ID đó với `X-User-Id`, nên buyer đã đăng nhập có thể hỏi dữ liệu của ID khác.
+- Production vẫn phải chỉ expose gateway và cô lập port downstream dù direct protected/internal request hiện đã bị filter.
+- Entity `Customer` và `Staff` đã chặn serialize password hash, nhưng cần tiếp tục kiểm soát DTO/response khi thêm endpoint mới.
 
-### 11.5. Review–catalog internal contract đang lệch
+### 11.5. Search và hiệu năng
 
-`seller-service` gọi:
+- `GET /api/v1/permitall/products` tải danh sách product active từ MySQL rồi filter attribute/price, sort và phân trang trong application memory; nhiều bước còn query variants/attributes theo từng product. Cách này đúng chức năng nhưng không phù hợp catalog lớn.
+- Elasticsearch/outbox pipeline đã chạy được, nhưng chưa được dùng làm storefront read model và chưa có cơ chế fallback/read-switch chính thức.
+- Chat là REST polling/state trong MySQL, chưa có WebSocket/realtime delivery.
 
-- `GET /internal/catalog/product-details/{id}`
-- `POST /internal/catalog/products/{id}/rating`
-
-Trong `InternalCatalogController` hiện không có hai endpoint này. Vì vậy create/hide review có thể fail khi cần đọc variant hoặc đồng bộ rating product, dù các review seed/public list vẫn đọc được từ seller DB.
-
-### 11.6. Security phụ thuộc mạnh vào gateway/network boundary
-
-- Các downstream service phần lớn cấu hình `anyRequest().permitAll()`.
-- Admin/seller/buyer context ở nhiều controller được tin từ header gateway.
-- Khi gọi thẳng cổng service local, có thể bỏ qua gateway role filter hoặc giả header nếu mạng không cô lập.
-- Internal API chưa có mTLS, signed service token hoặc API key.
-- Gateway đang bật discovery locator, vì vậy cần khóa route động để không vô tình expose internal API qua service ID.
-- Secret mặc định JWT, MySQL, VNPay và credential GHN đang xuất hiện trong config/source local; không phù hợp production.
-
-Production phải chỉ expose gateway, cô lập service port và chuyển mọi secret sang secret manager/environment.
-
-### 11.7. Seller suspension không revoke token ngay lập tức
-
-Gateway tin role và `sellerId` trong JWT, không lookup seller status trên mỗi request. Token seller đã phát có thể còn dùng tới khi hết hạn 2 giờ. Chưa có blacklist/revocation hoặc live seller-status check.
-
-### 11.8. Search pipeline chưa là read path chính
-
-Outbox/Elasticsearch đã có schema, index và script deploy, nhưng Kafka Connect không chạy tại snapshot và public search vẫn scan/filter product active từ MySQL trong application memory. Với dữ liệu lớn, cách này chưa phù hợp production.
-
-### 11.9. Một số contract/UX còn mang dấu vết legacy
+### 11.6. Contract/UX legacy còn tồn tại
 
 - Xóa cart item dùng `PUT /api/v1/buyer/cart/{id}` thay vì `DELETE`.
-- Checkout dùng prefix `/api/orders` và nhiều field request tên cũ song song (`product/sanPham`, `Customer/KhachHang`).
-- Profile user vẫn nằm dưới `/permitall/profile` và nhận ID trên URL.
-- `ecommerce_auth` được cấu hình datasource nhưng auth thực tế stateless và không có entity riêng.
-- Chat dùng REST, chưa realtime WebSocket.
+- Checkout dùng prefix `/api/orders` và giữ alias field cũ (`product/sanPham/items`, `Customer/KhachHang`), dù quyền buyer và customer authority của bước tạo đơn đã được vá.
+- Profile user vẫn nằm dưới `/api/v1/permitall/profile/**`, nhận ID qua URL/body và có cả public write; đây không chỉ là naming legacy mà còn là lỗ hổng authorization còn mở.
+- `ecommerce_auth` vẫn có datasource/schema rỗng dù auth stateless và không có entity nghiệp vụ.
 - Seller profile hiện chỉ có API GET, chưa có API update hồ sơ shop.
-- Route OAuth2 được gateway/FE khai báo, nhưng source chưa có success handler/controller hoàn thiện cho luồng redirect hiện tại.
-- FE `.env.stage` đang đặt backend URL về cổng `6688`, cần rà lại trước khi build stage.
+- Gateway/FE vẫn khai báo route OAuth2, nhưng auth-service chưa có success handler/controller hoàn chỉnh cho redirect flow.
+- `.env.stage` đã được sửa đúng; đây không còn là rủi ro hiện tại.
 
 ## 12. Cách chạy và quản lý dữ liệu local
 
@@ -860,6 +896,8 @@ Chạy stack khuyến nghị với MySQL Docker:
 ```powershell
 powershell -ExecutionPolicy Bypass -File backend-microservice\run-all.ps1 -DbPort 3307 -WithNotification
 ```
+
+`run-all.ps1` build lại boot jar, sinh mới gateway/internal credential cho phiên chạy, khởi động Eureka trước rồi các domain service và gateway. MySQL Docker map host `3307` vào container `3306`; nếu bỏ `-DbPort 3307`, script dùng mặc định `3306`.
 
 Dừng backend:
 
@@ -879,6 +917,8 @@ Script sau **DROP và tạo lại toàn bộ 8 database, mất dữ liệu khôn
 ```powershell
 powershell -ExecutionPolicy Bypass -File backend-microservice\reset-and-run-demo.ps1
 ```
+
+Bộ E2E hiện có trong `backend-microservice/e2e-*-flow.ps1`. Orchestrator `e2e-full-regression.ps1` nhận label `CLEAN1` hoặc `CLEAN2`, kiểm tra health/Eureka đầu-cuối, chạy các flow phụ thuộc theo thứ tự và chủ động stop/start một số service để kiểm tra degraded mode/compensation. Chỉ chạy full clean sau khi đã chấp nhận việc reset dữ liệu.
 
 Catalog là ngoại lệ migration quan trọng:
 

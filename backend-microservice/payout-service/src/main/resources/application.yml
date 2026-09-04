@@ -1,6 +1,11 @@
 spring:
   application:
     name: payout-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: payout-service-order-events
+      auto-offset-reset: earliest
   datasource:
     url: ${PAYOUT_DATASOURCE_URL:jdbc:mysql://localhost:3306/ecommerce_payout}
     username: ${PAYOUT_DATASOURCE_USERNAME:root}
@@ -36,3 +41,6 @@ management:
 payout:
   settlement-hold-days: ${PAYOUT_SETTLEMENT_HOLD_DAYS:7}
   release-cron: ${PAYOUT_RELEASE_CRON:0 0 * * * *}
+  dlt:
+    reconciliation-delay-ms: ${PAYOUT_DLT_RECONCILIATION_DELAY_MS:60000}
+    reconciliation-group: ${PAYOUT_DLT_RECONCILIATION_GROUP:payout-service-dlt-reconciliation}

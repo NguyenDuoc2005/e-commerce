@@ -12,6 +12,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import com.ecommerce.order.service.OrderOutboxService;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -33,16 +34,25 @@ public class DisputeService {
     private final DisputeRepository disputeRepository;
     private final DisputeMessageRepository messageRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final OrderOutboxService outboxService;
     private final PayoutClient payoutClient;
     private final ObjectMapper objectMapper;
 
     public DisputeService(DisputeRepository disputeRepository, DisputeMessageRepository messageRepository,
-                          JdbcTemplate jdbcTemplate, PayoutClient payoutClient, ObjectMapper objectMapper) {
+                          JdbcTemplate jdbcTemplate, PayoutClient payoutClient, ObjectMapper objectMapper,
+                          OrderOutboxService outboxService) {
         this.disputeRepository = disputeRepository;
         this.messageRepository = messageRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.payoutClient = payoutClient;
         this.objectMapper = objectMapper;
+        this.outboxService = outboxService;
+    }
+
+    /** Compatibility constructor for legacy direct callers and unit tests. */
+    public DisputeService(DisputeRepository disputeRepository, DisputeMessageRepository messageRepository,
+                          JdbcTemplate jdbcTemplate, PayoutClient payoutClient, ObjectMapper objectMapper) {
+        this(disputeRepository, messageRepository, jdbcTemplate, payoutClient, objectMapper, null);
     }
 
     @Transactional
@@ -177,11 +187,16 @@ public class DisputeService {
                     number(order.get("totalAmount")).doubleValue()
                             - number(order.get("discountAmount")).doubleValue());
             double sellerAdjustment = Math.min(resolvedAmount, sellerFundedMaximum);
-            payoutClient.applyDisputeAdjustment(Map.of(
+            Map<String, Object> payoutEvent = Map.of(
                     "disputeId", dispute.getId(), "orderSellerId", dispute.getOrderSellerId(),
                     "sellerId", dispute.getSellerId(), "refundAmount", sellerAdjustment,
-                    "reason", request.getNote()
-            ));
+                    "resolutionType", dispute.getStatus(), "resolvedAt", Instant.now().toString(),
+                    "reason", request.getNote() == null ? "" : request.getNote());
+            if (outboxService != null) {
+                outboxService.append("Dispute", dispute.getId(), "DisputeResolved", dispute.getId(), payoutEvent);
+            } else {
+                payoutClient.applyDisputeAdjustment(payoutEvent);
+            }
         }
         dispute.setResolvedAmount(resolvedAmount);
         dispute.setResolutionNote(request.getNote());

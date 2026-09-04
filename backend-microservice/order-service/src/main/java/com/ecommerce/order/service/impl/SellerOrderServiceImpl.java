@@ -8,6 +8,7 @@ import com.ecommerce.common.catalog.CatalogVariantSnapshot;
 import com.ecommerce.order.constant.OrderStatusConstant;
 import com.ecommerce.order.repository.OrderSellerRepository;
 import com.ecommerce.order.service.SellerOrderService;
+import com.ecommerce.order.service.OrderOutboxService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,24 +30,26 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     private final NotificationClient notificationClient;
     private final CatalogClient catalogClient;
     private final PromotionClient promotionClient;
+    private final OrderOutboxService outboxService;
 
     @Autowired
     public SellerOrderServiceImpl(JdbcTemplate jdbcTemplate, OrderSellerRepository orderSellerRepository,
                                   PayoutClient payoutClient, NotificationClient notificationClient,
-                                  CatalogClient catalogClient, PromotionClient promotionClient) {
+                                  CatalogClient catalogClient, PromotionClient promotionClient, OrderOutboxService outboxService) {
         this.jdbcTemplate = jdbcTemplate;
         this.orderSellerRepository = orderSellerRepository;
         this.payoutClient = payoutClient;
         this.notificationClient = notificationClient;
         this.catalogClient = catalogClient;
         this.promotionClient = promotionClient;
+        this.outboxService = outboxService;
     }
 
     /** Backward-compatible constructor for read-only callers that do not use promotion side effects. */
     public SellerOrderServiceImpl(JdbcTemplate jdbcTemplate, OrderSellerRepository orderSellerRepository,
                                   PayoutClient payoutClient, NotificationClient notificationClient,
                                   CatalogClient catalogClient) {
-        this(jdbcTemplate, orderSellerRepository, payoutClient, notificationClient, catalogClient, null);
+        this(jdbcTemplate, orderSellerRepository, payoutClient, notificationClient, catalogClient, null, null);
     }
 
     @Override
@@ -314,7 +317,8 @@ public class SellerOrderServiceImpl implements SellerOrderService {
         payload.put("grossAmount", gross);
         payload.put("commissionLines", commissionLines(String.valueOf(order.get("id")), gross));
         payload.put("orderStatus", status);
-        payoutClient.createReceivable(payload);
+        outboxService.append("OrderSeller", String.valueOf(order.get("id")), "OrderSellerCompleted",
+                String.valueOf(order.get("id")), payload);
     }
 
     private List<Map<String, Object>> commissionLines(String orderSellerId, double gross) {

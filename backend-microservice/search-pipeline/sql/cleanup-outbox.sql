@@ -1,2 +1,0 @@
-DELETE FROM `outbox`
-WHERE `created_at` < (CURRENT_TIMESTAMP(6) - INTERVAL 7 DAY);

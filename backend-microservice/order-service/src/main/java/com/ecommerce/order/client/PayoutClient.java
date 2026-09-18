@@ -9,9 +9,6 @@ import java.util.Map;
 @FeignClient(name = "payout-service")
 public interface PayoutClient {
 
-    @PostMapping("/internal/payout/receivables")
-    Map<String, Object> createReceivable(@RequestBody Map<String, Object> request);
-
     @PostMapping("/internal/payout/dispute-adjustments")
     Map<String, Object> applyDisputeAdjustment(@RequestBody Map<String, Object> request);
 }

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
@@ -79,6 +80,36 @@ class DisputeServiceTest {
         verify(payoutClient).applyDisputeAdjustment(captor.capture());
         assertEquals("d-1", captor.getValue().get("disputeId"));
         assertEquals(250_000D, captor.getValue().get("refundAmount"));
+    }
+
+    @Test
+    void springContextUsesOutboxConstructorForRefund() {
+        OrderOutboxService outbox = mock(OrderOutboxService.class);
+        when(disputeRepository.findById("d-1")).thenReturn(Optional.of(dispute("UNDER_ADMIN_REVIEW")));
+        when(disputeRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepository.findByDisputeIdOrderByCreatedAtAsc("d-1")).thenReturn(List.of());
+        stubOrder(4);
+        ResolveDisputeRequest request = new ResolveDisputeRequest();
+        request.setDecision("PARTIAL_REFUND");
+        request.setResolvedAmount(250_000D);
+
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.registerBean(DisputeRepository.class, () -> disputeRepository);
+            context.registerBean(DisputeMessageRepository.class, () -> messageRepository);
+            context.registerBean(JdbcTemplate.class, () -> jdbcTemplate);
+            context.registerBean(PayoutClient.class, () -> payoutClient);
+            context.registerBean(ObjectMapper.class, () -> new ObjectMapper());
+            context.registerBean(OrderOutboxService.class, () -> outbox);
+            context.register(DisputeService.class);
+            context.refresh();
+
+            Map<String, Object> result = context.getBean(DisputeService.class).resolve("staff-1", "d-1", request);
+
+            assertEquals("RESOLVED_PARTIAL_REFUND", result.get("status"));
+            verify(outbox).append(eq("Dispute"), eq("d-1"), eq("DisputeResolved"), eq("d-1"),
+                    argThat(payload -> Double.valueOf(250_000D).equals(payload.get("refundAmount"))));
+            verifyNoInteractions(payoutClient);
+        }
     }
 
     @Test

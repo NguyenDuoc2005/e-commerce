@@ -146,7 +146,7 @@ public class VoucherServiceImpl implements VoucherService {
     private ResponseObject<?> changeScopedVoucherStatus(String sellerId, String id) {
         Optional<Voucher> optional = voucherRepository.findById(id);
         if (optional.isEmpty()) {
-            return ResponseObject.successForward(HttpStatus.NOT_FOUND, "Khong tim voucher");
+            return new ResponseObject<>().error(HttpStatus.NOT_FOUND, "Khong tim voucher");
         }
         Voucher voucher = optional.get();
         if (!sameScope(voucher.getSellerId(), sellerId)) {

@@ -5,7 +5,6 @@ import com.ecommerce.order.model.request.ChangeStatusRequest;
 import com.ecommerce.order.model.request.OrderDetailRequest;
 import com.ecommerce.order.model.request.OrderSearchRequest;
 import com.ecommerce.order.model.request.ProductVariantSearchRequest;
-import com.ecommerce.order.model.request.ThemProductRequest;
 import com.ecommerce.order.model.request.UpdateDeliveryRequest;
 
 import java.util.List;
@@ -27,8 +26,6 @@ public interface DonMuaService {
     ResponseObject<?> getOrderStatusHistory(String orderId);
 
     ResponseObject<?> getPaymentHistory(String orderId);
-
-    ResponseObject<?> themProduct(ThemProductRequest request);
 
     List<Map<String, Object>> getCustomerOrderHistory(String customerId);
 

@@ -16,7 +16,7 @@ Backend can chay bang source microservice trong `backend-microservice`.
   - `8080`: API Gateway.
   - `6688`: Frontend Vite.
   - `9092`: Kafka.
-  - `8090`: Kafka UI.
+  - `8094`: Kafka UI.
   - `9200`: Elasticsearch.
   - `5601`: Kibana.
   - `9090`: Prometheus.
@@ -56,7 +56,7 @@ docker compose -f backend-microservice\docker-compose.yml ps
 
 Mot so man hinh phu tro:
 
-- Kafka UI: `http://localhost:8090`
+- Kafka UI: `http://localhost:8094`
 - Elasticsearch: `http://localhost:9200`
 - Kibana: `http://localhost:5601`
 - Prometheus: `http://localhost:9090`

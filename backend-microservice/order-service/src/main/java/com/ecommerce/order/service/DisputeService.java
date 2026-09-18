@@ -10,6 +10,7 @@ import com.ecommerce.order.repository.DisputeMessageRepository;
 import com.ecommerce.order.repository.DisputeRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import com.ecommerce.order.service.OrderOutboxService;
@@ -38,6 +39,7 @@ public class DisputeService {
     private final PayoutClient payoutClient;
     private final ObjectMapper objectMapper;
 
+    @Autowired
     public DisputeService(DisputeRepository disputeRepository, DisputeMessageRepository messageRepository,
                           JdbcTemplate jdbcTemplate, PayoutClient payoutClient, ObjectMapper objectMapper,
                           OrderOutboxService outboxService) {

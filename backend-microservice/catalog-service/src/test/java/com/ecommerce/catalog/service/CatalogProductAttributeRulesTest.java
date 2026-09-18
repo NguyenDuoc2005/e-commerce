@@ -4,10 +4,15 @@ import com.ecommerce.catalog.constant.AttributeDataType;
 import com.ecommerce.catalog.constant.EntityStatus;
 import com.ecommerce.catalog.entity.Category;
 import com.ecommerce.catalog.entity.CategoryAttributeSuggestion;
+import com.ecommerce.catalog.entity.OutboxEvent;
 import com.ecommerce.catalog.entity.Product;
 import com.ecommerce.catalog.entity.ProductAttributeDefinition;
 import com.ecommerce.catalog.entity.ProductAttributeOption;
 import com.ecommerce.catalog.entity.ProductAttributeValue;
+import com.ecommerce.catalog.entity.ProductVariant;
+import com.ecommerce.catalog.entity.ProductVariantAxis;
+import com.ecommerce.catalog.entity.ProductVariantAxisValue;
+import com.ecommerce.catalog.entity.ProductVariantAxisValueMapping;
 import com.ecommerce.catalog.model.request.ProductAggregateRequest;
 import com.ecommerce.catalog.repository.CategoryAttributeSuggestionRepository;
 import com.ecommerce.catalog.repository.CategoryRepository;
@@ -23,6 +28,7 @@ import com.ecommerce.catalog.repository.ProductVariantAxisValueRepository;
 import com.ecommerce.catalog.repository.ProductVariantRepository;
 import com.ecommerce.catalog.repository.VariantAxisNameSuggestionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +37,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -257,6 +266,132 @@ class CatalogProductAttributeRulesTest {
         SecurityException error = assertThrows(SecurityException.class,
                 () -> service.update("seller-1", "other-product", request));
         assertEquals("SELLER_PRODUCT_FORBIDDEN", error.getMessage());
+    }
+
+    @Test
+    void reindexPayloadContainsMappedAttributesAndSeparateVariantSelections() throws Exception {
+        product.setStatus(EntityStatus.ACTIVE);
+        ProductAttributeValue text = attributeValue(definition("material", AttributeDataType.TEXT));
+        text.setValueText("Cotton");
+        ProductAttributeDefinition weightDefinition = definition("weight", AttributeDataType.NUMBER);
+        weightDefinition.setDefaultUnit("g");
+        ProductAttributeValue weight = attributeValue(weightDefinition);
+        weight.setValueNumber(new BigDecimal("125.50"));
+        ProductAttributeDefinition features = definition("features", AttributeDataType.SELECT_MULTI);
+        ProductAttributeValue firstOption = attributeValue(features);
+        ProductAttributeOption option = new ProductAttributeOption();
+        option.setId("old-option");
+        option.setMergedIntoOptionId("canonical-option");
+        option.setValue("Breathable");
+        firstOption.setOption(option);
+        ProductAttributeValue secondOption = attributeValue(features);
+        ProductAttributeOption otherOption = new ProductAttributeOption();
+        otherOption.setId("other-option");
+        otherOption.setValue("Washable");
+        secondOption.setOption(otherOption);
+
+        ProductVariant red = searchVariant("variant-red", "125000.50", true);
+        ProductVariant blue = searchVariant("variant-blue", "135000.50", false);
+        when(productRepository.findByStatusOrderByCreatedDateDesc(EntityStatus.ACTIVE)).thenReturn(List.of(product));
+        when(valueRepository.findByProduct_IdOrderByDisplayOrderAsc("product-1"))
+                .thenReturn(List.of(text, weight, firstOption, secondOption));
+        when(variantRepository.findByProduct_IdAndStatusOrderByCreatedDateDesc("product-1", EntityStatus.ACTIVE))
+                .thenReturn(List.of(red, blue));
+        when(mappingRepository.findByVariant_Id("variant-red")).thenReturn(List.of(
+                selection("size", "S", 1), selection("color", "Red", 0)));
+        when(mappingRepository.findByVariant_Id("variant-blue")).thenReturn(List.of(
+                selection("color", "Blue", 0), selection("size", "M", 1)));
+
+        assertEquals(1, service.reindexAll().get("enqueued"));
+
+        ArgumentCaptor<OutboxEvent> event = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxRepository).save(event.capture());
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode document = mapper.readTree(event.getValue().getPayload());
+        JsonNode properties = mapper.readTree(Files.readString(
+                Path.of("..", "search-pipeline", "elasticsearch", "products-index-mapping.json")))
+                .at("/mappings/properties");
+        assertMappedFields(document, properties);
+        assertEquals("ProductUpdated", event.getValue().getEventType());
+        assertEquals(4, document.get("attributes").size());
+        assertEquals("Cotton", document.at("/attributes/0/valueText").asText());
+        assertTrue(document.at("/attributes/1/valueNumber").isNumber());
+        assertEquals(125.50D, document.at("/attributes/1/valueNumber").asDouble());
+        assertEquals("g", document.at("/attributes/1/unit").asText());
+        assertEquals("canonical-option", document.at("/attributes/2/optionIds").asText());
+        assertEquals("Breathable", document.at("/attributes/2/optionValues").asText());
+        assertEquals("other-option", document.at("/attributes/3/optionIds").asText());
+        assertEquals(2, document.get("variants").size());
+        assertEquals("ACTIVE", document.at("/variants/0/status").asText());
+        assertEquals(125000.50D, document.at("/variants/0/salePrice").asDouble());
+        assertEquals(5, document.at("/variants/0/quantity").asInt());
+        assertTrue(document.at("/variants/0/isDefault").isBoolean());
+        assertTrue(document.at("/variants/0/isDefault").asBoolean());
+        assertEquals("Red", document.at("/variants/0/selections/0/value").asText());
+        assertEquals("S", document.at("/variants/0/selections/1/value").asText());
+        assertEquals("Blue", document.at("/variants/1/selections/0/value").asText());
+        assertEquals("M", document.at("/variants/1/selections/1/value").asText());
+    }
+
+    @Test
+    void reindexPayloadUsesEmptyArraysWhenAttributesAndVariantsAreAbsent() throws Exception {
+        product.setStatus(EntityStatus.ACTIVE);
+        when(productRepository.findByStatusOrderByCreatedDateDesc(EntityStatus.ACTIVE)).thenReturn(List.of(product));
+
+        service.reindexAll();
+
+        ArgumentCaptor<OutboxEvent> event = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxRepository).save(event.capture());
+        JsonNode document = new ObjectMapper().readTree(event.getValue().getPayload());
+        assertTrue(document.get("attributes").isArray());
+        assertTrue(document.get("attributes").isEmpty());
+        assertTrue(document.get("variants").isArray());
+        assertTrue(document.get("variants").isEmpty());
+    }
+
+    private ProductAttributeValue attributeValue(ProductAttributeDefinition definition) {
+        ProductAttributeValue value = new ProductAttributeValue();
+        value.setProduct(product);
+        value.setDefinition(definition);
+        return value;
+    }
+
+    private ProductVariant searchVariant(String id, String price, boolean defaultVariant) {
+        ProductVariant variant = new ProductVariant();
+        variant.setId(id);
+        variant.setProduct(product);
+        variant.setSku(id);
+        variant.setCombinationKey(id);
+        variant.setSalePrice(new BigDecimal(price));
+        variant.setQuantity(5);
+        variant.setDefaultVariant(defaultVariant);
+        variant.setStatus(EntityStatus.ACTIVE);
+        return variant;
+    }
+
+    private static ProductVariantAxisValueMapping selection(String axisId, String label, int order) {
+        ProductVariantAxis axis = new ProductVariantAxis();
+        axis.setId(axisId);
+        axis.setName(axisId);
+        axis.setDisplayOrder(order);
+        ProductVariantAxisValue value = new ProductVariantAxisValue();
+        value.setId(axisId + "-" + label);
+        value.setAxis(axis);
+        value.setValue(label);
+        ProductVariantAxisValueMapping mapping = new ProductVariantAxisValueMapping();
+        mapping.setAxisValue(value);
+        return mapping;
+    }
+
+    private static void assertMappedFields(JsonNode document, JsonNode properties) {
+        document.fields().forEachRemaining(field -> {
+            assertTrue(properties.has(field.getKey()), "Unmapped field: " + field.getKey());
+            JsonNode mapping = properties.get(field.getKey());
+            if ("nested".equals(mapping.path("type").asText())) {
+                assertTrue(field.getValue().isArray());
+                field.getValue().forEach(child -> assertMappedFields(child, mapping.get("properties")));
+            }
+        });
     }
 
     private static ProductAttributeDefinition definition(String id, AttributeDataType type) {

@@ -4,7 +4,6 @@ import com.ecommerce.promotion.entity.PromotionCampaign;
 import com.ecommerce.promotion.constant.CampaignType;
 import com.ecommerce.promotion.model.request.FindPromotionRequest;
 import com.ecommerce.promotion.model.response.PromotionByIdResponse;
-import com.ecommerce.promotion.model.response.PromotionByProductDetail;
 import com.ecommerce.promotion.model.response.PromotionResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

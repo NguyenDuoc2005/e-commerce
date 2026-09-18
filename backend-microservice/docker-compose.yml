@@ -3,10 +3,19 @@ services:
     image: mysql:8.4
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
+      MYSQL_DATABASE: ecommerce_catalog
     ports:
       - "3307:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./catalog-service/src/main/resources/db/migration/manual/p1_product_domain_reset.sql:/docker-entrypoint-initdb.d/10-catalog-schema.sql:ro
+    healthcheck:
+      # TCP is unavailable during the temporary init server; wait for final startup.
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysql --protocol=TCP -h127.0.0.1 -uroot --batch --skip-column-names -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -35,13 +44,19 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     volumes:
       - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:29092 >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 15s
+      retries: 20
+      start_period: 60s
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     depends_on:
       - kafka
     ports:
-      - "8090:8080"
+      - "8094:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
@@ -69,9 +84,12 @@ services:
   kafka-connect:
     build: ./kafka-connect
     depends_on:
-      - kafka
-      - mysql
-      - elasticsearch
+      kafka:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
     ports:
       - "8084:8083"
     environment:
@@ -173,6 +191,9 @@ services:
     depends_on:
       - discovery-server
     environment:
+      # Compose loads these from .env; gateway forwards credentials downstream.
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
     ports:
       - "8080:8080"
@@ -182,9 +203,14 @@ services:
       context: .
       dockerfile: auth-service/Dockerfile
     depends_on:
-      - mysql
-      - discovery-server
+      mysql:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
     environment:
+      # Required by TrustedRequestFilter, as in the other downstream services.
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       AUTH_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_auth?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       AUTH_DATASOURCE_USERNAME: root
       AUTH_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
@@ -195,9 +221,13 @@ services:
       context: .
       dockerfile: user-service/Dockerfile
     depends_on:
-      - mysql
-      - discovery-server
+      mysql:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
     environment:
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       USER_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_user?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       USER_DATASOURCE_USERNAME: root
       USER_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
@@ -208,10 +238,15 @@ services:
       context: .
       dockerfile: catalog-service/Dockerfile
     depends_on:
-      - mysql
-      - elasticsearch
-      - discovery-server
+      mysql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
+      discovery-server:
+        condition: service_started
     environment:
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       CATALOG_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_catalog?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       CATALOG_DATASOURCE_USERNAME: root
       CATALOG_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
@@ -223,9 +258,13 @@ services:
       context: .
       dockerfile: promotion-service/Dockerfile
     depends_on:
-      - mysql
-      - discovery-server
+      mysql:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
     environment:
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       PROMOTION_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_promotion?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       PROMOTION_DATASOURCE_USERNAME: root
       PROMOTION_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
@@ -236,9 +275,13 @@ services:
       context: .
       dockerfile: cart-service/Dockerfile
     depends_on:
-      - mysql
-      - discovery-server
+      mysql:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
     environment:
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       CART_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_cart?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       CART_DATASOURCE_USERNAME: root
       CART_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
@@ -249,10 +292,15 @@ services:
       context: .
       dockerfile: order-service/Dockerfile
     depends_on:
-      - mysql
-      - kafka
-      - discovery-server
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      discovery-server:
+        condition: service_started
     environment:
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       ORDER_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_order?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       ORDER_DATASOURCE_USERNAME: root
       ORDER_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
@@ -267,6 +315,8 @@ services:
       - kafka
       - discovery-server
     environment:
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
       MAIL_USERNAME: ${MAIL_USERNAME:-}
@@ -277,9 +327,13 @@ services:
       context: .
       dockerfile: seller-service/Dockerfile
     depends_on:
-      - mysql
-      - discovery-server
+      mysql:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
     environment:
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       SELLER_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_seller?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       SELLER_DATASOURCE_USERNAME: root
       SELLER_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
@@ -290,12 +344,17 @@ services:
       context: .
       dockerfile: payout-service/Dockerfile
     depends_on:
-      - mysql
-      - discovery-server
+      mysql:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
     environment:
+      SECURITY_GATEWAY_TOKEN: ${SECURITY_GATEWAY_TOKEN}
+      SECURITY_INTERNAL_SERVICE_TOKEN: ${SECURITY_INTERNAL_SERVICE_TOKEN}
       PAYOUT_DATASOURCE_URL: jdbc:mysql://mysql:3306/ecommerce_payout?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       PAYOUT_DATASOURCE_USERNAME: root
       PAYOUT_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-12345678}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EUREKA_DEFAULT_ZONE: http://discovery-server:8761/eureka
 
 volumes:

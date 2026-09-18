@@ -26,7 +26,6 @@ public class SellerOrderServiceImpl implements SellerOrderService {
 
     private final JdbcTemplate jdbcTemplate;
     private final OrderSellerRepository orderSellerRepository;
-    private final PayoutClient payoutClient;
     private final NotificationClient notificationClient;
     private final CatalogClient catalogClient;
     private final PromotionClient promotionClient;
@@ -38,7 +37,6 @@ public class SellerOrderServiceImpl implements SellerOrderService {
                                   CatalogClient catalogClient, PromotionClient promotionClient, OrderOutboxService outboxService) {
         this.jdbcTemplate = jdbcTemplate;
         this.orderSellerRepository = orderSellerRepository;
-        this.payoutClient = payoutClient;
         this.notificationClient = notificationClient;
         this.catalogClient = catalogClient;
         this.promotionClient = promotionClient;

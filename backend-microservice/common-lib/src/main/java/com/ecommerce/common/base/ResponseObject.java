@@ -72,13 +72,6 @@ public class ResponseObject<T> {
         }
     }
 
-    public ResponseObject<T> success(T obj, String message) {
-        processResponseObject(obj);
-        this.status = HttpStatus.OK;
-        this.message = message;
-        return this;
-    }
-
     public ResponseObject<T> success(String message) {
         this.isSuccess = true;
         this.status = HttpStatus.OK;
@@ -101,11 +94,4 @@ public class ResponseObject<T> {
         return responseObject;
     }
 
-    public static <T> ResponseObject<T> errorForward(String message, HttpStatus status) {
-        ResponseObject<T> responseObject = new ResponseObject<>();
-        responseObject.setSuccess(false);
-        responseObject.setStatus(status);
-        responseObject.setMessage(message);
-        return responseObject;
-    }
 }

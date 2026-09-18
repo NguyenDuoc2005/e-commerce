@@ -801,6 +801,10 @@ public class CatalogProductService {
         document.put("imageUrl", images.isEmpty() ? null : images.get(0).getUrl());
         document.put("ratingAverage", product.getRatingAverage());
         document.put("ratingCount", product.getRatingCount());
+        document.put("attributes", searchAttributeMaps(product.getId()));
+        document.put("variants", variantRepository
+                .findByProduct_IdAndStatusOrderByCreatedDateDesc(product.getId(), EntityStatus.ACTIVE)
+                .stream().map(this::variantMap).toList());
         return document;
     }
 

@@ -10,7 +10,6 @@ import com.ecommerce.order.model.request.ChangeStatusRequest;
 import com.ecommerce.order.model.request.OrderDetailRequest;
 import com.ecommerce.order.model.request.OrderSearchRequest;
 import com.ecommerce.order.model.request.ProductVariantSearchRequest;
-import com.ecommerce.order.model.request.ThemProductRequest;
 import com.ecommerce.order.model.request.UpdateDeliveryRequest;
 import com.ecommerce.order.service.DonMuaService;
 import org.springframework.http.HttpStatus;
@@ -24,8 +23,6 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class DonMuaServiceImpl implements DonMuaService {
@@ -385,43 +382,6 @@ public class DonMuaServiceImpl implements DonMuaService {
         return new ResponseObject<>(rows, HttpStatus.OK, "Lay lich su thanh toan don hang thanh cong");
     }
 
-    @Override
-    @Transactional
-    public ResponseObject<?> themProduct(ThemProductRequest request) {
-        CatalogVariantSnapshot product = catalogClient.getProductVariant(request.getIdSP());
-        List<Map<String, Object>> existing = jdbcTemplate.queryForList("""
-                SELECT id, quantity, sale_price
-                FROM order_item
-                WHERE order_id = ? AND product_variant_id = ?
-                ORDER BY created_date DESC
-                """, request.getIdHD(), request.getIdSP());
-        int stock = product.quantity();
-        double currentPrice = product.salePrice().doubleValue();
-        if (existing.isEmpty()) {
-            if (stock < 1) {
-                return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
-            }
-            insertOrderItem(request.getIdHD(), request.getIdSP(), currentPrice, 1);
-            return new ResponseObject<>(null, HttpStatus.OK, "them san pham thanh cong");
-        }
-
-        Map<String, Object> detail = existing.get(0);
-        double oldPrice = doubleValue(detail.get("sale_price"));
-        if (Math.abs(oldPrice - currentPrice) > 0.0001D) {
-            if (stock < 1) {
-                return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
-            }
-            insertOrderItem(request.getIdHD(), request.getIdSP(), currentPrice, 1);
-            return new ResponseObject<>(null, HttpStatus.OK, "San pham nay dang duoc thay doi gia tu " + oldPrice + "d thanh " + currentPrice);
-        }
-        int nextQuantity = intValue(detail.get("quantity")) + 1;
-        if (stock < nextQuantity) {
-            return new ResponseObject<>(null, HttpStatus.OK, "So luong san pham them vao nhieu hon so luong trong kho");
-        }
-        jdbcTemplate.update("UPDATE order_item SET quantity = ? WHERE id = ?", nextQuantity, detail.get("id"));
-        return new ResponseObject<>(null, HttpStatus.OK, "them san pham");
-    }
-
     private Map<OrderStatusConstant, Long> countOnlineByStatus(String q) {
         Map<OrderStatusConstant, Long> result = new LinkedHashMap<>();
         jdbcTemplate.query("""
@@ -447,13 +407,6 @@ public class DonMuaServiceImpl implements DonMuaService {
                 """, (RowCallbackHandler) rs ->
                 result.put(OrderStatusConstant.values()[rs.getInt("order_status")], rs.getLong("total")), code, LUU_TAM);
         return result;
-    }
-
-    private void insertOrderItem(String hoaDonId, String productVariantId, double price, int quantity) {
-        jdbcTemplate.update("""
-                INSERT INTO order_item (id, status, created_date, code, quantity, sale_price, product_variant_id, order_id)
-                VALUES (?, 0, ?, ?, ?, ?, ?, ?)
-                """, UUID.randomUUID().toString(), System.currentTimeMillis(), generateCodeOrderItem(), quantity, price, productVariantId, hoaDonId);
     }
 
     private List<Map<String, Object>> enrichOrderRows(List<Map<String, Object>> rows) {
@@ -518,15 +471,6 @@ public class DonMuaServiceImpl implements DonMuaService {
         return value == null ? null : BigDecimal.valueOf(value);
     }
 
-    private static Object firstNonNull(Object... values) {
-        for (Object value : values) {
-            if (value != null) {
-                return value;
-            }
-        }
-        return null;
-    }
-
     private static List<Map<String, Object>> slice(List<Map<String, Object>> rows, int offset, int size) {
         if (offset >= rows.size()) {
             return List.of();
@@ -563,7 +507,4 @@ public class DonMuaServiceImpl implements DonMuaService {
         return String.valueOf(value);
     }
 
-    private static String generateCodeOrderItem() {
-        return "HDCT" + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
-    }
 }

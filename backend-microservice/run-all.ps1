@@ -5,7 +5,8 @@ param(
     [string]$DbPassword = "12345678",
     [int]$MaxHeapMb = 320,
     [int]$MaxMetaspaceMb = 192,
-    [switch]$WithNotification
+    [switch]$WithNotification,
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,11 +74,15 @@ if ($WithNotification) {
     $modules += "notification-service"
 }
 
-$bootJarTasks = $modules | ForEach-Object { ":${_}:bootJar" }
-Write-Host "Building service boot jars sequentially..."
-& $gradle -p $projectDir @bootJarTasks "--no-daemon" "--max-workers=1"
-if ($LASTEXITCODE -ne 0) {
-    throw "Backend bootJar build failed with exit code $LASTEXITCODE"
+if (-not $SkipBuild) {
+    $bootJarTasks = $modules | ForEach-Object { ":${_}:bootJar" }
+    Write-Host "Building service boot jars sequentially..."
+    & $gradle -p $projectDir @bootJarTasks "--no-daemon" "--max-workers=1"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Backend bootJar build failed with exit code $LASTEXITCODE"
+    }
+} else {
+    Write-Host "Using boot jars built by the calling Gradle task."
 }
 
 function Start-ServiceProcess {
@@ -88,7 +93,8 @@ function Start-ServiceProcess {
     )
 
     $envCommands = @(
-        'set "EUREKA_DEFAULT_ZONE=http://localhost:8761/eureka"'
+        'set "EUREKA_DEFAULT_ZONE=http://localhost:8761/eureka"',
+        'set "SPRING_PROFILES_ACTIVE=local"'
     )
 
     foreach ($entry in $Env.GetEnumerator()) {
@@ -123,21 +129,9 @@ $($envCommands -join "`r`n")
     Write-Host "Started $Name, pid: $($process.Id), log: $outLogFile"
 }
 
-function New-ServiceCredential {
-    $bytes = New-Object byte[] 32
-    $generator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-    try {
-        $generator.GetBytes($bytes)
-    } finally {
-        $generator.Dispose()
-    }
-    return [Convert]::ToBase64String($bytes)
-}
-
-$securityEnv = @{
-    SECURITY_GATEWAY_TOKEN = New-ServiceCredential
-    SECURITY_INTERNAL_SERVICE_TOKEN = New-ServiceCredential
-}
+# The explicit local profile provides shared, non-production service credentials.
+# A developer may still override either value in the parent process environment.
+$securityEnv = @{}
 
 $jdbcOptions = "createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
 $authJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_auth`?$jdbcOptions"
@@ -149,8 +143,6 @@ $orderJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_order`?$jdbcOptions"
 $sellerJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_seller`?$jdbcOptions"
 $payoutJdbc = "jdbc:mysql://$DbHost`:$DbPort/ecommerce_payout`?$jdbcOptions"
 $dbEnv = @{
-    SECURITY_GATEWAY_TOKEN = $securityEnv.SECURITY_GATEWAY_TOKEN
-    SECURITY_INTERNAL_SERVICE_TOKEN = $securityEnv.SECURITY_INTERNAL_SERVICE_TOKEN
     AUTH_DATASOURCE_URL = $authJdbc
     AUTH_DATASOURCE_USERNAME = $DbUser
     AUTH_DATASOURCE_PASSWORD = $DbPassword
@@ -192,8 +184,6 @@ Start-ServiceProcess "payout-service" "payout-service" $dbEnv
 if ($WithNotification) {
     Start-ServiceProcess "notification-service" "notification-service" @{
         KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
-        SECURITY_GATEWAY_TOKEN = $securityEnv.SECURITY_GATEWAY_TOKEN
-        SECURITY_INTERNAL_SERVICE_TOKEN = $securityEnv.SECURITY_INTERNAL_SERVICE_TOKEN
     }
 }
 

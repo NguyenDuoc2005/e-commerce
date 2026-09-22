@@ -1,0 +1,5 @@
+spring:
+  config:
+    import: classpath:application-common-local.yml
+  datasource:
+    url: ${SELLER_DATASOURCE_URL:jdbc:mysql://localhost:3307/ecommerce_seller?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}

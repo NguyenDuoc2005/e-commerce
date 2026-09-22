@@ -1,0 +1,12 @@
+# Shared configuration for the explicit "local" Spring profile only.
+# These credentials protect processes on a developer machine; production and
+# Docker Compose must continue to provide their own environment variables.
+security:
+  gateway-token: ${SECURITY_GATEWAY_TOKEN:local-dev-gateway-token}
+  internal-service-token: ${SECURITY_INTERNAL_SERVICE_TOKEN:local-dev-internal-service-token}
+
+eureka:
+  client:
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka}

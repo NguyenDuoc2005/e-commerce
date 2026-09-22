@@ -63,9 +63,9 @@ as actual credentials. Shell environment variables with the same names override
 the values in `.env`; unset them first if you intend to use the file's values.
 
 `TrustedRequestFilter` requires both values to be nonblank, with no additional
-length or encoding constraint. The example uses the same secure 32-byte Base64
-generation method as `run-all.ps1`. The two launch modes can use different
-credentials; all containers within one Compose deployment must receive the same
+length or encoding constraint. Docker Compose uses the secure 32-byte Base64
+values from `.env`. The local JVM runner uses the explicit `local` Spring
+profile instead; all processes within one launch mode must receive the same
 pair. The nine downstream services (auth, user, catalog, promotion, cart, order,
 notification, seller and payout) use the filter. API gateway also needs the pair
 to forward trusted gateway/internal requests; discovery and infrastructure do
@@ -85,6 +85,46 @@ Wait for all 11 backend applications to report `UP` and for the 10 clients to
 register with Eureka. `Up` in `docker compose ps` alone is not proof of
 application readiness; not every container declares a Docker healthcheck.
 This command does not seed demo accounts or product data.
+
+## Run or debug one service locally
+
+Local Java development uses the explicit `local` Spring profile. It imports
+shared service credentials and Eureka settings from
+`common-lib/src/main/resources/application-common-local.yml`. Each database
+service has its own `application-local.yml`, which points at the Docker MySQL
+host port `3307`. The normal `application.yml` files remain production-safe and
+still require credentials from the environment.
+
+Shared IntelliJ configurations are committed under the repository `.run/`
+directory. Reload the Gradle project, select a configuration named
+`Local - <Service>`, and use Run or Debug. Start `Local - Discovery Server`
+when the service must register with Eureka or receive traffic through the
+gateway. A service can be started without Eureka by overriding
+`EUREKA_CLIENT_ENABLED=false` in that run configuration.
+
+Gradle `JavaExec` development tasks also default to the `local` profile. This
+means IntelliJ's green Run/Debug action on an application `main()` method works
+even when IntelliJ delegates execution to Gradle. An explicitly supplied
+profile always takes precedence.
+
+Use the shared `Local - All Backend` IntelliJ configuration to build the boot
+jars, start the required Docker infrastructure, initialize missing databases,
+and launch Eureka, all services, then the gateway in dependency order. The
+processes continue in the background after the Gradle task reports that the
+backend is ready. Use `Local - Stop All Backend` to stop those Java processes;
+Docker infrastructure is intentionally preserved.
+
+The same profile works from a terminal:
+
+```powershell
+.\gradlew.bat :catalog-service:bootRun --args="--spring.profiles.active=local"
+```
+
+Start only the infrastructure required by the selected service. Database
+services need MySQL; catalog also uses Elasticsearch; order, payout and
+notification use Kafka. `run-all.ps1` activates the same local profile, so a
+service launched by the runner can be stopped and replaced by its IntelliJ
+debug configuration without changing trusted-service credentials.
 
 On a fresh MySQL volume, Compose creates `ecommerce_catalog` and loads the
 canonical `catalog-service/src/main/resources/db/migration/manual/p1_product_domain_reset.sql`

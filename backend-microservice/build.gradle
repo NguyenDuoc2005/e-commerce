@@ -12,6 +12,37 @@ ext {
     springCloudVersion = '2024.0.1'
 }
 
+def localBackendModules = [
+        'discovery-server',
+        'auth-service',
+        'user-service',
+        'catalog-service',
+        'promotion-service',
+        'cart-service',
+        'order-service',
+        'seller-service',
+        'payout-service',
+        'api-gateway',
+        'notification-service'
+]
+
+tasks.register('startLocalBackend', Exec) {
+    group = 'local development'
+    description = 'Builds and starts the complete local backend in dependency order.'
+    dependsOn localBackendModules.collect { ":${it}:bootJar" }
+    workingDir rootDir.parentFile
+    commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+            '-File', file('start-backend.ps1').absolutePath, '-SkipBuild'
+}
+
+tasks.register('stopLocalBackend', Exec) {
+    group = 'local development'
+    description = 'Stops all Java services started by the local backend runner.'
+    workingDir rootDir.parentFile
+    commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+            '-File', file('stop-all.ps1').absolutePath
+}
+
 subprojects {
     apply plugin: 'java'
     apply plugin: 'io.spring.dependency-management'
@@ -54,6 +85,17 @@ subprojects {
 
     tasks.named('test') {
         useJUnitPlatform()
+    }
+
+    // Gradle bootRun and IntelliJ's delegated "main()" tasks are local
+    // development entry points. Give them the local profile by default so a
+    // developer can Run/Debug any service directly. Explicit CLI arguments,
+    // JVM properties, or environment variables still override this default.
+    tasks.withType(JavaExec).configureEach {
+        if (!System.getenv('SPRING_PROFILES_ACTIVE') &&
+                !System.getProperty('spring.profiles.active')) {
+            systemProperty 'spring.profiles.active', 'local'
+        }
     }
 }
 

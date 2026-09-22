@@ -1,0 +1,5 @@
+spring:
+  config:
+    import: classpath:application-common-local.yml
+  datasource:
+    url: ${PROMOTION_DATASOURCE_URL:jdbc:mysql://localhost:3307/ecommerce_promotion?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}

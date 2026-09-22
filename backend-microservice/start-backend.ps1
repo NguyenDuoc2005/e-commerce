@@ -1,7 +1,8 @@
 param(
     [string]$RootPassword = "12345678",
     [int]$DockerStartupTimeoutSeconds = 180,
-    [int]$ServiceStartupTimeoutSeconds = 240
+    [int]$ServiceStartupTimeoutSeconds = 240,
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -134,7 +135,16 @@ Write-Host "Stopping previous backend processes..."
 & $stopScript
 
 Write-Host "Building and starting all backend services..."
-& $runScript -DbHost "localhost" -DbPort 3307 -DbPassword $RootPassword -WithNotification
+$runArguments = @{
+    DbHost = "localhost"
+    DbPort = 3307
+    DbPassword = $RootPassword
+    WithNotification = $true
+}
+if ($SkipBuild) {
+    $runArguments.SkipBuild = $true
+}
+& $runScript @runArguments
 
 $healthEndpoints = [ordered]@{
     discovery    = "http://127.0.0.1:8761/actuator/health"

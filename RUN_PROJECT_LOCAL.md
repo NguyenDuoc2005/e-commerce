@@ -132,6 +132,42 @@ Runner se start cac service:
 - `cart-service`
 - `order-service`
 
+### Chay va debug tung service trong IntelliJ
+
+Repo co san cac shared Run Configuration trong thu muc `.run`. Sau khi reload
+Gradle project, chon `Local - Discovery Server`, `Local - Catalog Service`,
+`Local - API Gateway`, ... tren thanh Run/Debug cua IntelliJ.
+
+Moi configuration tu kich hoat Spring profile `local`. Profile nay cung cap
+hai service token dung chung, Eureka URL va datasource MySQL Docker port `3307`.
+Khong can copy token vao tung configuration va khong can build `common-lib`
+rieng.
+
+Nut Run/Debug mau xanh ngay tren ham `main()` cung duoc Gradle mac dinh kich
+hoat profile `local`. Neu log van hien `No active profile set`, reload Gradle
+project roi chay lai.
+
+Muon bat toan bo backend bang mot nut, chon `Local - All Backend` va bam Run.
+Configuration nay build boot jar, bat Docker infrastructure, tao database con
+thieu, sau do chay Eureka, cac service va gateway theo dung thu tu. Khi muon
+dung cac tien trinh Java, chay `Local - Stop All Backend`; cac container ha tang va
+du lieu Docker van duoc giu lai.
+
+- Debug truc tiep mot service: chay infrastructure cua no, sau do Debug
+  `Local - <Service>`.
+- Debug qua dung luong FE/gateway: chay them `Local - Discovery Server` va
+  `Local - API Gateway`.
+- Khong dung Eureka: them environment variable
+  `EUREKA_CLIENT_ENABLED=false` vao configuration dang debug.
+
+Infrastructure toi thieu theo nhom:
+
+- Cac service co database: MySQL.
+- `catalog-service`: MySQL va Elasticsearch.
+- `order-service`, `payout-service`, `notification-service`: Kafka.
+- `api-gateway`: Eureka va service dich neu muon goi route; route cua service
+  dang tat se tra `503`, gateway van khoi dong binh thuong.
+
 Log nam trong:
 
 ```powershell

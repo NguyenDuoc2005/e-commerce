@@ -87,7 +87,9 @@
               </a-form-item>
               <a-form-item v-else label="Chọn hoặc nhập mới">
                 <a-select v-model:value="attribute.selectedTokens" :mode="attribute.dataType === 'SELECT_MULTI' ? 'tags' : 'tags'"
-                  :max-count="attribute.dataType === 'SELECT_ONE' ? 1 : undefined" :options="attribute.options.map(option => ({ value: option.id, label: option.value }))" />
+                  :max-count="attribute.dataType === 'SELECT_ONE' ? 1 : undefined"
+                  :options="attribute.options.map(option => ({ value: option.id, label: option.value }))"
+                  @change="tokens => updateSelectedTokens(attribute, tokens)" />
               </a-form-item>
               <a-button v-if="!attribute.required" danger class="remove-button" @click="attributes.splice(index, 1)">Xóa</a-button>
             </div>
@@ -431,6 +433,11 @@ const openEdit = async (id: string) => {
 const hasAttributeValue = (row: AttributeRow) => row.dataType === 'TEXT' ? Boolean(row.valueText?.trim())
   : row.dataType === 'NUMBER' ? row.valueNumber != null : row.selectedTokens.length > 0
 
+const updateSelectedTokens = (row: AttributeRow, tokens: string[]) => {
+  const cleanTokens = [...new Set(tokens.filter(token => token?.trim()))]
+  row.selectedTokens = row.dataType === 'SELECT_ONE' ? cleanTokens.slice(-1) : cleanTokens
+}
+
 const buildPayload = (): ProductAggregatePayload => {
   if (matrixDirty.value) generateMatrix()
   const optionIds = (row: AttributeRow) => new Set(row.options.map(option => option.id))
@@ -442,8 +449,10 @@ const buildPayload = (): ProductAggregatePayload => {
       valueText: row.dataType === 'TEXT' ? row.valueText?.trim() : undefined,
       valueNumber: row.dataType === 'NUMBER' ? row.valueNumber : undefined,
       unit: row.dataType === 'NUMBER' ? row.unit?.trim() || undefined : undefined,
-      selectedOptionIds: row.selectedTokens.filter(token => optionIds(row).has(token)),
-      selectedOptionValues: row.selectedTokens.filter(token => !optionIds(row).has(token)), displayOrder: index + 1
+      selectedOptionIds: (row.dataType === 'SELECT_ONE' ? row.selectedTokens.slice(-1) : row.selectedTokens)
+        .filter(token => optionIds(row).has(token)),
+      selectedOptionValues: (row.dataType === 'SELECT_ONE' ? row.selectedTokens.slice(-1) : row.selectedTokens)
+        .filter(token => !optionIds(row).has(token)), displayOrder: index + 1
     })),
     variantAxes: axes.value.map((axis, axisIndex) => ({
       id: axis.id, clientKey: axis.clientKey, name: axis.name.trim(), nameSuggestionId: axis.nameSuggestionId, displayOrder: axisIndex + 1,

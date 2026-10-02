@@ -799,8 +799,9 @@ public class CatalogProductService {
         List<ProductImage> images = imageRepository.findByProduct_IdAndStatusOrderByDisplayOrderAsc(
                 product.getId(), EntityStatus.ACTIVE);
         document.put("imageUrl", images.isEmpty() ? null : images.get(0).getUrl());
-        document.put("ratingAverage", product.getRatingAverage());
+        document.put("ratingAverage", decimalText(product.getRatingAverage()));
         document.put("ratingCount", product.getRatingCount());
+        document.put("createdAt", product.getCreatedDate() == null ? 0L : product.getCreatedDate());
         document.put("attributes", searchAttributeMaps(product.getId()));
         document.put("variants", variantRepository
                 .findByProduct_IdAndStatusOrderByCreatedDateDesc(product.getId(), EntityStatus.ACTIVE)
@@ -830,7 +831,7 @@ public class CatalogProductService {
         searchAttribute.put("name", attribute.get("name"));
         searchAttribute.put("dataType", attribute.get("dataType"));
         searchAttribute.put("valueText", attribute.get("valueText"));
-        searchAttribute.put("valueNumber", attribute.get("valueNumber"));
+        searchAttribute.put("valueNumber", decimalText((BigDecimal) attribute.get("valueNumber")));
         searchAttribute.put("unit", attribute.get("unit"));
         searchAttribute.put("optionIds", option == null ? null : option.get("resolvedOptionId"));
         searchAttribute.put("optionValues", option == null ? null : option.get("value"));
@@ -862,7 +863,7 @@ public class CatalogProductService {
         map.put("id", variant.getId());
         map.put("sku", variant.getSku());
         map.put("combinationKey", variant.getCombinationKey());
-        map.put("salePrice", variant.getSalePrice());
+        map.put("salePrice", decimalText(variant.getSalePrice()));
         map.put("quantity", variant.getQuantity());
         map.put("imageUrl", variant.getImageUrl());
         map.put("isDefault", variant.isDefaultVariant());
@@ -1004,6 +1005,7 @@ public class CatalogProductService {
 
     private static String safeQuery(String q) { return q == null ? "" : q.trim(); }
     private static String blankToNull(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private static String decimalText(BigDecimal value) { return value == null ? null : value.toPlainString(); }
     private static void requireSeller(String sellerId) {
         if (sellerId == null || sellerId.isBlank()) throw new SecurityException("SELLER_ID_REQUIRED");
     }

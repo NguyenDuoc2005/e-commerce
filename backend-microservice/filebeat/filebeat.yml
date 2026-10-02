@@ -1,10 +1,27 @@
 filebeat.inputs:
-  - type: container
+  - type: filestream
+    id: docker-container-logs
     paths:
       - '/var/lib/docker/containers/*/*.log'
+    parsers:
+      - container:
+          stream: all
+          format: docker
+    prospector.scanner.fingerprint.enabled: true
+    prospector.scanner.fingerprint.offset: 0
+    prospector.scanner.fingerprint.length: 1024
+    file_identity.fingerprint: ~
 
 processors:
   - add_docker_metadata: ~
 
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 5s
+
 output.logstash:
   hosts: ["logstash:5044"]
+  loadbalance: true
+  worker: 2
+  compression_level: 3

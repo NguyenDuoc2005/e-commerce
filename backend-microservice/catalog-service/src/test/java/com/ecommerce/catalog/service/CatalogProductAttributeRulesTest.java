@@ -291,7 +291,7 @@ class CatalogProductAttributeRulesTest {
         secondOption.setOption(otherOption);
 
         ProductVariant red = searchVariant("variant-red", "125000.50", true);
-        ProductVariant blue = searchVariant("variant-blue", "135000.50", false);
+        ProductVariant blue = searchVariant("variant-blue", "135000", false);
         when(productRepository.findByStatusOrderByCreatedDateDesc(EntityStatus.ACTIVE)).thenReturn(List.of(product));
         when(valueRepository.findByProduct_IdOrderByDisplayOrderAsc("product-1"))
                 .thenReturn(List.of(text, weight, firstOption, secondOption));
@@ -315,15 +315,19 @@ class CatalogProductAttributeRulesTest {
         assertEquals("ProductUpdated", event.getValue().getEventType());
         assertEquals(4, document.get("attributes").size());
         assertEquals("Cotton", document.at("/attributes/0/valueText").asText());
-        assertTrue(document.at("/attributes/1/valueNumber").isNumber());
-        assertEquals(125.50D, document.at("/attributes/1/valueNumber").asDouble());
+        assertTrue(document.at("/attributes/1/valueNumber").isTextual());
+        assertEquals("125.50", document.at("/attributes/1/valueNumber").asText());
         assertEquals("g", document.at("/attributes/1/unit").asText());
         assertEquals("canonical-option", document.at("/attributes/2/optionIds").asText());
         assertEquals("Breathable", document.at("/attributes/2/optionValues").asText());
         assertEquals("other-option", document.at("/attributes/3/optionIds").asText());
         assertEquals(2, document.get("variants").size());
         assertEquals("ACTIVE", document.at("/variants/0/status").asText());
-        assertEquals(125000.50D, document.at("/variants/0/salePrice").asDouble());
+        assertTrue(document.at("/variants/0/salePrice").isTextual());
+        assertEquals("125000.50", document.at("/variants/0/salePrice").asText());
+        assertTrue(document.at("/variants/1/salePrice").isTextual());
+        assertEquals("135000", document.at("/variants/1/salePrice").asText());
+        assertEquals(0L, document.get("createdAt").asLong());
         assertEquals(5, document.at("/variants/0/quantity").asInt());
         assertTrue(document.at("/variants/0/isDefault").isBoolean());
         assertTrue(document.at("/variants/0/isDefault").asBoolean());

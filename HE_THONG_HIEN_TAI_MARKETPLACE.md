@@ -417,7 +417,15 @@ Thuộc tính mô tả và trục biến thể là hai khái niệm khác nhau:
 - Shop public chỉ trả seller `APPROVED`, rating/follower và sold count lấy từ order completed.
 - Giá/discount campaign được quản lý trong promotion service; public product read path hiện không tự ghép giá khuyến mại từ Elasticsearch.
 
-Read path hiện tại của `GET /api/v1/permitall/products` là MySQL/JPA rồi filter/sort trong `catalog-service`; API này chưa truy vấn Elasticsearch.
+Phase 1 Elasticsearch storefront read path ngày 23/09/2026 giữ hai API song song:
+
+- `GET /api/v1/permitall/products`: API legacy vẫn đọc MySQL/JPA rồi filter/sort trong `catalog-service`; đây cũng là đường rollback/đối chiếu trong Phase 1.
+- `GET /api/v1/permitall/products/search`: API mới query trực tiếp alias Elasticsearch `products`, hỗ trợ `q`, `categoryId`, `sellerId`, `minPrice`, `maxPrice`, `page`, `size` và sort `relevance/newest/price_asc/price_desc/rating_desc`.
+- Product detail, cart và checkout vẫn đọc/xác nhận từ MySQL; dữ liệu search không được dùng làm nguồn giá hoặc tồn kho để tính tiền.
+- API search không fallback âm thầm sang MySQL. Elasticsearch lỗi được trả `503 PRODUCT_SEARCH_TEMPORARILY_UNAVAILABLE`.
+- Phase 3 ngày 24/09/2026 dùng PIT + `search_after`: request đầu mở snapshot, `nextCursor` giữ `pitId`, sort values, sort name và thời điểm phát hành; request sau gia hạn PIT 2 phút. Trang cuối đóng PIT, FE đóng chủ động khi đổi search session/rời trang, PIT bỏ quên tự hết hạn.
+- Search hỗ trợ analyzer tiếng Việt có/không dấu, fuzzy có giới hạn, highlight, autocomplete field riêng và single-select facet cho category, shop (`sellerId`), khoảng giá, màu, size. Mỗi facet bỏ filter của chính nó nhưng giữ keyword và các filter khác.
+- Metrics mới qua Actuator/Prometheus: `catalog.search.elasticsearch.latency`, `catalog.search.errors`, `catalog.search.zero_results`.
 
 ### 6.5. Giỏ hàng
 
@@ -633,6 +641,8 @@ Tất cả public traffic thông thường đi qua `http://localhost:8080`.
 Public:
 
 - `GET /api/v1/permitall/products`
+- `GET /api/v1/permitall/products/search`
+- `GET /api/v1/permitall/products/search/autocomplete`
 - `GET /api/v1/permitall/products/{id}`
 - `GET /api/v1/permitall/categories/tree`
 - `GET /api/v1/permitall/categories/{categoryId}/attribute-suggestions`
@@ -718,6 +728,8 @@ Public:
 - `/lien-he`, `/gioi-thieu`
 - `/login`, `/register`
 
+Trang `/san-pham` đã nối với `GET /api/v1/permitall/products/search` ở Phase 2 và được nâng cấp ở Phase 3. Keyword, category, seller, khoảng giá, màu, size, sort, page/cursor được đồng bộ vào URL để refresh/back/forward giữ nguyên trạng thái. Keyword debounce 400 ms; autocomplete debounce 250 ms; request trước bị hủy và có sequence guard để response cũ không ghi đè response mới. Trang render highlight qua DOMPurify, hiển thị single-select facets, loading, empty, error/retry và thông báo riêng khi search API trả `503`. Shop label không có N+1: `FilterBox` gọi một lần API danh sách, còn `ProductsView` gom unique sellerId từ items và shop facet rồi gọi một request batch `shops/by-ids`. Product detail, cart và checkout vẫn dùng luồng MySQL hiện tại.
+
 Yêu cầu role `USERS`:
 
 - `/dang-ky-ban-hang`
@@ -778,17 +790,71 @@ catalog transaction
   -> Debezium Outbox Event Router
   -> Kafka topic outbox.event.Product
   -> Elasticsearch sink
-  -> products alias / products_v2
+  -> products alias / products_v3 (products_v2 được giữ để rollback)
 ```
 
-Payload canonical chứa product/category, attributes nested và variants nested. `ProductDeleted` dùng payload null/tombstone để xóa document.
+Payload canonical chứa product/category, attributes nested và variants nested. Các giá trị decimal trong payload được ghi dưới dạng chuỗi thập phân ổn định để Debezium JSON expansion không suy luận lẫn `INT32`/`Double`; mapping Elasticsearch vẫn index các field này theo kiểu số. `ProductDeleted` dùng payload null/tombstone với mục tiêu xóa document.
 
-Trạng thái trong hai lượt E2E sạch ngày 03/09/2026:
+Phase 1 storefront search dùng chính read model này:
 
-- Kafka `9092`, Elasticsearch `9200` và Kafka Connect REST `8084` đều sẵn sàng; source/sink connector ở trạng thái `RUNNING`.
-- Elasticsearch single-node báo `yellow`, phù hợp với cấu hình replica của môi trường một node.
-- E2E đã chủ động dừng Kafka Connect rồi gọi public product API thành công, sau đó bật lại connector. Public catalog API vẫn đọc MySQL và không phụ thuộc Elasticsearch/Kafka Connect.
-- Đây là hạ tầng phục vụ index/search pipeline, không phải read path của storefront hiện tại.
+```http
+GET /api/v1/permitall/products/search?q=running&categoryId=32000000-0000-0000-0000-000000000103&minPrice=500000&maxPrice=2000000&sort=price_asc&page=0&size=20
+```
+
+Response rút gọn:
+
+```json
+{
+  "items": [
+    {
+      "id": "product-id",
+      "sellerId": "seller-id",
+      "name": "Running Shoe",
+      "status": "ACTIVE",
+      "category": {
+        "id": "category-id",
+        "name": "Running Shoes",
+        "slug": "running-shoes"
+      },
+      "minPrice": 500000,
+      "maxPrice": 800000,
+      "totalQuantity": 12,
+      "activeVariantCount": 2,
+      "thumbnailUrl": "https://example.com/product.jpg",
+      "ratingAverage": 4.7,
+      "ratingCount": 12
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
+
+Query luôn filter product `status=ACTIVE`. Price filter và price sort chạy trên `variants` nested và chỉ tính variant `ACTIVE`, tránh cross-match giữa các variant. Sort luôn có `id` làm tie-breaker; `newest` dùng field search document `createdAt`.
+
+Do pipeline là CDC bất đồng bộ, các field `status`, `createdAt`, rating, category, ảnh, attributes và đặc biệt `variants.status/salePrice/quantity` có thể chậm hơn MySQL trong một khoảng ngắn. Document hiện chỉ có `sellerId`, không có trạng thái seller hoặc `sellerName`, nên API chưa thể search tên shop.
+
+Known limitation — epic `Seller Status Sync`: sản phẩm của seller bị suspend hiện vẫn có thể xuất hiện trong kết quả search cho đến khi `seller-service` publish event `SellerStatusChanged` và `catalog-service` consume để đồng bộ. Đây là rủi ro đã biết, được ghi nhận là epic riêng `Seller Status Sync`, chưa có timeline cụ thể. Root cause: `seller-service` hiện chỉ cập nhật status trong DB nội bộ `ecommerce_seller` và ghi `seller_status_history`, không có Kafka outbox/event nào để `catalog-service` consume.
+
+Kết quả verify Phase 1 ngày 23/09/2026:
+
+- Kafka Connect REST `8084`, Debezium source và Elasticsearch sink đều `RUNNING`; sink consumer lag bằng `0` sau reindex.
+- CDC thật qua Seller API đã pass các bước create, outbox, Debezium/Kafka, Elasticsearch và storefront search; update giá/nội dung cũng phản ánh đúng.
+- Bug inactive/delete đã được xử lý: Elasticsearch sink dùng `write.method=INSERT`, `key.converter=StringConverter`, `key.ignore=false` và `behavior.on.null.values=DELETE`. Cấu hình `UPSERT` cũ gây external-version conflict ở tombstone khi Kafka offset còn thấp, khiến lag vẫn bằng `0` nhưng document không bị xóa.
+- Reindex qua `POST /api/v1/admin/product-attributes/reindex` đưa index từ `0` lên đủ `4/4` product active, tập ID khớp MySQL và không còn document thiếu `createdAt`. Bốn record seed không có timestamp gốc trong MySQL nên dùng sentinel `createdAt=0`; sản phẩm tạo mới vẫn dùng epoch millis thật và đứng trước dữ liệu legacy khi sort `newest`.
+- API Elasticsearch là read path của trang danh sách/tìm kiếm `/san-pham` sau Phase 2; API MySQL cũ vẫn còn cho rollback và các consumer legacy.
+- Verify frontend Phase 2 ngày 23/09/2026 đã pass keyword, tổ hợp category/seller/price, price sort, pagination bằng URL, empty state và UI riêng cho `503`; sau smoke 503, Elasticsearch và search API đều hồi phục.
+
+Kết quả Phase 3 ngày 24/09/2026:
+
+- Mapping `products_v3` dùng `vi_search` (`standard` + `lowercase` + `asciifolding`) cho full text và `search_as_you_type` riêng cho autocomplete; mapping nested của attributes/variants/selections vẫn giữ nguyên.
+- Rebuild đã enqueue lại 4 product active từ MySQL. Script pause sink, reindex, đối chiếu 4/4 ID và core fields, đổi alias nguyên tử sang `products_v3`, rồi resume sink; `products_v2` còn nguyên 4 document để rollback.
+- Smoke API thật pass search không dấu (`giay chay` tìm được tên có dấu), typo (`giay chya`), highlight, category/shop/price/color facet, autocomplete và latency metric. Size facet nhận cả tên trục `Kích thước`, `Kích cỡ`, `size`.
+- PIT verify qua 4 trang pass: sau trang 1, một document chưa đọc bị xóa và một document mới được thêm vào live index; snapshot vẫn trả document đã xóa, không nhận document mới, đủ 4 ID unique và đóng PIT ở trang cuối.
+- `verify-products-index.ps1` pass bốn nested query contract và analyzer có/không dấu. `verify-products-consistency.ps1` đọc response Elasticsearch theo UTF-8 raw stream để tránh false positive mojibake của Windows PowerShell 5.
+- Aggregation bị giới hạn 50 bucket category/shop, 30 bucket color/size và 4 khoảng giá cố định. Với cardinality/lưu lượng lớn cần theo dõi latency, cân nhắc cache theo normalized query/filter và giảm bucket limit.
 
 ### 9.2. Email
 
@@ -841,7 +907,7 @@ Trạng thái port/process sau một phiên có thể thay đổi vì script E2E
 | 6 | Downstream/internal chỉ dựa network boundary | **Đã fix cho boundary local hiện tại** | `TrustedRequestFilter`, Feign internal credential, gateway strip header, discovery locator off; direct smoke `401`, discovery smoke `404` |
 | 7 | Suspend seller nhưng token cũ còn dùng được | **Đã fix cho seller route** | Gateway live-check seller `APPROVED` trên mỗi `/api/v1/seller/**`; token cũ sau suspend trả `403` |
 | 8 | Notification email public | **Đã fix** | Gateway yêu cầu `ADMIN`; downstream chỉ nhận gateway/internal credential; anonymous/direct smoke `401` |
-| 9 | Search pipeline không phải read path chính | **Vẫn đúng theo thiết kế hiện tại** | Public products đọc MySQL; E2E tắt Kafka Connect vẫn đọc được. Đây là giới hạn scale, không phải lỗi availability của storefront |
+| 9 | Search pipeline không phải read path chính | **Đã xử lý qua Phase 1–2** | `/api/v1/permitall/products/search` đọc alias `products`; trang FE `/san-pham` đã dùng API mới, còn API MySQL cũ vẫn giữ nguyên cho rollback/consumer legacy |
 | 10 | Contract/UX legacy và `.env.stage` sai | **Fix một phần** | `.env.stage` đã đúng `8080/6688`; các prefix/field/profile/cart/OAuth legacy bên dưới vẫn còn |
 
 ### 11.2. Distributed consistency và idempotency còn giới hạn
@@ -875,8 +941,11 @@ Trạng thái port/process sau một phiên có thể thay đổi vì script E2E
 
 ### 11.5. Search và hiệu năng
 
-- `GET /api/v1/permitall/products` tải danh sách product active từ MySQL rồi filter attribute/price, sort và phân trang trong application memory; nhiều bước còn query variants/attributes theo từng product. Cách này đúng chức năng nhưng không phù hợp catalog lớn.
-- Elasticsearch/outbox pipeline đã chạy được, nhưng chưa được dùng làm storefront read model và chưa có cơ chế fallback/read-switch chính thức.
+- `GET /api/v1/permitall/products` legacy vẫn tải danh sách product active từ MySQL rồi filter attribute/price, sort và phân trang trong application memory; nhiều bước còn query variants/attributes theo từng product.
+- `GET /api/v1/permitall/products/search` dùng Elasticsearch làm storefront read model và trang FE `/san-pham` đã chuyển sang API này trong Phase 2. API search cố ý trả `503` thay vì fallback âm thầm khi Elasticsearch lỗi; FE hiển thị thông báo tạm thời không khả dụng cùng nút thử lại.
+- Search dùng PIT + `search_after` qua `nextCursor`, có autocomplete/facet/highlight/analyzer tiếng Việt và fuzzy có kiểm soát. Shop facet hiện aggregate theo `sellerId` rồi FE ghép tên bằng batch API; search theo text tên shop vẫn chưa có vì catalog outbox chưa chứa `shopName`.
+- Search document chưa có `sellerStatus`; rủi ro seller suspended vẫn xuất hiện đã được chấp nhận tạm thời theo hướng B và theo dõi trong epic `Seller Status Sync`, chưa có timeline cụ thể.
+- Null/tombstone `ProductDeleted` đã được verify lại sau khi đổi sink từ `UPSERT` sang `INSERT`: inactive/delist xóa document khỏi Elasticsearch và kết quả search.
 - Chat là REST polling/state trong MySQL, chưa có WebSocket/realtime delivery.
 
 ### 11.6. Contract/UX legacy còn tồn tại

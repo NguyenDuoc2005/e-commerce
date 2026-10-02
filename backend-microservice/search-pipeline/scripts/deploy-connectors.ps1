@@ -1,13 +1,15 @@
 param(
     [string]$ConnectUrl = "http://localhost:8084",
     [string]$ElasticsearchUrl = "http://localhost:9200",
+    [string]$TargetIndex = "products_v3",
     [switch]$MigrateLegacyProductsIndex
 )
 
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$targetIndex = "products_v2"
+$targetIndex = $TargetIndex
 $searchAlias = "products"
+$mappingFile = if ($targetIndex -eq "products_v3") { "products-v3-index-mapping.json" } else { "products-index-mapping.json" }
 
 function Test-ElasticsearchPath {
     param([string]$Path)
@@ -59,9 +61,16 @@ if ($sinkValidation.error_count -gt 0) {
 }
 
 Write-Host "Ensuring $targetIndex index and $searchAlias alias..."
-$mapping = Get-Content -Raw -Path (Join-Path $root "elasticsearch\products-index-mapping.json")
+$mapping = Get-Content -Raw -Path (Join-Path $root "elasticsearch\$mappingFile")
 if (-not (Test-ElasticsearchPath $targetIndex)) {
     Invoke-RestMethod -Method Put -Uri "$ElasticsearchUrl/$targetIndex" -ContentType "application/json" -Body $mapping | Out-Null
+} else {
+    # Adding fields is a backward-compatible mapping update. Existing documents
+    # receive the new field when catalog re-enqueues ProductUpdated events.
+    $mappingDefinition = $mapping | ConvertFrom-Json
+    $mappingUpdate = $mappingDefinition.mappings | ConvertTo-Json -Depth 30
+    Invoke-RestMethod -Method Put -Uri "$ElasticsearchUrl/$targetIndex/_mapping" `
+        -ContentType "application/json" -Body $mappingUpdate | Out-Null
 }
 
 $activeMapping = Invoke-RestMethod -Method Get -Uri "$ElasticsearchUrl/$targetIndex/_mapping"
@@ -115,12 +124,8 @@ if ($null -eq $aliasState) {
     $aliasBody = @{ actions = @(@{ add = @{ index = $targetIndex; alias = $searchAlias; is_write_index = $true } }) } | ConvertTo-Json -Depth 5
     Invoke-RestMethod -Method Post -Uri "$ElasticsearchUrl/_aliases" -ContentType "application/json" -Body $aliasBody | Out-Null
 } elseif ($null -eq $aliasState.PSObject.Properties[$targetIndex]) {
-    $actions = @($aliasState.PSObject.Properties.Name | ForEach-Object {
-        @{ remove = @{ index = $_; alias = $searchAlias } }
-    })
-    $actions += @{ add = @{ index = $targetIndex; alias = $searchAlias; is_write_index = $true } }
-    $aliasBody = @{ actions = $actions } | ConvertTo-Json -Depth 6
-    Invoke-RestMethod -Method Post -Uri "$ElasticsearchUrl/_aliases" -ContentType "application/json" -Body $aliasBody | Out-Null
+    $currentIndices = $aliasState.PSObject.Properties.Name -join ", "
+    throw "Alias $searchAlias currently points to $currentIndices. Refusing to switch traffic to $targetIndex without rebuild and consistency checks. Run reindex-products-v3.ps1."
 }
 
 Write-Host "Deploying Debezium outbox source connector..."

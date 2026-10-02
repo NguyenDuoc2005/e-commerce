@@ -3,6 +3,13 @@
     "number_of_shards": 1,
     "number_of_replicas": 0,
     "analysis": {
+      "analyzer": {
+        "vi_search": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding"]
+        }
+      },
       "normalizer": {
         "lowercase_keyword": {
           "type": "custom",
@@ -12,6 +19,10 @@
     }
   },
   "mappings": {
+    "_meta": {
+      "schema_version": 3,
+      "description": "Vietnamese diacritic-insensitive full text, autocomplete and single-select facets"
+    },
     "dynamic": "strict",
     "properties": {
       "id": { "type": "keyword" },
@@ -19,17 +30,23 @@
       "sellerId": { "type": "keyword" },
       "name": {
         "type": "text",
+        "analyzer": "vi_search",
+        "search_analyzer": "vi_search",
         "fields": {
-          "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" }
+          "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" },
+          "autocomplete": { "type": "search_as_you_type", "analyzer": "vi_search", "max_shingle_size": 3 }
         }
       },
-      "description": { "type": "text" },
+      "description": { "type": "text", "analyzer": "vi_search", "search_analyzer": "vi_search" },
       "status": { "type": "keyword" },
       "categoryId": { "type": "keyword" },
       "categoryName": {
         "type": "text",
+        "analyzer": "vi_search",
+        "search_analyzer": "vi_search",
         "fields": {
-          "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" }
+          "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" },
+          "autocomplete": { "type": "search_as_you_type", "analyzer": "vi_search", "max_shingle_size": 3 }
         }
       },
       "categorySlug": { "type": "keyword", "normalizer": "lowercase_keyword" },
@@ -41,9 +58,9 @@
         "type": "nested",
         "properties": {
           "definitionId": { "type": "keyword" },
-          "name": { "type": "text" },
+          "name": { "type": "text", "analyzer": "vi_search" },
           "dataType": { "type": "keyword" },
-          "valueText": { "type": "text" },
+          "valueText": { "type": "text", "analyzer": "vi_search" },
           "valueNumber": { "type": "double" },
           "unit": { "type": "keyword", "normalizer": "lowercase_keyword" },
           "optionIds": { "type": "keyword" },

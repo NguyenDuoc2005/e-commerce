@@ -332,18 +332,27 @@ onBeforeUnmount(() => {
 
 const route = useRoute()
 const onMenuClick = (categoryId: string) => {
+  const currentKeyword = route.name === 'san-pham' && typeof route.query.q === 'string'
+    ? route.query.q.trim()
+    : ''
   router.push({
     path: '/san-pham',
-    query: { ...route.query, categoryId },
+    query: { ...(currentKeyword ? { q: currentKeyword } : {}), categoryId },
   })
 }
 
 const onSearch = () => {
+  const normalizedKeyword = keyword.value.trim()
   router.push({
     path: '/san-pham',
-    query: { ...route.query, keyword: keyword.value }
+    query: normalizedKeyword ? { q: normalizedKeyword } : {}
   })
 }
+
+watch(() => route.query.q, (value) => {
+  if (route.name !== 'san-pham') return
+  keyword.value = typeof value === 'string' ? value : ''
+}, { immediate: true })
 
 const goToLogin = () => { showDropdown.value = false; showSideMenu.value = false; window.location.href = '/login' }
 const goToRegister = () => { showDropdown.value = false; showSideMenu.value = false; window.location.href = '/register' }

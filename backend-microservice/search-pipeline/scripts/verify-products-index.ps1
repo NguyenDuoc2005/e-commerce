@@ -24,6 +24,9 @@ function New-SelectionQuery {
 
 $mapping = (Invoke-RestMethod -Method Get -Uri "$ElasticsearchUrl/$Index/_mapping").PSObject.Properties.Value.mappings
 if ($mapping.dynamic -ne "strict" `
+        -or $mapping._meta.schema_version -ne 3 `
+        -or $mapping.properties.name.analyzer -ne "vi_search" `
+        -or $mapping.properties.name.fields.autocomplete.type -ne "search_as_you_type" `
         -or $mapping.properties.attributes.type -ne "nested" `
         -or $mapping.properties.variants.type -ne "nested" `
         -or $mapping.properties.variants.properties.selections.type -ne "nested") {
@@ -82,6 +85,19 @@ $result = [ordered]@{
 
 if ($descriptiveMulti -ne 1 -or $crossVariant -ne 0 -or $sameVariant -ne 1 -or $categoryAndPrice -ne 1) {
     throw "Product index smoke query failed: $($result | ConvertTo-Json -Compress)"
+}
+
+$accentedText = ([string][char]0x0111) + "i" + ([string][char]0x1EC7) + "n tho" + ([string][char]0x1EA1) + "i"
+$accentedBody = @{ analyzer = "vi_search"; text = $accentedText } | ConvertTo-Json
+$plainBody = @{ analyzer = "vi_search"; text = "dien thoai" } | ConvertTo-Json
+$accented = Invoke-RestMethod -Method Post -Uri "$ElasticsearchUrl/$Index/_analyze" `
+    -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($accentedBody))
+$plain = Invoke-RestMethod -Method Post -Uri "$ElasticsearchUrl/$Index/_analyze" `
+    -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($plainBody))
+$accentedTokens = @($accented.tokens | ForEach-Object { $_.token }) -join "|"
+$plainTokens = @($plain.tokens | ForEach-Object { $_.token }) -join "|"
+if ($accentedTokens -ne $plainTokens) {
+    throw "Vietnamese accent folding contract failed: '$accentedTokens' != '$plainTokens'."
 }
 
 $result | ConvertTo-Json

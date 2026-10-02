@@ -6,152 +6,180 @@
     </div>
 
     <div class="filter-section">
-      <label>Danh mục</label>
-      <select v-model="categoryId" class="form-select form-select-sm" @change="changeCategory">
+      <label for="product-category-filter">Danh mục</label>
+      <select id="product-category-filter" v-model="categoryId" class="form-select form-select-sm" @change="emitFilters">
         <option value="">Tất cả danh mục</option>
         <option v-for="category in categories" :key="category.id" :value="category.id" :disabled="category.disabled">
-          {{ category.label }}
+          {{ category.label }}{{ facetCount('categories', category.id) !== undefined ? ` (${facetCount('categories', category.id)})` : '' }}
         </option>
       </select>
-      <small class="filter-hint">Chọn danh mục cuối để tải đúng bộ lọc ngành hàng.</small>
+      <small v-if="categoryError" class="filter-error">{{ categoryError }}</small>
+    </div>
+
+    <div class="filter-section">
+      <label for="product-seller-filter">Gian hàng</label>
+      <select id="product-seller-filter" v-model="sellerId" class="form-select form-select-sm" @change="emitFilters">
+        <option value="">Tất cả gian hàng</option>
+        <option v-if="sellerId && !sellers.some(seller => seller.id === sellerId)" :value="sellerId">
+          Gian hàng đã chọn
+        </option>
+        <option v-for="seller in sellers" :key="seller.id" :value="seller.id">
+          {{ seller.shopName }}{{ facetCount('shops', seller.id) !== undefined ? ` (${facetCount('shops', seller.id)})` : '' }}
+        </option>
+      </select>
+      <small v-if="sellerError" class="filter-error">{{ sellerError }}</small>
     </div>
 
     <div class="filter-section">
       <div class="section-title">Khoảng giá</div>
       <div class="range-grid">
-        <input v-model.number="priceMin" class="form-control form-control-sm" type="number" min="0" placeholder="Từ" @change="emitFilters" />
-        <input v-model.number="priceMax" class="form-control form-control-sm" type="number" min="0" placeholder="Đến" @change="emitFilters" />
+        <input v-model.number="minPrice" class="form-control form-control-sm" type="number" min="0" placeholder="Từ" @change="emitFilters" />
+        <input v-model.number="maxPrice" class="form-control form-control-sm" type="number" min="0" placeholder="Đến" @change="emitFilters" />
+      </div>
+      <div v-if="facets.priceRanges.length" class="facet-pills">
+        <button v-for="range in facets.priceRanges" :key="range.key" type="button" @click="applyPriceRange(range.from, range.to)">
+          {{ priceRangeLabel(range.from, range.to) }} ({{ range.count }})
+        </button>
       </div>
     </div>
 
-    <div v-if="loading" class="filter-loading">Đang tải bộ lọc động…</div>
-    <div v-else-if="filterError" class="filter-error">{{ filterError }}</div>
-    <template v-else>
-      <div v-for="filter in dynamicFilters" :key="filter.definitionId" class="filter-section dynamic-filter">
-        <div class="section-title">
-          {{ filter.name }}
-          <small v-if="filter.defaultUnit">({{ filter.defaultUnit }})</small>
-        </div>
-        <div v-if="filter.dataType === 'NUMBER'" class="range-grid">
-          <input v-model.number="selection(filter.definitionId).min" class="form-control form-control-sm" type="number" placeholder="Từ" @change="emitFilters" />
-          <input v-model.number="selection(filter.definitionId).max" class="form-control form-control-sm" type="number" placeholder="Đến" @change="emitFilters" />
-        </div>
-        <input
-          v-else-if="filter.dataType === 'TEXT'"
-          v-model="selection(filter.definitionId).text"
-          class="form-control form-control-sm"
-          :placeholder="`Nhập ${filter.name.toLocaleLowerCase('vi')}`"
-          @change="emitFilters"
-        />
-        <label v-for="option in filter.options || []" v-else :key="option.id" class="option-row">
-          <input
-            v-model="selection(filter.definitionId).values"
-            type="checkbox"
-            :value="option.resolvedOptionId || option.id"
-            @change="emitFilters"
-          />
-          <span>{{ option.value }}</span>
-        </label>
-        <small v-if="filter.dataType.startsWith('SELECT') && !filter.options?.length" class="filter-hint">Chưa có giá trị để lọc.</small>
-      </div>
-      <div v-if="categoryId && !dynamicFilters.length" class="filter-loading">Danh mục này chưa cấu hình thuộc tính dùng để lọc.</div>
-    </template>
+    <div v-if="facets.colors.length" class="filter-section">
+      <label for="product-color-filter">Màu sắc</label>
+      <select id="product-color-filter" v-model="color" class="form-select form-select-sm" @change="emitFilters">
+        <option value="">Tất cả màu</option>
+        <option v-for="item in facets.colors" :key="item.value" :value="item.value">{{ item.value }} ({{ item.count }})</option>
+      </select>
+    </div>
+
+    <div v-if="facets.sizes.length" class="filter-section">
+      <label for="product-size-filter">Kích thước</label>
+      <select id="product-size-filter" v-model="sizeValue" class="form-select form-select-sm" @change="emitFilters">
+        <option value="">Tất cả kích thước</option>
+        <option v-for="item in facets.sizes" :key="item.value" :value="item.value">{{ item.value }} ({{ item.count }})</option>
+      </select>
+    </div>
+
+    <div v-if="loading" class="filter-loading">Đang tải bộ lọc…</div>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { getCategoryFilters, getCategoryTree } from '@/services/api/catalog/catalog.api'
+import { computed, onMounted, ref, watch } from 'vue'
+import { getCategoryTree } from '@/services/api/catalog/catalog.api'
+import { getPublicShops, type SellerResponse } from '@/services/api/seller/seller.api'
+import type { ProductSearchFacets } from '@/services/api/catalog/catalog.api'
 
-type Selection = { values: string[]; text?: string; min?: number; max?: number }
-type DynamicFilter = {
-  definitionId: string
-  name: string
-  dataType: 'TEXT' | 'NUMBER' | 'SELECT_ONE' | 'SELECT_MULTI'
-  defaultUnit?: string
-  filterable: boolean
-  options: Array<{ id: string; value: string; resolvedOptionId?: string }>
-}
-type CategoryOption = { id: string; label: string; disabled: boolean }
-type FilterPayload = {
+interface ProductFilterState {
   categoryId?: string
-  attributeFilters: Record<string, { values: string[]; min?: number; max?: number }>
-  giaTu?: number
-  giaDen?: number
+  sellerId?: string
+  color?: string
+  sizeValue?: string
+  minPrice?: number
+  maxPrice?: number
 }
 
-const props = defineProps<{ initialCategoryId?: string }>()
-const emit = defineEmits<{ filter: [value: FilterPayload] }>()
+type CategoryOption = { id: string; label: string; disabled: boolean }
+
+const props = defineProps<{
+  modelValue: ProductFilterState
+  facets: ProductSearchFacets
+}>()
+
+const emit = defineEmits<{
+  'update:modelValue': [value: ProductFilterState]
+}>()
+
 const categories = ref<CategoryOption[]>([])
-const categoryId = ref(props.initialCategoryId || '')
-const dynamicFilters = ref<DynamicFilter[]>([])
-const selections = reactive<Record<string, Selection>>({})
-const priceMin = ref<number>()
-const priceMax = ref<number>()
+const sellers = ref<SellerResponse[]>([])
+const categoryId = ref('')
+const sellerId = ref('')
+const color = ref('')
+const sizeValue = ref('')
+const minPrice = ref<number>()
+const maxPrice = ref<number>()
 const loading = ref(false)
-const filterError = ref('')
+const categoryError = ref('')
+const sellerError = ref('')
 
-const active = computed(() => Object.fromEntries(Object.entries(selections).flatMap(([id, item]) => {
-  const values = item.text?.trim() ? [item.text.trim()] : item.values
-  if (!values.length && item.min === undefined && item.max === undefined) return []
-  return [[id, { values, min: item.min, max: item.max }]]
-})))
-const hasFilters = computed(() => Boolean(categoryId.value || priceMin.value !== undefined || priceMax.value !== undefined || Object.keys(active.value).length))
-const selection = (id: string) => selections[id] || (selections[id] = { values: [] })
+const hasFilters = computed(() => Boolean(
+  categoryId.value
+  || sellerId.value
+  || color.value
+  || sizeValue.value
+  || minPrice.value !== undefined
+  || maxPrice.value !== undefined
+))
 
-const emitFilters = () => emit('filter', {
+const syncFromProps = (value: ProductFilterState) => {
+  categoryId.value = value.categoryId || ''
+  sellerId.value = value.sellerId || ''
+  color.value = value.color || ''
+  sizeValue.value = value.sizeValue || ''
+  minPrice.value = value.minPrice
+  maxPrice.value = value.maxPrice
+}
+
+const emitFilters = () => emit('update:modelValue', {
   categoryId: categoryId.value || undefined,
-  attributeFilters: active.value,
-  giaTu: priceMin.value,
-  giaDen: priceMax.value
+  sellerId: sellerId.value || undefined,
+  color: color.value || undefined,
+  sizeValue: sizeValue.value || undefined,
+  minPrice: minPrice.value,
+  maxPrice: maxPrice.value
 })
 
-const clearDynamicSelections = () => Object.keys(selections).forEach(key => delete selections[key])
-
-const changeCategory = async () => {
-  dynamicFilters.value = []
-  clearDynamicSelections()
-  filterError.value = ''
-  if (categoryId.value) {
-    loading.value = true
-    try {
-      const suggestions = await getCategoryFilters(categoryId.value)
-      dynamicFilters.value = suggestions.filter((item: DynamicFilter) => item.filterable)
-    } catch (error: any) {
-      filterError.value = error?.response?.data?.message || 'Không tải được bộ lọc của danh mục.'
-    } finally {
-      loading.value = false
-    }
-  }
+const reset = () => {
+  categoryId.value = ''
+  sellerId.value = ''
+  color.value = ''
+  sizeValue.value = ''
+  minPrice.value = undefined
+  maxPrice.value = undefined
   emitFilters()
 }
 
-const reset = async () => {
-  categoryId.value = ''
-  priceMin.value = undefined
-  priceMax.value = undefined
-  await changeCategory()
+const facetCount = (facet: 'categories' | 'shops', value: string) =>
+  props.facets[facet].find(item => item.value === value)?.count
+
+const priceRangeLabel = (from?: number, to?: number) => {
+  if (from == null) return `Dưới ${Number(to).toLocaleString('vi-VN')} ₫`
+  if (to == null) return `Từ ${Number(from).toLocaleString('vi-VN')} ₫`
+  return `${Number(from).toLocaleString('vi-VN')}–${Number(to).toLocaleString('vi-VN')} ₫`
 }
 
-watch(() => props.initialCategoryId, async (value) => {
-  const nextCategoryId = value || ''
-  if (nextCategoryId === categoryId.value) return
-  categoryId.value = nextCategoryId
-  await changeCategory()
-})
+const applyPriceRange = (from?: number, to?: number) => {
+  minPrice.value = from
+  maxPrice.value = to
+  emitFilters()
+}
+
+watch(() => props.modelValue, syncFromProps, { immediate: true, deep: true })
 
 onMounted(async () => {
+  loading.value = true
   const flatten = (nodes: any[], prefix = ''): CategoryOption[] => nodes.flatMap(node => {
     const children = node.children || node.childCategories || []
     const label = prefix ? `${prefix} / ${node.name}` : node.name
-    return [{ id: node.id, label, disabled: children.length > 0 }, ...flatten(children, label)]
+    return [{ id: String(node.id), label, disabled: children.length > 0 }, ...flatten(children, label)]
   })
-  try {
-    categories.value = flatten(await getCategoryTree())
-    if (categoryId.value) await changeCategory()
-  } catch {
-    filterError.value = 'Không tải được cây danh mục.'
+
+  const [categoryResult, sellerResult] = await Promise.allSettled([
+    getCategoryTree(),
+    getPublicShops()
+  ])
+
+  if (categoryResult.status === 'fulfilled') {
+    categories.value = flatten(categoryResult.value)
+  } else {
+    categoryError.value = 'Không tải được cây danh mục.'
   }
+
+  if (sellerResult.status === 'fulfilled') {
+    sellers.value = sellerResult.value.data ?? []
+  } else {
+    sellerError.value = 'Không tải được danh sách gian hàng.'
+  }
+  loading.value = false
 })
 </script>
 
@@ -162,10 +190,9 @@ onMounted(async () => {
 .clear-button { border: 0; background: transparent; color: #dc2626; }
 .filter-section { padding: 14px; border-bottom: 1px solid #e5e7eb; }
 .filter-section label, .section-title { display: block; margin-bottom: 8px; font-weight: 700; font-size: 13px; }
-.section-title small { color: #64748b; font-weight: 500; }
 .range-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.option-row { display: flex !important; gap: 8px; margin: 7px 0; font-weight: 400 !important; }
-.filter-loading, .filter-error { padding: 14px; color: #64748b; font-size: 13px; }
-.filter-error { color: #b91c1c; }
-.filter-hint { display: block; margin-top: 7px; color: #64748b; font-size: 11px; }
+.facet-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.facet-pills button { border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; padding: 4px 8px; color: #475569; font-size: 11px; }
+.filter-loading, .filter-error { display: block; padding: 8px 14px; color: #64748b; font-size: 12px; }
+.filter-error { padding: 7px 0 0; color: #b91c1c; }
 </style>

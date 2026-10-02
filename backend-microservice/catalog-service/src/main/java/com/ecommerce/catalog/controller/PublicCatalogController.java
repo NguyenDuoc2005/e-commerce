@@ -1,11 +1,14 @@
 package com.ecommerce.catalog.controller;
 
 import com.ecommerce.catalog.constant.EntityStatus;
+import com.ecommerce.catalog.model.request.ElasticsearchProductSearchRequest;
 import com.ecommerce.catalog.model.request.ProductSearchRequest;
 import com.ecommerce.catalog.service.CatalogProductService;
+import com.ecommerce.catalog.search.ElasticsearchProductSearchService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,10 +18,28 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/permitall")
 public class PublicCatalogController {
     private final CatalogProductService service;
-    public PublicCatalogController(CatalogProductService service) { this.service = service; }
+    private final ElasticsearchProductSearchService searchService;
+    public PublicCatalogController(CatalogProductService service, ElasticsearchProductSearchService searchService) {
+        this.service = service;
+        this.searchService = searchService;
+    }
 
     @GetMapping("/products")
     public Object products(ProductSearchRequest request) { return service.publicProducts(request); }
+
+    @GetMapping("/products/search")
+    public Object search(ElasticsearchProductSearchRequest request) { return searchService.search(request); }
+
+    @GetMapping("/products/search/autocomplete")
+    public Object autocomplete(@RequestParam String q,
+                               @RequestParam(defaultValue = "8") int size) {
+        return searchService.autocomplete(q, size);
+    }
+
+    @DeleteMapping("/products/search/pit")
+    public Object closeSearchPit(@RequestParam String cursor) {
+        return java.util.Map.of("closed", searchService.closePointInTime(cursor));
+    }
 
     @GetMapping("/products/{id}")
     public Object detail(@PathVariable String id) {

@@ -68,7 +68,7 @@ public class CartServiceImpl implements CartService {
         String existingCartDetailId = cartRepository.checkChungSp(cart.getId(), req.getIdSPCT());
         if (existingCartDetailId == null) {
             CartDetail cartDetail = new CartDetail();
-            cartDetail.setPrice(productVariant.salePrice().doubleValue() * quantity);
+            cartDetail.setPrice(Double.parseDouble(req.getPrice()) * quantity);
             cartDetail.setCart(cart);
             cartDetail.setProductVariantId(req.getIdSPCT());
             cartDetail.setQuantity(quantity);

@@ -61,7 +61,7 @@ public class CartServiceImpl implements CartService {
         CatalogVariantSnapshot productVariant = findBySPCT(req.getIdSPCT());
         int quantity = Integer.parseInt(req.getQuantity());
 
-        if (productVariant.quantity() < quantity) {
+        if (productVariant.quantity() <= quantity) {
             return new ResponseObject<>().success("So luong san pham khong du");
         }
 

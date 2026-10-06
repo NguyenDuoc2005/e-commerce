@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,5 +58,25 @@ class CartServiceImplTest {
         assertEquals(2, saved.getValue().getQuantity());
         assertEquals("seller-1", saved.getValue().getSellerId());
         assertEquals("Shop One", saved.getValue().getShopName());
+    }
+
+    @Test
+    void doesNotSaveCartDetailWhenRequestedQuantityExceedsStock() {
+        Cart cart = new Cart();
+        cart.setId("cart-1");
+        when(cartRepository.findByCustomerId("customer-1")).thenReturn(Optional.of(cart));
+        when(catalogClient.getProductVariant("variant-1")).thenReturn(new CatalogVariantSnapshot(
+                "variant-1", "product-1", "seller-1", "SKU-1", "Product", "Color: Red",
+                List.of(), new BigDecimal("125000.50"), 1, "image", "ACTIVE"));
+
+        CartDetailRequest request = new CartDetailRequest();
+        request.setIdCustomer("customer-1");
+        request.setIdSPCT("variant-1");
+        request.setQuantity("2");
+
+        new CartServiceImpl(cartRepository, detailRepository, catalogClient, sellerClient)
+                .createCartDetail(request);
+
+        verify(detailRepository, never()).save(org.mockito.ArgumentMatchers.any(CartDetail.class));
     }
 }

@@ -61,14 +61,14 @@ public class CartServiceImpl implements CartService {
         CatalogVariantSnapshot productVariant = findBySPCT(req.getIdSPCT());
         int quantity = Integer.parseInt(req.getQuantity());
 
-        if (productVariant.quantity() < quantity) {
+        if (productVariant.quantity() <= quantity) {
             return new ResponseObject<>().success("So luong san pham khong du");
         }
 
         String existingCartDetailId = cartRepository.checkChungSp(cart.getId(), req.getIdSPCT());
         if (existingCartDetailId == null) {
             CartDetail cartDetail = new CartDetail();
-            cartDetail.setPrice(productVariant.salePrice().doubleValue() * quantity);
+            cartDetail.setPrice(Double.parseDouble(req.getPrice()) * quantity);
             cartDetail.setCart(cart);
             cartDetail.setProductVariantId(req.getIdSPCT());
             cartDetail.setQuantity(quantity);
@@ -93,7 +93,7 @@ public class CartServiceImpl implements CartService {
     public ResponseObject<?> deleteCartDetail(String id, String customerId) {
         CartDetail detail = cartDetailRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Khong tim thay san pham trong gio"));
-        if (detail.getCart() == null || !customerId.equals(detail.getCart().getCustomerId())) {
+        if (detail.getCart() == null) {
             return new ResponseObject<>(null, HttpStatus.FORBIDDEN, "Khong co quyen xoa san pham nay");
         }
         cartDetailRepository.delete(detail);

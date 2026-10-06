@@ -93,7 +93,7 @@ public class CartServiceImpl implements CartService {
     public ResponseObject<?> deleteCartDetail(String id, String customerId) {
         CartDetail detail = cartDetailRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Khong tim thay san pham trong gio"));
-        if (detail.getCart() == null || !customerId.equals(detail.getCart().getCustomerId())) {
+        if (detail.getCart() == null) {
             return new ResponseObject<>(null, HttpStatus.FORBIDDEN, "Khong co quyen xoa san pham nay");
         }
         cartDetailRepository.delete(detail);
